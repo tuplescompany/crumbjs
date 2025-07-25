@@ -1,0 +1,32 @@
+{
+	"name": "@crumbjs/core",
+	"version": "0.0.10",
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist"
+	],
+	"license": "MIT",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"module": "src/index.ts",
+	"type": "module",
+	"scripts": {
+		"build": "tsc",
+		"format": "prettier --write .",
+		"format:check": "prettier --check ."
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"dotenv": "^17.2.1",
+		"prettier": "^3.6.2"
+	},
+	"peerDependencies": {
+		"typescript": "^5.8.3",
+		"@asteasolutions/zod-to-openapi": "^8.0.0"
+	},
+	"dependencies": {
+		"zod": "^4.0.5"
+	}
+}
