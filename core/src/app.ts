@@ -1,17 +1,7 @@
-import type {
-	APIConfig,
-	AppOptions,
-	Handler,
-	HandlerWithoutBody,
-	Method,
-	Middleware,
-	OnStart,
-	Route,
-	RouteConfig,
-	RouteConfigWithoutBody,
-} from './types';
+import type { APIConfig, AppOptions, Handler, Method, Middleware, OnStart, Route, RouteConfig } from './types';
 import { Compiler } from './compiler';
 import { ZodObject } from 'zod';
+import { buildPath } from './utils';
 
 export class App {
 	public options: AppOptions;
@@ -46,7 +36,7 @@ export class App {
 		if (usable instanceof App) {
 			this.routes = this.routes.concat(
 				usable.getRoutes().map((child) => ({
-					paths: [this.options.prefix, ...child.paths],
+					pathParts: [this.options.prefix, ...child.pathParts],
 					method: child.method,
 					handler: child.handler,
 					config: child.config,
@@ -84,7 +74,7 @@ export class App {
 
 	private add(method: Method, path: string, handler: Handler<any, any, any, any>, config?: RouteConfig<any, any, any, any>) {
 		this.routes.push({
-			paths: [this.options.prefix, path],
+			pathParts: [this.options.prefix, path],
 			method,
 			handler,
 			config: config ?? {},
@@ -95,7 +85,7 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		PARAMS extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
-	>(path: string, handler: HandlerWithoutBody<QUERY, PARAMS, HEADERS>, config?: RouteConfigWithoutBody<QUERY, PARAMS, HEADERS>) {
+	>(path: string, handler: Handler<undefined, QUERY, PARAMS, HEADERS>, config?: RouteConfig<undefined, QUERY, PARAMS, HEADERS>) {
 		this.add('GET', path, handler, config);
 		return this;
 	}
@@ -144,7 +134,7 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		PARAMS extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
-	>(path: string, handler: HandlerWithoutBody<QUERY, PARAMS, HEADERS>, config?: RouteConfigWithoutBody<QUERY, PARAMS, HEADERS>) {
+	>(path: string, handler: Handler<undefined, QUERY, PARAMS, HEADERS>, config?: RouteConfig<undefined, QUERY, PARAMS, HEADERS>) {
 		this.add('HEAD', path, handler, config);
 		return this;
 	}

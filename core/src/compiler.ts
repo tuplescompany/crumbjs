@@ -8,6 +8,8 @@ import { z } from './zod-ext';
 import { Exception } from './exception';
 import { OpenApi, type RegistryMethod } from './openapi/openapi';
 import { swaggerUIResponse } from './openapi/openapi-ui';
+import prettier from 'prettier';
+import { ZodObject } from 'zod';
 
 const defaultApiConfig: APIConfig = {
 	port: 8080,
@@ -163,6 +165,46 @@ export class Compiler {
 		};
 	}
 
+	async compileAppDefinition() {
+		const def: any = {};
+		const routes = this.app.getRoutes();
+		for (const route of routes) {
+			const { pathParts, method, config } = route;
+
+			const path = this.buildPath(...pathParts);
+
+			if (!def[path]) def[path] = {};
+			if (!def[path][method]) def[path][method] = {};
+
+			const requestSchema = z.object({
+				body: config.body instanceof ZodObject ? config.body : z.unknown().optional(),
+				params: config.params instanceof ZodObject ? config.params : z.unknown().optional(),
+				query: config.query instanceof ZodObject ? config.query : z.unknown().optional(),
+				headers: config.headers instanceof ZodObject ? config.headers : z.unknown().optional(),
+			});
+
+			def[path][method].req = z.toJSONSchema(requestSchema);
+			def[path][method].res = {};
+
+			if (config.responses) {
+				for (const [status, schema] of Object.entries(config.responses)) {
+					def[path][method].res[status] = z.toJSONSchema(schema);
+				}
+			}
+		}
+
+		const definitionFile = `export const api = ${JSON.stringify(def)} as const;\n`;
+		const formatted = await prettier.format(definitionFile, {
+			parser: 'typescript',
+			semi: true,
+			singleQuote: true,
+			trailingComma: 'all',
+		});
+		await Bun.write('api.definition.ts', formatted);
+
+		return def;
+	}
+
 	/**
 	 * Compiles the application's route definitions into a Bun-compatible route map.
 	 *
@@ -181,11 +223,12 @@ export class Compiler {
 			: null;
 
 		let compiled: BunRoutes = {};
+
 		const routes = this.app.getRoutes();
 		for (const route of routes) {
-			const { paths, method, handler, config } = route;
+			const { pathParts, method, handler, config } = route;
 
-			const fullPath = this.buildPath(...paths);
+			const fullPath = this.buildPath(...pathParts);
 			compiled[fullPath] = {
 				...compiled[fullPath], // conserva otros métodos (POST, PUT, etc)
 				[method]: this.createHandler(handler, config, apiConfig.errorHandler),
@@ -218,17 +261,33 @@ export class Compiler {
 		 */
 		if (openApi) {
 			const documentPath = this.buildPath(apiConfig.openapi.basePath, '/document.json');
+
+			const openApiDocument = openApi.getDocument();
+
+			const writeOpenapi = async () => {
+				const openApiFile = `export const apiDocs = ${JSON.stringify(openApiDocument)} as const;\n`;
+				const formatted = await prettier.format(openApiFile, {
+					parser: 'typescript',
+					semi: true,
+					singleQuote: true,
+					trailingComma: 'all',
+				});
+
+				await Bun.write('openapi-spec.ts', formatted);
+			};
+
+			writeOpenapi();
+
 			compiled[documentPath] = {
 				GET: async () => openApi.getResponse(),
 			};
-
-			console.log(`${new Date().toISOString()} [GET] ${documentPath} route registered`);
 
 			const swaggerUiPath = this.buildPath(apiConfig.openapi.basePath, '/swagger-ui');
 			compiled[swaggerUiPath] = {
 				GET: async () => swaggerUIResponse(documentPath),
 			};
 
+			console.log(`${new Date().toISOString()} [GET] ${documentPath} route registered`);
 			console.log(`${new Date().toISOString()} [GET] ${swaggerUiPath} route registered`);
 		}
 
@@ -278,9 +337,11 @@ export class Compiler {
 			trigger();
 		}
 
+		const compiled = this.compileServerRoutes(apiConfig);
+
 		return Bun.serve({
 			port: apiConfig.port,
-			routes: this.compileServerRoutes(apiConfig),
+			routes: compiled,
 			// Not found handler
 			fetch(req) {
 				return apiConfig.notFoundHandler(req);

@@ -48,24 +48,12 @@ export type Context<
 	headers: InferOrAny<HEADERS>;
 } & RootContext;
 
-export type ContextWithoutBody<
-	QUERY extends ZodObject | undefined,
-	PARAMS extends ZodObject | undefined,
-	HEADERS extends ZodObject | undefined,
-> = Omit<Context<undefined, QUERY, PARAMS, HEADERS>, 'body'>;
-
 export type Handler<
 	BODY extends ZodObject | undefined,
 	QUERY extends ZodObject | undefined,
 	PARAMS extends ZodObject | undefined,
 	HEADERS extends ZodObject | undefined,
 > = (input: Context<BODY, QUERY, PARAMS, HEADERS>) => HandlerReturn;
-
-export type HandlerWithoutBody<
-	QUERY extends ZodObject | undefined,
-	PARAMS extends ZodObject | undefined,
-	HEADERS extends ZodObject | undefined,
-> = (input: ContextWithoutBody<QUERY, PARAMS, HEADERS>) => HandlerReturn;
 
 export type RouteConfig<
 	BODY extends ZodObject | undefined = undefined,
@@ -89,12 +77,6 @@ export type RouteConfig<
 		operationId: string;
 	}>;
 };
-
-export type RouteConfigWithoutBody<
-	QUERY extends ZodObject | undefined,
-	PARAMS extends ZodObject | undefined,
-	HEADERS extends ZodObject | undefined,
-> = Omit<RouteConfig<undefined, QUERY, PARAMS, HEADERS>, 'body'>;
 
 export type APIConfig = {
 	/**
@@ -181,8 +163,8 @@ export type AppOptions = {
 };
 
 export type Route = {
-	paths: string[];
+	pathParts: string[];
 	method: Method;
-	handler: Handler<any, any, any, any> | HandlerWithoutBody<any, any, any>;
-	config: RouteConfig<any, any, any, any> | RouteConfigWithoutBody<any, any, any>;
+	handler: Handler<any, any, any, any>;
+	config: RouteConfig<any, any, any, any>;
 };

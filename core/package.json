@@ -1,6 +1,6 @@
 {
 	"name": "@crumbjs/core",
-	"version": "0.0.10",
+	"version": "0.0.11",
 	"publishConfig": {
 		"access": "public"
 	},
@@ -23,10 +23,11 @@
 		"prettier": "^3.6.2"
 	},
 	"peerDependencies": {
-		"typescript": "^5.8.3",
-		"@asteasolutions/zod-to-openapi": "^8.0.0"
+		"typescript": "^5.8.3"
 	},
 	"dependencies": {
+		"@asteasolutions/zod-to-openapi": "^8.0.0",
+		"json-schema-to-typescript": "^15.0.4",
 		"zod": "^4.0.5"
 	}
 }

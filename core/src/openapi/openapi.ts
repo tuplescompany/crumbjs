@@ -104,6 +104,10 @@ export class OpenApi {
 		return operationId;
 	}
 
+	private toOpenApiPath(path: string): string {
+		return path.replace(/:([^/]+)/g, '{$1}');
+	}
+
 	register(route: OpenApiRoute) {
 		// Determine security scheme
 		let security;
@@ -120,7 +124,7 @@ export class OpenApi {
 			summary: route.summary,
 			description: route.description,
 			method: route.method,
-			path: route.path,
+			path: this.toOpenApiPath(route.path),
 			request: {
 				...this.getBody(route),
 				...this.getParameter(route, 'params'),
