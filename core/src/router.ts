@@ -9,11 +9,11 @@ import { OpenApi, type RegistryMethod } from './openapi/openapi';
 import { swaggerUIResponse } from './openapi/openapi-ui';
 import { CookieBuilder } from './context/cookie-builder';
 import { buildPath } from './utils';
-import { z, flattenError, ZodObject, config as ZodConfig } from 'zod';
+import z, { flattenError, ZodObject, config as ZodConfig } from 'zod';
 import { BadRequest, InternalServerError } from './exception/http.exception';
-import { extend } from '.';
+import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 
-extend(z);
+extendZodWithOpenApi(z);
 
 const defaultApiConfig: APIConfig = {
 	port: 8080,

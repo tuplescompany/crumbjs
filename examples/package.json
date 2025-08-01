@@ -10,7 +10,7 @@
 		"typescript": "^5"
 	},
 	"dependencies": {
-		"@crumbjs/core": "0.0.24",
+		"@crumbjs/core": "0.0.26",
 		"dotenv": "^17.2.1"
 	}
 }
