@@ -1,16 +1,16 @@
 {
-  "name": "examples",
-  "module": "index.ts",
-  "type": "module",
-  "private": true,
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "@crumbjs/core": "0.0.11",
-    "dotenv": "^17.2.1"
-  }
+	"name": "examples",
+	"module": "index.ts",
+	"type": "module",
+	"private": true,
+	"devDependencies": {
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"@crumbjs/core": "0.0.24",
+		"dotenv": "^17.2.1"
+	}
 }

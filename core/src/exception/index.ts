@@ -4,29 +4,45 @@
 export type ExceptionType = {
 	status: number;
 	message: string;
-	detail?: any;
+	invalidFields?: any;
+	debug?: any;
 };
 
 export class Exception extends Error {
 	constructor(
 		message: string,
-		public readonly status: number,
-		public readonly detail?: any,
+		public status: number,
+		public invalidFields?: any,
 	) {
 		super(message);
+	}
+
+	getDebug(): any {
+		return process.env.NODE_ENV !== 'production'
+			? {
+					debug: {
+						name: this.name,
+						stack: this.stack,
+						cause: this.cause,
+					},
+				}
+			: null;
 	}
 
 	toObject(): ExceptionType {
 		return {
 			status: this.status,
 			message: this.message,
-			detail: this.detail,
+			invalidFields: this.invalidFields,
+			...this.getDebug(),
 		};
 	}
 
 	toHtml(): string {
 		const title = `<b>${this.message} (${this.status})</b>`;
-		const detail = this.detail ? `<pre><small>${JSON.stringify(this.detail, null, 2)}</small></pre>` : '';
+
+		const withDebug = this.getDebug();
+		const detail = withDebug ? `<pre><small>${JSON.stringify(withDebug, null, 2)}</small></pre>` : '';
 
 		return `${title}<br/>${detail}`;
 	}
@@ -35,7 +51,7 @@ export class Exception extends Error {
 	 * Convert ExceptionType object to an Exception instance
 	 */
 	static from(ex: ExceptionType) {
-		return new Exception(ex.message, ex.status, ex.detail);
+		return new Exception(ex.message, ex.status, ex.invalidFields);
 	}
 
 	/**
@@ -44,17 +60,16 @@ export class Exception extends Error {
 	static parse(error: unknown, statusCode: number = 500): Exception {
 		const defaultMessage = '¡Opps! Ocurrió un error';
 		const defaultCode = statusCode;
-		const defaultDetail: any = {};
 
 		if (typeof error === 'string') {
-			return new Exception(error, defaultCode, defaultDetail);
+			return new Exception(error, defaultCode);
 		}
 
 		if (error && typeof error === 'object') {
 			return new ExceptionObjectParser(error).parse();
 		}
 
-		return new Exception(defaultMessage, defaultCode, defaultDetail);
+		return new Exception(defaultMessage, defaultCode);
 	}
 }
 
@@ -80,12 +95,11 @@ class ExceptionObjectParser {
 		return this.pick<number>('status', 'number') || this.pick<number>('code', 'number') || 500;
 	}
 
-	private resolveDetail(): any {
-		if (!this.isValidObject(this.err)) return {};
-		return this.pick<object>('response', 'object') ?? this.err['detail'] ?? {};
+	private resolveInvalidFields(): any {
+		return this.pick<object>('invalidFields', 'object') ?? {};
 	}
 
 	parse(): Exception {
-		return new Exception(this.resolveMessage(), this.resolveCode(), this.resolveDetail());
+		return new Exception(this.resolveMessage(), this.resolveCode(), this.resolveInvalidFields());
 	}
 }

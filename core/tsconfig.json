@@ -10,17 +10,8 @@
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
 		"declaration": true,
-		"lib": [
-			"es2022",
-			"DOM"
-		]
+		"lib": ["es2022", "DOM"]
 	},
-	"include": [
-		"src/**/*.ts"
-	],
-	"exclude": [
-		"node_modules",
-		"src/tests",
-		"src/hot"
-	]
+	"include": ["src/**/*.ts"],
+	"exclude": ["node_modules", "src/tests", "src/hot", "src/client"]
 }

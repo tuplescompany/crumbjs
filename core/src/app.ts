@@ -1,7 +1,7 @@
 import type { APIConfig, AppOptions, Handler, Method, Middleware, OnStart, Route, RouteConfig } from './types';
-import { Compiler } from './compiler';
+import { Router } from './router';
 import { ZodObject } from 'zod';
-import { buildPath } from './utils';
+import { Exception } from './exception';
 
 export class App {
 	public options: AppOptions;
@@ -140,7 +140,17 @@ export class App {
 	}
 
 	serve(config?: Partial<APIConfig>) {
-		const compiler = new Compiler(this);
-		return compiler.serve(config ?? {});
+		const router = new Router(this, config ?? {});
+		return router.serve();
+	}
+}
+
+export class Controller extends App {
+	constructor(options: Partial<AppOptions>) {
+		super(options);
+	}
+
+	override serve(config?: Partial<APIConfig>): Bun.Server {
+		throw new Exception('Controllers dont serve(). User app.serve() on the main router file', 500);
 	}
 }

@@ -12,7 +12,7 @@ export class StatusBuilder {
 	get() {
 		return {
 			code: this.status,
-			text: this.statusText,
+			statusText: this.statusText,
 		};
 	}
 }

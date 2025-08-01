@@ -1,13 +1,12 @@
-import z from 'zod';
-import { App } from '../';
-import { config } from 'dotenv';
-
-config();
+import { z } from 'zod';
+import { App } from '..';
+import { controller } from './controller';
 
 export const app = new App({ prefix: 'api' })
 	.onStart(() => {
 		console.log('root controller startup trigger');
 	})
+	.use(controller)
 	.post(
 		'/file',
 		({ body }) => {
@@ -34,13 +33,13 @@ export const app = new App({ prefix: 'api' })
 	)
 	.get(
 		'/hello',
-		({ query: { name }, store, setHeader, setStatus }) => {
+		({ query: { name }, get, setHeader, setStatus }) => {
 			setStatus(201, 'Created');
 			setHeader('Sarasa', '1');
 			return {
-				first: store.get('first'),
-				second: store.get('second'),
-				user: store.get('user'),
+				first: get('first'),
+				second: get('second'),
+				user: get('user'),
 				name,
 			};
 		},
@@ -62,15 +61,15 @@ export const app = new App({ prefix: 'api' })
 				}),
 			},
 			use: [
-				({ setHeader, store, next }) => {
+				({ setHeader, set, next }) => {
 					setHeader('middleware-1-header', 'asd');
-					store.set('first', 1);
+					set('first', 1);
 					console.log('use.1');
 					return next();
 				},
-				({ setHeader, store, next }) => {
+				({ setHeader, set, next }) => {
 					setHeader('middleware-2-header', 'fgh');
-					store.set('second', 2);
+					set('second', 2);
 					console.log('use.2');
 					return next();
 				},
@@ -89,6 +88,15 @@ export const app = new App({ prefix: 'api' })
 				file: z.file().meta({ type: 'string', format: 'binary' }),
 				// file: z.file().openapi({ type: "string", format: "binary" }),
 			}),
+			headers: z.object({
+				name: z.string(),
+			}),
 			type: 'multipart/form-data',
 		},
-	);
+	)
+	.post('/text-body', ({ body }) => body, {
+		body: z.object({
+			text: z.string().min(10),
+		}),
+		type: 'text/plain',
+	});
