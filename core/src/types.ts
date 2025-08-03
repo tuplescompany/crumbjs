@@ -1,4 +1,4 @@
-import type { ZodObject, infer as ZodInfer, ZodType } from 'zod';
+import z, { type ZodObject, type infer as ZodInfer, type ZodString, type ZodNumber, type ZodBoolean, type ZodDate, type ZodLiteral, type ZodFile, type ZodArray, type ZodCoercedNumber, type ZodCoercedDate, type ZodCoercedBigInt, type ZodCoercedBoolean, type ZodOptional, type ZodNullable, type ZodCoercedString, ZodPipe, ZodType } from 'zod';
 import type { BunRequest } from 'bun';
 import { locales, modes, openapiUis } from './constants';
 
@@ -109,6 +109,36 @@ export type RootContext = {
 	get: <T = any>(key: string) => T;
 };
 
+export type ZodPrimitive =
+  | ZodString | ZodOptional<ZodString> | ZodNullable<ZodString> | ZodNullable<ZodOptional<ZodString>> | ZodOptional<ZodNullable<ZodString>>
+  | ZodNumber | ZodOptional<ZodNumber>  | ZodNullable<ZodNumber> | ZodNullable<ZodOptional<ZodNumber>>  | ZodOptional<ZodNullable<ZodNumber>>
+  | ZodBoolean | ZodOptional<ZodBoolean> | ZodNullable<ZodBoolean> | ZodNullable<ZodOptional<ZodBoolean>>  | ZodOptional<ZodNullable<ZodBoolean>>
+  | ZodDate | ZodOptional<ZodDate>  | ZodNullable<ZodDate> | ZodNullable<ZodOptional<ZodDate>>  | ZodOptional<ZodNullable<ZodDate>>;
+
+type ZodPrimitiveArray = ZodArray<ZodPrimitive>
+
+type ZodOptionalPrimitiveArray = 
+	ZodPrimitiveArray | ZodOptional<ZodPrimitiveArray> | ZodNullable<ZodPrimitiveArray> | ZodNullable<ZodOptional<ZodPrimitiveArray>> | ZodOptional<ZodNullable<ZodPrimitiveArray>> 
+
+export type ZodPrimitiveOrArray = ZodPrimitive | ZodOptionalPrimitiveArray;
+
+export type ZodPrimitiveOrFile = ZodPrimitive | ZodFile | ZodOptional<ZodFile> | ZodNullable<ZodFile>;
+
+type ZodParamsValue = | ZodString
+  | ZodCoercedNumber
+  | ZodCoercedDate
+  | ZodCoercedBigInt
+  | ZodCoercedString
+  | ZodCoercedBoolean
+
+export type ZodParams = ZodObject<Record<string, ZodParamsValue>>;
+
+export type ZodHeaders = ZodObject<Record<string, ZodString>>;
+
+export type ZodQuery = ZodObject<Record<string, ZodPrimitiveOrArray>>;
+
+export type ZodForm = ZodObject<Record<string, ZodPrimitiveOrFile>>
+
 /**
  * Extended request context that includes validated request data and core request utilities.
  *
@@ -125,9 +155,9 @@ export type RootContext = {
  */
 export type Context<
 	BODY extends ZodObject | undefined,
-	QUERY extends ZodObject | undefined,
-	PARAMS extends ZodObject | undefined,
-	HEADERS extends ZodObject | undefined,
+	QUERY extends ZodQuery | undefined,
+	PARAMS extends ZodParams | undefined,
+	HEADERS extends ZodHeaders | undefined,
 > = {
 	/** Validated request body (or `any` if no schema provided) */
 	body: InferOrAny<BODY>;
@@ -144,26 +174,30 @@ export type Context<
 
 export type Handler<
 	BODY extends ZodObject | undefined,
-	QUERY extends ZodObject | undefined,
-	PARAMS extends ZodObject | undefined,
-	HEADERS extends ZodObject | undefined,
+	QUERY extends ZodQuery | undefined,
+	PARAMS extends ZodParams | undefined,
+	HEADERS extends ZodHeaders | undefined,
 > = (input: Context<BODY, QUERY, PARAMS, HEADERS>) => HandlerReturn;
 
-export type ResponseConfig = {
-	status: number;
-	schema: ZodType;
-	type: ContentType;
-};
 
 export type RouteConfig<
 	BODY extends ZodObject | undefined = undefined,
-	QUERY extends ZodObject | undefined = undefined,
-	PARAMS extends ZodObject | undefined = undefined,
-	HEADERS extends ZodObject | undefined = undefined,
+	QUERY extends ZodQuery | undefined = undefined,
+	PARAMS extends ZodParams | undefined = undefined,
+	HEADERS extends ZodHeaders | undefined = undefined,
 > = {
 	body?: BODY;
+	/**
+	 * Shape allows string, number, date, boolean and his optional / nullable variables
+	 */
 	query?: QUERY;
+	/**
+	 * Shape allows string or corsed number, date, boolean
+	 */
 	params?: PARAMS;
+	/**
+	 * Shape allows only strings schemas
+	 */
 	headers?: HEADERS;
 	use?: Middleware | Middleware[];
 	type?: ContentType;
@@ -178,8 +212,17 @@ export type RouteConfig<
 	}>;
 };
 
+export type ResponseConfig = {
+	status: number;
+	schema: ZodType;
+	type: ContentType;
+};
+
+
 export type AppLocale = (typeof locales)[number];
+
 export type AppMode = (typeof modes)[number];
+
 export type OpenApiUi = (typeof openapiUis)[number];
 
 export type APIConfig = {

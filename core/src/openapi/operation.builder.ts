@@ -12,10 +12,7 @@ import {
 	SchemaObject,
 	TagObject,
 } from 'openapi3-ts/oas31';
-
 import { OARoute } from '../types';
-import { toSchemaObject } from './zod.mapper';
-import { extractFields, getMetadata } from './zod.meta';
 import { capitalize } from '../utils';
 import { ZodSchemaInspector } from './zod-schema.inspector';
 
@@ -84,14 +81,14 @@ export class OpenApiOperationBuilder {
 		if (!this.route.body) return;
 
 		const mime = this.route.mediaType ?? 'application/json';
-		const meta = getMetadata(this.route.body);
+		const meta = ZodSchemaInspector.metadata(this.route.body);
 
 		return {
 			description: meta.description ?? `${this.route.method.toUpperCase()} ${this.route.path} Body`,
 			required: true,
 			content: {
 				[mime]: {
-					schema: toSchemaObject(this.route.body),
+					schema: ZodSchemaInspector.convert(this.route.body),
 					example: meta.example,
 				} as MediaTypeObject,
 			} as ContentObject,
@@ -116,11 +113,11 @@ export class OpenApiOperationBuilder {
 
 		const loc = locationMap[part];
 
-		return extractFields(schema).map(({ key, schema, required, metadata }) => ({
+		return ZodSchemaInspector.fields(schema).map(({ key, schema, required, metadata }) => ({
 			name: key,
 			in: loc,
 			required: required || loc === 'path',
-			schema: toSchemaObject(schema),
+			schema: ZodSchemaInspector.convert(schema),
 			...metadata,
 		})) as ParameterObject[];
 	}
@@ -133,7 +130,7 @@ export class OpenApiOperationBuilder {
 
 		return Object.fromEntries(
 			this.route.responses.map(({ status, type, schema }) => {
-				const meta = getMetadata(schema);
+				const meta = ZodSchemaInspector.metadata(schema);
 				const code = String(status);
 				const description = meta.description ?? `${code} ${STATUS_CODES[code] ?? 'Unknown'}`;
 
@@ -143,7 +140,7 @@ export class OpenApiOperationBuilder {
 						description,
 						content: {
 							[type]: {
-								schema: toSchemaObject(schema),
+								schema: ZodSchemaInspector.convert(schema),
 								example: meta.example,
 							} as SchemaObject,
 						},

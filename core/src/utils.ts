@@ -1,4 +1,4 @@
-import type { ZodType } from 'zod';
+import { z, type ZodType } from 'zod';
 import type { ContentType, ResponseConfig } from './types';
 
 /**
@@ -26,12 +26,17 @@ export const buildPath = (...parts: string[]): string => {
 	return `/${result.join('/')}`;
 };
 
-export const responseSpec = (status: number, schema: ZodType, type: ContentType = 'application/json') => {
-	return {
-		status,
-		schema,
-		type,
-	} as ResponseConfig;
-};
-
 export const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
+
+export const spec = {
+	file(name?: string) {
+		return z.file(name).meta({ type: 'string', format: 'binary' });
+	},
+	response(status: number, schema: ZodType, type: ContentType = 'application/json') {
+		return {
+			status,
+			schema,
+			type,
+		} as ResponseConfig;
+	},
+} as const;

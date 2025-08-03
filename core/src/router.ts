@@ -246,9 +246,10 @@ export class Router {
 		if (options) config.merge(options);
 
 		if (config.get('locale') != 'en') {
-			const zodLocales = await import('zod/locales');
+			const { es, en, pt } = await import('zod/locales');
+			const langs = { es, en, pt };
 			const appLocale = config.get('locale');
-			ZodConfig(zodLocales[appLocale]());
+			ZodConfig(langs[appLocale]());
 		}
 
 		this.log(`🈯 Locale set to: ${config.get('locale')}`);

@@ -18,4 +18,4 @@ export { config } from './config';
 
 export { openapi } from './openapi/openapi';
 
-export { responseSpec } from './utils';
+export { spec } from './utils';

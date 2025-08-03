@@ -7,7 +7,6 @@ import type { SchemaObject } from 'openapi3-ts/oas31';
 type DraftSchema = JSONSchema.BaseSchema;
 
 export interface FieldMeta {
-	schemaName?: string;
 	description?: string;
 	example?: unknown;
 }
@@ -45,7 +44,7 @@ export class ZodSchemaInspector {
 
 	/** Unified metadata for this schema (objects merge child examples). */
 	getMetadata(): FieldMeta {
-		return this.schema instanceof ZodObject ? objectMetadata(this.schema) : leafMetadata(this.schema);
+		return getMetadata(this.schema);
 	}
 
 	/** Field list only if the wrapped schema is a ZodObject; otherwise `[]`. */
@@ -64,6 +63,10 @@ export class ZodSchemaInspector {
 
 	static metadata(schema: ZodType): FieldMeta {
 		return new ZodSchemaInspector(schema).getMetadata();
+	}
+
+	static fields(schema: ZodType): FieldInfo[] {
+		return new ZodSchemaInspector(schema).getFields();
 	}
 }
 
@@ -178,15 +181,18 @@ function extractFields<T extends ZodRawShape>(obj: ZodObject<T>): FieldInfo[] {
 			key,
 			schema,
 			required: !(schema instanceof ZodOptional || schema instanceof ZodDefault),
-			metadata: leafMetadata(schema),
+			metadata: getMetadata(schema),
 		};
 	});
+}
+
+function getMetadata(schema: ZodType) {
+	return schema instanceof ZodObject ? objectMetadata(schema) : leafMetadata(schema);
 }
 
 function leafMetadata(schema: ZodType): FieldMeta {
 	const meta = schema.meta?.() ?? {};
 	return {
-		schemaName: typeof meta.schemaName === 'string' ? meta.schemaName : undefined,
 		description: meta.description,
 		example: meta.example,
 	};
@@ -200,7 +206,7 @@ function objectMetadata<T extends ZodRawShape>(obj: ZodObject<T>): FieldMeta {
 		if (metadata.example !== undefined) ex[key] = metadata.example;
 	}
 
-	return { schemaName: own.schemaName, description: own.description, example: Object.keys(ex).length ? ex : undefined };
+	return { description: own.description, example: Object.keys(ex).length ? ex : undefined };
 }
 
 /* ----------------------------- util one-liners --------------------------- */

@@ -20,7 +20,7 @@ class Config {
 
 	private warnInvalidEnv(envIndex: string, invalidValue: any) {
 		console.warn(
-			`${new Date().toISOString()} ⚠️ Invalid '${envIndex}' env value: '${invalidValue}', i will use default or user defined value`,
+			`${new Date().toISOString()} ⚠️  '${envIndex}' contains an invalid value (${invalidValue}). Falling back to the configured fallback value.`,
 		);
 	}
 
