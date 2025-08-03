@@ -1,11 +1,16 @@
 {
 	"name": "create-crumbjs",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"publishConfig": {
 		"access": "public"
 	},
+	"license": "MIT",
 	"bin": {
 		"create-crumbjs": "create-app.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/tuplescompany/crumbjs"
 	},
 	"files": [
 		"cli.js",

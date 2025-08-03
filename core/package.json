@@ -1,12 +1,16 @@
 {
 	"name": "@crumbjs/core",
-	"version": "0.0.30",
+	"version": "0.0.31",
 	"publishConfig": {
 		"access": "public"
 	},
 	"files": [
 		"dist"
 	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/tuplescompany/crumbjs"
+	},
 	"license": "MIT",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
