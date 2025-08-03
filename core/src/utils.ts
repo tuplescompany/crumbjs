@@ -1,3 +1,6 @@
+import type { ZodType } from 'zod';
+import type { ContentType, ResponseConfig } from './types';
+
 /**
  * Normalizes and joins multiple path segments into a clean, well-formed URL path.
  *
@@ -21,4 +24,12 @@ export const buildPath = (...parts: string[]): string => {
 
 	// Join back with single slashes and ensure no leading/trailing slashes
 	return `/${result.join('/')}`;
+};
+
+export const responseSpec = (status: number, schema: ZodType, type: ContentType = 'application/json') => {
+	return {
+		status,
+		schema,
+		type,
+	} as ResponseConfig;
 };

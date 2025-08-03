@@ -1,4 +1,4 @@
-import type { APIConfig, Handler, Method, Middleware, OnStart, Route, RouteConfig, StaticRoute } from './types';
+import type { APIConfig, ContentType, Handler, Method, Middleware, OnStart, Route, RouteConfig, StaticRoute } from './types';
 import { Router } from './router';
 import { ZodObject } from 'zod';
 
@@ -50,6 +50,7 @@ export class App {
 					pathParts: [this.getPrefix(), ...child.pathParts],
 					contentOrPath: child.contentOrPath,
 					isFile: child.isFile,
+					contentType: child.contentType,
 				})),
 			);
 
@@ -92,24 +93,22 @@ export class App {
 		});
 	}
 
-	/**
-	 * Registers a static route that serves unchanging content (GET)
-	 *
-	 * The content can be a raw string or a file path. If it's a file path,
-	 * you must set `isFile = true` to read and serve the file contents at startup.
-	 *
-	 * All static routes are loaded once during server boot.
-	 *
-	 * @param path - URL path to serve from running process (usually: "./src/assets/logo.png")
-	 * @param content - Raw string content or path to a file
-	 * @param isFile - Whether `content` is a file path (default: false)
-	 * @returns The current instance (for chaining)
-	 */
-	static(path: string, contentOrPath: string, isFile: boolean) {
+	staticFile(path: string, filePath: string) {
 		this.statics.push({
 			pathParts: [this.getPrefix(), path],
-			contentOrPath,
-			isFile,
+			contentOrPath: filePath,
+			isFile: true,
+		});
+
+		return this;
+	}
+
+	static(path: string, content: string, type: ContentType) {
+		this.statics.push({
+			pathParts: [this.getPrefix(), path],
+			contentOrPath: content,
+			isFile: false,
+			contentType: type,
 		});
 
 		return this;

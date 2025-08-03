@@ -8,7 +8,7 @@ import { CookieBuilder } from './context/cookie-builder';
 import { buildPath } from './utils';
 import { flattenError, ZodObject, config as ZodConfig } from 'zod';
 import { BadRequest, InternalServerError } from './exception/http.exception';
-import { openapi } from './openapi';
+import { openapi } from './openapi/openapi';
 import { config } from './config';
 
 /**
@@ -163,7 +163,7 @@ export class Router {
 	 * @returns A fully populated `BunRoutes` object ready for `Bun.serve()`.
 	 */
 	private async compileServerRoutes() {
-		const { withOpenapi, openapiBasePath, errorHandler } = config.all();
+		const { withOpenapi, openapiBasePath, openapiUi, errorHandler } = config.all();
 
 		let routes: BunRoutes = {};
 		let statics: Record<string, Response> = {};
@@ -202,18 +202,21 @@ export class Router {
 		}
 
 		for (const staticRoute of this.app.getStaticRoutes()) {
-			const { pathParts, contentOrPath, isFile } = staticRoute;
+			const { pathParts, contentOrPath, isFile, contentType } = staticRoute;
 			const fullPath = buildPath(...pathParts);
-			let finalContent: string | Uint8Array;
+			let body: string;
+			let bodyType: string;
 			if (isFile) {
 				const file = Bun.file(contentOrPath);
 				const exists = await file.exists();
 				if (!exists) throw new Error(`Invalid static path: ${contentOrPath} doesnt exists`);
-				finalContent = await file.bytes();
+				body = await file.text();
+				bodyType = file.type;
 			} else {
-				finalContent = contentOrPath;
+				body = contentOrPath;
+				bodyType = contentType ?? 'text/plain';
 			}
-			statics[fullPath] = new Response(finalContent);
+			statics[fullPath] = new Response(body, { headers: { 'Content-Type': bodyType } });
 			this.log(`🌐 GET ${fullPath} Registered (static)`);
 		}
 
@@ -221,14 +224,15 @@ export class Router {
 		 * Add openapi routes if is enabled as raw-serve-route, no middlewares / request lifecycle attached
 		 */
 		if (withOpenapi) {
-			const documentPath = buildPath(openapiBasePath, '/document.json');
-			const swaggerUiPath = buildPath(openapiBasePath, '/swagger-ui');
+			const documentPath = buildPath(openapiBasePath, '/doc.json');
+			const openapiUiPath = buildPath(openapiBasePath);
 
 			statics[documentPath] = Response.json(openapi.getSpec());
-			statics[swaggerUiPath] = new Response(openapi.swaggerUi(documentPath));
+			statics[openapiUiPath] = new Response(openapi[openapiUi](documentPath));
 
 			this.log(`📘 GET ${documentPath} Registered (static)`);
-			this.log(`📘 GET ${swaggerUiPath} Registered (static)`);
+			this.log(`📘 GET ${openapiUiPath} Registered (static)`);
+			this.log(`✅ OPENAPI: enabled, UI: ${openapiUi}`);
 		}
 
 		return { routes, statics };

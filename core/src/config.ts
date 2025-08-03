@@ -1,5 +1,5 @@
-import { defaultApiConfig, locales, modes, pathRegex } from './constants';
-import { APIConfig, AppLocale, AppMode } from './types';
+import { defaultApiConfig, locales, modes, openapiUis, pathRegex } from './constants';
+import { APIConfig, AppLocale, AppMode, OpenApiUi } from './types';
 
 class Config {
 	private static instance: Config;
@@ -50,6 +50,10 @@ class Config {
 		const openapiPathValue = env.OPENAPI_PATH;
 		if (openapiPathValue && !pathRegex.test(openapiPathValue)) this.warnInvalidEnv('OPENAPI_PATH', openapiPathValue);
 		else if (openapiPathValue) this.set('openapiBasePath', openapiPathValue);
+
+		const openapiUiValue = env.OPENAPI_UI;
+		if (openapiUiValue && !openapiUis.includes(openapiUiValue as OpenApiUi)) this.warnInvalidEnv('OPENAPI_UI', openapiUiValue);
+		else if (openapiUiValue) this.set('openapiUi', openapiUiValue as OpenApiUi);
 
 		return this;
 	}

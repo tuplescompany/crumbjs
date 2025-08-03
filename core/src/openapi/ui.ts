@@ -1,4 +1,4 @@
-const swagger = (documentPath: string = '/openapi/document.json') => `
+const swaggerPage = (documentPath: string = '/openapi/document.json') => `
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -29,11 +29,32 @@ const swagger = (documentPath: string = '/openapi/document.json') => `
 </html>
 `;
 
-const swaggerUIResponse = (documentPath: string = '/openapi/document.json') =>
-	new Response(swagger(documentPath), {
-		headers: {
-			'Content-Type': 'text/html',
-		},
-	});
+const scalarPage = (documentPath: string = '/openapi/document.json') => `<!doctype html>
+<html>
+  <head>
+    <title>Scalar API Reference</title>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1" />
+  </head>
 
-export { swagger, swaggerUIResponse };
+  <body>
+    <div id="app"></div>
+
+    <!-- Load the Script -->
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+
+    <!-- Initialize the Scalar API Reference -->
+    <script>
+      Scalar.createApiReference('#app', {
+        // The URL of the OpenAPI/Swagger document
+        url: '${documentPath}',
+        // Avoid CORS issues
+        proxyUrl: 'https://proxy.scalar.com',
+      })
+    </script>
+  </body>
+</html>`;
+
+export { swaggerPage, scalarPage };

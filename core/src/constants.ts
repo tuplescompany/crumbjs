@@ -22,6 +22,7 @@ export const defaultApiConfig: APIConfig = {
 	openapiTitle: 'API',
 	openapiDescription: 'API Documentation',
 	openapiBasePath: 'openapi',
+	openapiUi: 'scalar',
 	notFoundHandler: () => {
 		return new Response('NOT_FOUND', {
 			status: 404,
@@ -48,3 +49,5 @@ export const locales = ['en', 'es', 'pt'] as const;
 export const modes = ['development', 'production', 'test', 'staging'] as const;
 
 export const pathRegex: RegExp = /^\/(?:[^\/\0]+\/)*[^\/\0]*$/;
+
+export const openapiUis = ['swagger', 'scalar'] as const;

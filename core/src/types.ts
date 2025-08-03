@@ -1,8 +1,26 @@
-import type { ZodObject, infer as ZodInfer } from 'zod';
+import type { ZodObject, infer as ZodInfer, ZodType } from 'zod';
 import type { BunRequest } from 'bun';
-import { locales, modes } from './constants';
+import { locales, modes, openapiUis } from './constants';
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
+
+export type ContentType =
+	| 'application/json'
+	| 'application/x-www-form-urlencoded'
+	| 'multipart/form-data'
+	| 'text/plain'
+	| 'text/html'
+	| 'text/css'
+	| 'application/javascript'
+	| 'application/xml'
+	| 'application/pdf'
+	| 'image/png'
+	| 'image/jpeg'
+	| 'image/gif'
+	| 'image/webp'
+	| 'image/svg+xml'
+	| 'application/octet-stream'
+	| (string & {});
 
 export type BunHandler = (req: BunRequest) => Response | Promise<Response>;
 
@@ -131,6 +149,12 @@ export type Handler<
 	HEADERS extends ZodObject | undefined,
 > = (input: Context<BODY, QUERY, PARAMS, HEADERS>) => HandlerReturn;
 
+export type ResponseConfig = {
+	status: number;
+	schema: ZodType;
+	type: ContentType;
+};
+
 export type RouteConfig<
 	BODY extends ZodObject | undefined = undefined,
 	QUERY extends ZodObject | undefined = undefined,
@@ -142,8 +166,8 @@ export type RouteConfig<
 	params?: PARAMS;
 	headers?: HEADERS;
 	use?: Middleware | Middleware[];
-	type?: string;
-	responses?: Record<number | string, ZodObject>;
+	type?: ContentType;
+	responses?: ResponseConfig[];
 	openapi?: Partial<{
 		hide: boolean;
 		tags: string[];
@@ -156,6 +180,7 @@ export type RouteConfig<
 
 export type AppLocale = (typeof locales)[number];
 export type AppMode = (typeof modes)[number];
+export type OpenApiUi = (typeof openapiUis)[number];
 
 export type APIConfig = {
 	/**
@@ -215,6 +240,13 @@ export type APIConfig = {
 	openapiBasePath: string;
 
 	/**
+	 * Openapi web UI
+	 * @env inferance: 'OPENAPI_UI'
+	 * @default 'scalar'
+	 */
+	openapiUi: OpenApiUi;
+
+	/**
 	 * Handler for unmatched routes (404).
 	 *
 	 * Default:
@@ -262,6 +294,7 @@ export type StaticRoute = {
 	pathParts: string[];
 	contentOrPath: string;
 	isFile: boolean;
+	contentType?: ContentType;
 };
 
 export type OAMethod = 'get' | 'post' | 'put' | 'delete' | 'patch' | 'head' | 'options' | 'trace';
@@ -274,7 +307,7 @@ export type OARoute = {
 	query?: ZodObject;
 	params?: ZodObject;
 	headers?: ZodObject;
-	responses?: Record<number, ZodObject>;
+	responses?: ResponseConfig[];
 	tags?: string[];
 	description?: string;
 	summary?: string;

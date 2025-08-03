@@ -12,6 +12,6 @@
 		"declaration": true,
 		"lib": ["es2022", "DOM"]
 	},
-	"include": ["src/**/*.ts", "../_random/deprecated_openapi.ts"],
-	"exclude": ["node_modules", "src/tests", "src/hot", "src/client"]
+	"include": ["src/**/*.ts"],
+	"exclude": ["node_modules", "src/tests", "src/hot"]
 }

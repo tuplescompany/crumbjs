@@ -8,12 +8,13 @@ import {
 	type RequestBodyObject,
 	type ResponsesObject,
 	OperationObject,
+	SchemaObject,
 } from 'openapi3-ts/oas31';
 import { STATUS_CODES } from 'node:http';
 import type { OARoute } from '../types';
-import { extractFields, getObjectMetadata } from './utils';
+import { extractFields, getMetadata } from './utils';
 import { toSchemaObject } from './converter';
-import { swagger } from './ui';
+import { scalarPage, swaggerPage } from './ui';
 import { config } from '../config';
 
 /**
@@ -21,7 +22,7 @@ import { config } from '../config';
  * and helpers utils to register App routes
  */
 export const openapi = (() => {
-	let instance: OpenApiBuilder | null = null;
+	let builderInstance: OpenApiBuilder | null = null;
 
 	/**
 	 * Get the singleton instance of openapi3-ts OpenApiBuilder.
@@ -30,24 +31,24 @@ export const openapi = (() => {
 	 * - OPENAPI_DESCRIPTION: documentation general description
 	 * - VERSION: app version
 	 */
-	const registry = () => {
-		if (!instance) {
-			instance = new OpenApiBuilder();
-			instance.addOpenApiVersion('3.1.0');
+	const builder = () => {
+		if (!builderInstance) {
+			builderInstance = new OpenApiBuilder();
+			builderInstance.addOpenApiVersion('3.1.0');
 
-			instance.addSecurityScheme('bearerAuth', {
+			builderInstance.addSecurityScheme('bearerAuth', {
 				type: 'http',
 				scheme: 'bearer',
 			});
 
-			instance.addSecurityScheme('basicAuth', {
+			builderInstance.addSecurityScheme('basicAuth', {
 				type: 'http',
 				scheme: 'basic',
 			});
 
-			instance.addOpenApiVersion('3.1.0');
+			builderInstance.addOpenApiVersion('3.1.0');
 		}
-		return instance;
+		return builderInstance;
 	};
 
 	/**
@@ -58,17 +59,17 @@ export const openapi = (() => {
 			const mediatype = route.mediaType ?? 'application/json';
 			const bodySchema = route.body;
 
-			const metadata = getObjectMetadata(bodySchema);
+			const metadata = getMetadata(bodySchema);
 
 			const bodySchemaObject = toSchemaObject(bodySchema);
 
 			// if user nameit the zod object, register the schema
 			if (metadata.schemaName) {
-				registry().addSchema(metadata.schemaName, bodySchemaObject);
+				builder().addSchema(metadata.schemaName, bodySchemaObject);
 			}
 
 			return {
-				description: metadata.description ?? `${route.path} request body`,
+				description: metadata.description ?? `${route.method.toUpperCase()} ${route.path} Body`,
 				content: {
 					[mediatype]: {
 						schema: bodySchemaObject,
@@ -83,24 +84,30 @@ export const openapi = (() => {
 	};
 
 	const getResponses = (route: OARoute) => {
-		if (route.responses) {
+		if (route.responses && route.responses.length) {
 			const result: any = {};
-			for (const [key, schema] of Object.entries(route.responses)) {
-				const metadata = getObjectMetadata(schema);
-				const responseSchemaObject = toSchemaObject(schema);
 
-				const description = !metadata.description ? `${key} ${STATUS_CODES[key] ?? 'Unknown'}` : metadata.description;
+			for (const res of route.responses) {
+				const metadata = getMetadata(res.schema);
+
+				const responseSchemaObject = toSchemaObject(res.schema);
+
+				const stringStatus = String(res.status);
+
+				const description = !metadata.description ? `${stringStatus} ${STATUS_CODES[stringStatus] ?? 'Unknown'}` : metadata.description;
 
 				// if user nameit the zod object, register the schema
 				if (metadata.schemaName) {
-					registry().addSchema(metadata.schemaName, responseSchemaObject);
+					builder().addSchema(metadata.schemaName, responseSchemaObject);
 				}
 
-				result[key] = {
+				result[stringStatus] = {
 					description,
 					content: {
-						['application/json']: { schema: responseSchemaObject },
-						example: metadata.example,
+						[res.type]: {
+							schema: responseSchemaObject,
+							example: metadata.example,
+						} as SchemaObject,
 					} as MediaTypeObject,
 				} as ResponseObject;
 			}
@@ -182,47 +189,58 @@ export const openapi = (() => {
 			responses: getResponses(route),
 		} as OperationObject;
 
-		registry().addPath(path, {
+		builder().addPath(path, {
 			[method]: operationObject,
+		});
+	};
+
+	const addServer = (url: string, description?: string) => {
+		builder().addServer({
+			description,
+			url,
 		});
 	};
 
 	/**
 	 * Ensures the OpenAPI spec has `title`, `description`, and `version`.
-	 * If any of these fields are missing in the registry, fallback values
+	 * If any of these fields are missing in the builder, fallback values
 	 * are taken from the application config.
 	 */
 	const setSpecInfoFromConfig = () => {
-		const specs = registry().getSpec();
+		const specs = builder().getSpec();
 
-		if (!specs.info.title) registry().addTitle(config.get('openapiTitle'));
-		if (!specs.info.description) registry().addDescription(config.get('openapiDescription'));
-		if (!specs.info.version) registry().addVersion(config.get('version'));
+		if (!specs.info.title) builder().addTitle(config.get('openapiTitle'));
+		if (!specs.info.description) builder().addDescription(config.get('openapiDescription'));
+		if (!specs.info.version) builder().addVersion(config.get('version'));
 	};
 
 	const getSpec = () => {
 		setSpecInfoFromConfig();
-		return registry().getSpec();
+		return builder().getSpec();
 	};
 
 	const getJson = () => {
 		setSpecInfoFromConfig();
-		return registry().getSpecAsJson();
+		return builder().getSpecAsJson();
 	};
 
 	const getYaml = () => {
 		setSpecInfoFromConfig();
-		return registry().getSpecAsYaml();
+		return builder().getSpecAsYaml();
 	};
 
-	const swaggerUi = (documentPath: string = '/openapi/document.json') => swagger(documentPath);
+	const swagger = (documentPath: string = '/openapi/doc.json') => swaggerPage(documentPath);
+
+	const scalar = (documentPath: string = '/openapi/doc.json') => scalarPage(documentPath);
 
 	return {
-		registry,
+		builder,
 		addRoute,
+		addServer,
 		getJson,
 		getYaml,
 		getSpec,
-		swaggerUi,
+		swagger,
+		scalar,
 	};
 })();

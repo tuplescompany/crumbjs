@@ -16,4 +16,6 @@ export type { Middleware, NotFoundHandler, ErrorHandler } from './types';
 
 export { config } from './config';
 
-export { openapi } from './openapi';
+export { openapi } from './openapi/openapi';
+
+export { responseSpec } from './utils';

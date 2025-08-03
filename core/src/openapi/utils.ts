@@ -1,4 +1,4 @@
-import { ZodDefault, ZodOptional, type ZodObject, type ZodRawShape, type ZodType } from 'zod';
+import { ZodDefault, ZodObject, ZodOptional, type ZodRawShape, type ZodType } from 'zod';
 
 type FieldMetadata = {
 	schemaName?: string;
@@ -26,8 +26,13 @@ export function extractFields<T extends ZodRawShape>(schema: ZodObject<T>) {
 
 /**
  * Extracts metadata (description and example) from any Zod schema.
+ * If is a ZodObject will extract metadata from each field with getObjectMetadata
  */
 export function getMetadata(schema: ZodType): FieldMetadata {
+	return schema instanceof ZodObject ? getObjectMetadata(schema) : getAnyMetadata(schema);
+}
+
+export function getAnyMetadata(schema: ZodType): FieldMetadata {
 	const meta = schema.meta?.() ?? {};
 
 	return {
@@ -45,7 +50,7 @@ export function getMetadata(schema: ZodType): FieldMetadata {
 export function getObjectMetadata<T extends ZodRawShape>(schema: ZodObject<T>): FieldMetadata {
 	const fields = extractFields(schema);
 
-	const objectMeta = getMetadata(schema);
+	const objectMeta = getAnyMetadata(schema);
 	const example: Record<string, any> = { ...(objectMeta.example ?? {}) };
 
 	// Only 'example' pass from field example to object example
