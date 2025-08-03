@@ -1,0 +1,21 @@
+{
+	"name": "examples",
+	"module": "index.ts",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"dev": "bun run --hot ./src/index.ts",
+		"test": "bun test",
+		"build": "bun build --compile --minify-whitespace --minify-syntax --target bun --outfile server ./src/index.ts"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"typescript": "^5",
+		"prettier": "^3.6.2"
+	},
+	"dependencies": {
+		"@crumbjs/core": "0.0.30"
+	}
+}

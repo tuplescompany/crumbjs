@@ -1,6 +1,6 @@
 import { App } from '@crumbjs/core';
 
-export const authController = new App({ prefix: 'auth' })
+export const authController = new App('auth')
 	.onStart(() => {
 		console.log('auth controller startup trigger');
 	}, 'auth.trigger')

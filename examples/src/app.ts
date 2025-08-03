@@ -1,10 +1,8 @@
-import { App, extend } from '@crumbjs/core';
+import { App } from '@crumbjs/core';
 import { authController } from './routes/auth';
 import { z } from 'zod';
 
-extend(z);
-
-export const app = new App({ prefix: 'api' })
+export const app = new App('api')
 	.onStart(() => {
 		console.log('root controller startup trigger');
 	})
@@ -41,7 +39,7 @@ export const app = new App({ prefix: 'api' })
 			],
 		},
 	)
-	.post(
+	.form(
 		'/hello',
 		({ body }) => {
 			console.log(body);
@@ -53,7 +51,6 @@ export const app = new App({ prefix: 'api' })
 				file: z.file().meta({ type: 'string', format: 'binary' }),
 				// file: z.file().openapi({ type: "string", format: "binary" }),
 			}),
-			type: 'multipart/form-data',
 		},
 	)
 	.get('/error', () => {
