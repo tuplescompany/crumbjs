@@ -31,7 +31,24 @@ process.chdir(dest);
 console.log(`📦 Installing crumbjs with ${pm}…`);
 execSync(`${pm} install`, { stdio: 'inherit' });
 
-// 4 • final hint
-console.log(`\n🎉 Your app is ready! execute:`);
-console.log(`- cd ${dest}`);
-console.log(`- bun run dev`);
+// 4 • final hints
+console.log(`\n🎉 Your app is ready!`);
+
+console.log(`\n🚀 Run local server`);
+console.log(`> cd ${dest}`);
+console.log(`> bun run dev`);
+
+console.log('\n🛠️ Build binary');
+console.log(`- bun run build`);
+
+console.log('\n🧪 Run tests');
+console.log(`- bun test`);
+
+console.log(`\n🐳 Build & Run with Docker`);
+console.log(`# Building Image
+docker build -t crumb-app .
+# Remove existing container if exists...
+docker rm -f crumb-app-container 2>$null
+# "Running container..."
+docker run --name crumb-app-container --env-file .env -p 8080:8080 crumb-app
+`);

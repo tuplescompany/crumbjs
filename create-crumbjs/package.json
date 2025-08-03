@@ -5,7 +5,7 @@
 		"access": "public"
 	},
 	"bin": {
-		"create-crumbjs": "cli.js"
+		"create-crumbjs": "create-app.js"
 	},
 	"files": [
 		"cli.js",
