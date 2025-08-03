@@ -1,3 +1,5 @@
+// ui.ts open api gui HTML documents
+
 const swaggerPage = (documentPath: string = '/openapi/document.json') => `
 <!DOCTYPE html>
 <html lang="en">

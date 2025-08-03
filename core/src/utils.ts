@@ -33,3 +33,5 @@ export const responseSpec = (status: number, schema: ZodType, type: ContentType 
 		type,
 	} as ResponseConfig;
 };
+
+export const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
