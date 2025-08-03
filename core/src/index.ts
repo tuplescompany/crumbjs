@@ -1,7 +1,3 @@
-import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
-import { config as dotEnvConfig } from 'dotenv';
-import z from 'zod';
-
 export { Exception } from './exception';
 
 export {
@@ -18,11 +14,6 @@ export { App } from './app';
 
 export type { Middleware, NotFoundHandler, ErrorHandler } from './types';
 
-/**
- * Helper to extend Zod with .openapi
- * required at entrypoint...
- * @param zod
- */
-export const extend = (zod: typeof z) => {
-	extendZodWithOpenApi(zod);
-};
+export { config } from './config';
+
+export { openapi } from './openapi';

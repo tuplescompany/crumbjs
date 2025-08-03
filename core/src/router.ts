@@ -3,65 +3,22 @@ import { parseBody } from './body-parser';
 import { HeaderBuilder } from './context/header-builder';
 import { StatusBuilder } from './context/status-builder';
 import { Store } from './context/store';
-import type { APIConfig, BunHandler, BunRoutes, ErrorHandler, Handler, HandlerReturn, RootContext, RouteConfig } from './types';
-import { Exception } from './exception';
-import { OpenApi, type RegistryMethod } from './openapi/openapi';
-import { swaggerUIResponse } from './openapi/openapi-ui';
+import type { APIConfig, BunHandler, BunRoutes, ErrorHandler, Handler, HandlerReturn, OAMethod, RootContext, RouteConfig } from './types';
 import { CookieBuilder } from './context/cookie-builder';
 import { buildPath } from './utils';
-import z, { flattenError, ZodObject, config as ZodConfig } from 'zod';
+import { flattenError, ZodObject, config as ZodConfig } from 'zod';
 import { BadRequest, InternalServerError } from './exception/http.exception';
-import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
-
-extendZodWithOpenApi(z);
-
-const defaultApiConfig: APIConfig = {
-	port: 8080,
-	withOpenapi: true,
-	locale: 'en',
-	openapiTitle: 'API',
-	openapiVersion: '1.0.0',
-	openapiDescription: 'API Documentation',
-	openapiBasePath: 'openapi',
-	notFoundHandler: () => {
-		return new Response('NOT_FOUND', {
-			status: 404,
-			headers: {
-				'Content-Type': 'text/plain',
-			},
-		});
-	},
-	errorHandler: (req, error) => {
-		console.error(`${new Date().toISOString()} [REQUEST ERROR] ${req.method} ${req.url}:`, error);
-
-		const parsed = error instanceof Exception ? error.toObject() : Exception.parse(error).toObject();
-		return new Response(JSON.stringify(parsed), {
-			status: parsed.status,
-			headers: {
-				'Content-Type': 'application/json',
-			},
-		});
-	},
-};
+import { openapi } from './openapi';
+import { config } from './config';
 
 /**
  * Router build an Http server from your App routes using Bun.serve
  */
 export class Router {
 	private startAt: number;
-	private apiConfig: APIConfig;
 
-	constructor(
-		private readonly app: App,
-		config: Partial<APIConfig>,
-	) {
+	constructor(private readonly app: App) {
 		this.startAt = performance.now();
-
-		this.apiConfig = {
-			...defaultApiConfig,
-			...this.inferConfigFromEnv(),
-			...config,
-		};
 	}
 
 	private async validate(schema: any, data: any, part: 'body' | 'query' | 'params' | 'headers') {
@@ -197,6 +154,7 @@ export class Router {
 	 *
 	 * - Instantiates the OpenAPI generator (if enabled).
 	 * - Iterates over all registered routes, builds full paths, and creates handler wrappers.
+	 * - Iterates over all registered static routes, builds full paths, and set content or filecontent static at boot time
 	 * - Automatically registers OpenAPI metadata unless explicitly hidden per route.
 	 * - Adds default routes to serve OpenAPI spec and Swagger UI if enabled.
 	 * - Logs each registered route to the console with timestamp and method.
@@ -204,12 +162,11 @@ export class Router {
 	 * @param apiConfig - Configuration object that controls OpenAPI, error handling, and more.
 	 * @returns A fully populated `BunRoutes` object ready for `Bun.serve()`.
 	 */
-	private compileServerRoutes() {
-		const { withOpenapi, openapiTitle, openapiVersion, openapiDescription, openapiBasePath, errorHandler } = this.apiConfig;
+	private async compileServerRoutes() {
+		const { withOpenapi, openapiBasePath, errorHandler } = config.all();
 
-		const openApi = withOpenapi ? new OpenApi(openapiTitle, openapiVersion, openapiDescription) : null;
-
-		let compiled: BunRoutes = {};
+		let routes: BunRoutes = {};
+		let statics: Record<string, Response> = {};
 
 		for (const route of this.app.getRoutes()) {
 			const { pathParts, method, handler, config } = route;
@@ -217,15 +174,15 @@ export class Router {
 			const fullPath = buildPath(...pathParts);
 
 			// acumulate paths, if path is repeated will be overwritten by the last registered
-			compiled[fullPath] = {
-				...compiled[fullPath],
+			routes[fullPath] = {
+				...routes[fullPath],
 				[method]: this.createHandler(handler, config, errorHandler),
 			};
 
 			// Register openapi route if is enabled and not specifically hide on the route
-			if (openApi && !config.openapi?.hide) {
-				openApi.register({
-					method: method.toLowerCase() as RegistryMethod,
+			if (withOpenapi && !config.openapi?.hide) {
+				openapi.addRoute({
+					method: method.toLowerCase() as OAMethod,
 					path: fullPath,
 					mediaType: config.type ?? 'application/json',
 					body: 'body' in config ? config.body : undefined,
@@ -241,98 +198,81 @@ export class Router {
 				});
 			}
 
-			console.log(`${new Date().toISOString()} 🌐 ${method} ${fullPath} Registered`);
+			this.log(`🌐 ${method} ${fullPath} Registered`);
+		}
+
+		for (const staticRoute of this.app.getStaticRoutes()) {
+			const { pathParts, contentOrPath, isFile } = staticRoute;
+			const fullPath = buildPath(...pathParts);
+			let finalContent: string | Uint8Array;
+			if (isFile) {
+				const file = Bun.file(contentOrPath);
+				const exists = await file.exists();
+				if (!exists) throw new Error(`Invalid static path: ${contentOrPath} doesnt exists`);
+				finalContent = await file.bytes();
+			} else {
+				finalContent = contentOrPath;
+			}
+			statics[fullPath] = new Response(finalContent);
+			this.log(`🌐 GET ${fullPath} Registered (static)`);
 		}
 
 		/**
-		 * Add OpenApi routes if is enabled as raw-serve-route, no middlewares attached
+		 * Add openapi routes if is enabled as raw-serve-route, no middlewares / request lifecycle attached
 		 */
-		if (openApi) {
+		if (withOpenapi) {
 			const documentPath = buildPath(openapiBasePath, '/document.json');
-
-			compiled[documentPath] = {
-				GET: async () => openApi.getResponse(),
-			};
-
 			const swaggerUiPath = buildPath(openapiBasePath, '/swagger-ui');
-			compiled[swaggerUiPath] = {
-				GET: async () => swaggerUIResponse(documentPath),
-			};
 
-			console.log(`${new Date().toISOString()} 📘 GET ${documentPath} Registered`);
-			console.log(`${new Date().toISOString()} 📘 GET ${swaggerUiPath} Registered`);
+			statics[documentPath] = Response.json(openapi.getSpec());
+			statics[swaggerUiPath] = new Response(openapi.swaggerUi(documentPath));
+
+			this.log(`📘 GET ${documentPath} Registered (static)`);
+			this.log(`📘 GET ${swaggerUiPath} Registered (static)`);
 		}
 
-		return compiled;
+		return { routes, statics };
 	}
 
-	/**
-	 * Infers API configuration from ENV variables.
-	 * Supports:
-	 * - PORT
-	 * - OPENAPI
-	 * - OPENAPI_TITLE
-	 * - OPENAPI_DESCRIPTION
-	 * - OPENAPI_PATH
-	 * - VERSION
-	 * - LOCALE
-	 */
-	private inferConfigFromEnv() {
-		const schema = z
-			.object({
-				port: z.coerce.number(),
-				locale: z.string(),
-				withOpenapi: z.coerce.boolean(),
-				openapiTitle: z.string(),
-				openapiVersion: z.string(),
-				openapiDescription: z.string(),
-				openapiBasePath: z.string(),
-			})
-			.partial();
-
-		const res = schema.safeParse({
-			port: process.env.PORT,
-			locale: process.env.LOCALE,
-			withOpenapi: process.env.OPENAPI,
-			openapiTitle: process.env.OPENAPI_TITLE,
-			openapiVersion: process.env.VERSION,
-			openapiDescription: process.env.OPENAPI_DESCRIPTION,
-			openapiBasePath: process.env.OPENAPI_PATH,
-		});
-
-		if (!res.data) return {};
-		return Object.fromEntries(Object.entries(res.data).filter(([_, value]) => value !== undefined));
+	log(info: string) {
+		console.log(`${new Date().toISOString()} ${info}`);
 	}
 
-	serve() {
-		if (this.apiConfig.locale != 'en') {
-			const zodLocales = require('zod/locales');
-			ZodConfig(zodLocales[this.apiConfig.locale]());
+	async serve(options?: Partial<APIConfig>) {
+		if (options) config.merge(options);
+
+		if (config.get('locale') != 'en') {
+			const zodLocales = await import('zod/locales');
+			const appLocale = config.get('locale');
+			ZodConfig(zodLocales[appLocale]());
 		}
 
-		console.log(`${new Date().toISOString()} 🈯 Locale set to: ${this.apiConfig.locale}`);
+		this.log(`🈯 Locale set to: ${config.get('locale')}`);
 
 		for (const [triggerName, trigger] of Object.entries(this.app.getStartupTriggers())) {
-			console.log(`${new Date().toISOString()} 🛠️ Executing on-start '${triggerName}' trigger`);
+			this.log(`🛠️ Executing on-start '${triggerName}' trigger`);
 			trigger();
 		}
 
-		const compiled = this.compileServerRoutes();
-
-		const apiConfig = this.apiConfig;
+		const routes = await this.compileServerRoutes();
 
 		const server = Bun.serve({
-			port: apiConfig.port,
-			routes: compiled,
+			port: config.get('port'),
+			routes: {
+				...routes.routes,
+				...routes.statics,
+				'/up': new Response(`OK, started at: ${new Date().toISOString()}`),
+			},
+
 			// Not found handler
 			fetch(req) {
-				return apiConfig.notFoundHandler(req);
+				return config.get('notFoundHandler')(req);
 			},
 		});
 
 		const duration = performance.now() - this.startAt;
-		console.log(`${new Date().toISOString()} ⚡ Startup time: ${duration.toFixed(2)} ms`);
-		console.log(`${new Date().toISOString()} 🔌 HTTP Server listening on port ${this.apiConfig.port}`);
+		this.log(`⚡ Startup time: ${duration.toFixed(2)} ms`);
+		this.log(`🔌 HTTP Server listening on port ${config.get('port')}`);
 
 		return server;
 	}

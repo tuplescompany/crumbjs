@@ -1,26 +1,28 @@
-import type { APIConfig, AppOptions, Handler, Method, Middleware, OnStart, Route, RouteConfig } from './types';
+import type { APIConfig, Handler, Method, Middleware, OnStart, Route, RouteConfig, StaticRoute } from './types';
 import { Router } from './router';
 import { ZodObject } from 'zod';
-import { Exception } from './exception';
 
 export class App {
-	public options: AppOptions;
-
 	private routes: Route[] = [];
+
+	private statics: StaticRoute[] = [];
 
 	private globalMiddlewares: Middleware[] = [];
 
 	private onStartTriggers: Record<string, OnStart> = {};
 
-	constructor(options: Partial<AppOptions>) {
-		this.options = {
-			...{ prefix: '' },
-			...options,
-		};
+	constructor(private readonly prefix: string = '') {}
+
+	getPrefix() {
+		return this.prefix;
 	}
 
 	getRoutes() {
 		return this.routes;
+	}
+
+	getStaticRoutes() {
+		return this.statics;
 	}
 
 	onStart(fn: OnStart, name = 'default') {
@@ -36,12 +38,21 @@ export class App {
 		if (usable instanceof App) {
 			this.routes = this.routes.concat(
 				usable.getRoutes().map((child) => ({
-					pathParts: [this.options.prefix, ...child.pathParts],
+					pathParts: [this.getPrefix(), ...child.pathParts],
 					method: child.method,
 					handler: child.handler,
 					config: child.config,
 				})),
 			);
+
+			this.statics = this.statics.concat(
+				usable.getStaticRoutes().map((child) => ({
+					pathParts: [this.getPrefix(), ...child.pathParts],
+					contentOrPath: child.contentOrPath,
+					isFile: child.isFile,
+				})),
+			);
+
 			this.globalMiddlewares = this.globalMiddlewares.concat(usable.globalMiddlewares);
 
 			// Avoid duplication with name index
@@ -74,11 +85,34 @@ export class App {
 
 	private add(method: Method, path: string, handler: Handler<any, any, any, any>, config?: RouteConfig<any, any, any, any>) {
 		this.routes.push({
-			pathParts: [this.options.prefix, path],
+			pathParts: [this.getPrefix(), path],
 			method,
 			handler,
 			config: config ?? {},
 		});
+	}
+
+	/**
+	 * Registers a static route that serves unchanging content (GET)
+	 *
+	 * The content can be a raw string or a file path. If it's a file path,
+	 * you must set `isFile = true` to read and serve the file contents at startup.
+	 *
+	 * All static routes are loaded once during server boot.
+	 *
+	 * @param path - URL path to serve from running process (usually: "./src/assets/logo.png")
+	 * @param content - Raw string content or path to a file
+	 * @param isFile - Whether `content` is a file path (default: false)
+	 * @returns The current instance (for chaining)
+	 */
+	static(path: string, contentOrPath: string, isFile: boolean) {
+		this.statics.push({
+			pathParts: [this.getPrefix(), path],
+			contentOrPath,
+			isFile,
+		});
+
+		return this;
 	}
 
 	get<
@@ -130,6 +164,16 @@ export class App {
 		return this;
 	}
 
+	options<
+		BODY extends ZodObject | undefined = undefined,
+		QUERY extends ZodObject | undefined = undefined,
+		PARAMS extends ZodObject | undefined = undefined,
+		HEADERS extends ZodObject | undefined = undefined,
+	>(path: string, handler: Handler<BODY, QUERY, PARAMS, HEADERS>, config?: RouteConfig<BODY, QUERY, PARAMS, HEADERS>) {
+		this.add('OPTIONS', path, handler, config);
+		return this;
+	}
+
 	head<
 		QUERY extends ZodObject | undefined = undefined,
 		PARAMS extends ZodObject | undefined = undefined,
@@ -140,17 +184,7 @@ export class App {
 	}
 
 	serve(config?: Partial<APIConfig>) {
-		const router = new Router(this, config ?? {});
-		return router.serve();
-	}
-}
-
-export class Controller extends App {
-	constructor(options: Partial<AppOptions>) {
-		super(options);
-	}
-
-	override serve(config?: Partial<APIConfig>): Bun.Server {
-		throw new Exception('Controllers dont serve(). User app.serve() on the main router file', 500);
+		const router = new Router(this);
+		return router.serve(config ?? {});
 	}
 }

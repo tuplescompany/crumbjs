@@ -4,7 +4,7 @@
     "": {
       "name": "examples",
       "dependencies": {
-        "@crumbjs/core": "0.0.26",
+        "@crumbjs/core": "0.0.27",
         "dotenv": "^17.2.1",
       },
       "devDependencies": {
@@ -18,7 +18,7 @@
   "packages": {
     "@asteasolutions/zod-to-openapi": ["@asteasolutions/zod-to-openapi@8.1.0", "", { "dependencies": { "openapi3-ts": "^4.1.2" }, "peerDependencies": { "zod": "^4.0.0" } }, "sha512-tQFxVs05J/6QXXqIzj6rTRk3nj1HFs4pe+uThwE95jL5II2JfpVXkK+CqkO7aT0Do5AYqO6LDrKpleLUFXgY+g=="],
 
-    "@crumbjs/core": ["@crumbjs/core@0.0.26", "", { "dependencies": { "@asteasolutions/zod-to-openapi": "^8.1.0", "zod": "^4.0.14" } }, "sha512-wn9Cq+icJKIOh/WPD09VxQSu1dFmrqxsnMR5myoEtexUl5dJHPfzrQSsihgPjRPOiAwFBPCMMb9uS21E3ds39A=="],
+    "@crumbjs/core": ["@crumbjs/core@0.0.27", "", { "dependencies": { "@asteasolutions/zod-to-openapi": "^8.1.0", "zod": "^4.0.14" } }, "sha512-WG3bb0Sj7HqibbScJho520kvLC2h2Ov9RUUiCFmC5gaD2+/xbcl7j0gOU8mWxshKuAbCMZ+jo5tFAEnP//Sf7Q=="],
 
     "@types/bun": ["@types/bun@1.2.19", "", { "dependencies": { "bun-types": "1.2.19" } }, "sha512-d9ZCmrH3CJ2uYKXQIUuZ/pUnTqIvLDS0SK7pFmbx8ma+ziH/FRMoAq5bYpRG7y+w1gl+HgyNZbtqgMq4W4e2Lg=="],
 

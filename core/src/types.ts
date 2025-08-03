@@ -1,5 +1,6 @@
 import type { ZodObject, infer as ZodInfer } from 'zod';
 import type { BunRequest } from 'bun';
+import { locales, modes } from './constants';
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -142,7 +143,7 @@ export type RouteConfig<
 	headers?: HEADERS;
 	use?: Middleware | Middleware[];
 	type?: string;
-	responses?: Record<number, ZodObject>;
+	responses?: Record<number | string, ZodObject>;
 	openapi?: Partial<{
 		hide: boolean;
 		tags: string[];
@@ -153,44 +154,63 @@ export type RouteConfig<
 	}>;
 };
 
+export type AppLocale = (typeof locales)[number];
+export type AppMode = (typeof modes)[number];
+
 export type APIConfig = {
 	/**
+	 * Application mode: 'development', 'production', 'test', 'staging'
+	 * @env inferance: 'NODE_ENV' or 'APP_MODE' (if both detected app will use 'APP_MODE')
+	 */
+	mode: AppMode;
+
+	/**
+	 * Openapi application version & version tag for your app
+	 * @env inferance: 'APP_VERSION'
+	 * @default '1.0.0'
+	 */
+	version: string;
+
+	/**
 	 * Http Port
+	 * @env inferance: 'PORT'
 	 * @default 8080
 	 */
 	port: number;
 
 	/**
 	 * Enable or disable openapi
-	 * @default true,
+	 * @env inferance: 'OPENAPI'
+	 * @default true
 	 */
 	withOpenapi: boolean;
 
 	/**
 	 * Set locale
 	 * @warn v 0.x.x only set zod locale at boot time the internal app errors are in english
+	 * @env inferance: 'LOCALE'
 	 * @default 'en'
 	 */
-	locale: 'en' | 'es' | 'pt';
+	locale: AppLocale;
 
 	/**
 	 * Openapi application title
+	 * @env inferance: 'OPENAPI_TITLE'
 	 * @default 'API'
 	 */
 	openapiTitle: string;
-	/**
-	 * Openapi application version
-	 * @default '1.0.0'
-	 */
-	openapiVersion: string;
+
 	/**
 	 * Openapi application description
+	 * @env inferance: 'OPENAPI_DESCRIPTION'
 	 * @default 'API Documentation'
 	 */
 	openapiDescription: string;
+
 	/**
 	 * Openapi base path
-	 * @default 'openapi'
+	 * @env inferance: 'OPENAPI_PATH'
+	 * @default '/openapi'
 	 */
 	openapiBasePath: string;
 
@@ -231,17 +251,33 @@ export type APIConfig = {
 	errorHandler: ErrorHandler;
 };
 
-export type AppOptions = {
-	/**
-	 * Routes prefix for this app
-	 * @default ''
-	 */
-	prefix: string;
-};
-
 export type Route = {
 	pathParts: string[];
 	method: Method;
 	handler: Handler<any, any, any, any>;
 	config: RouteConfig<any, any, any, any>;
+};
+
+export type StaticRoute = {
+	pathParts: string[];
+	contentOrPath: string;
+	isFile: boolean;
+};
+
+export type OAMethod = 'get' | 'post' | 'put' | 'delete' | 'patch' | 'head' | 'options' | 'trace';
+
+export type OARoute = {
+	method: OAMethod;
+	path: string;
+	mediaType?: string;
+	body?: ZodObject;
+	query?: ZodObject;
+	params?: ZodObject;
+	headers?: ZodObject;
+	responses?: Record<number, ZodObject>;
+	tags?: string[];
+	description?: string;
+	summary?: string;
+	authorization?: 'bearer' | 'basic';
+	operationId?: string;
 };

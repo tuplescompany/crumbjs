@@ -20,7 +20,6 @@
 		"typescript": "^5.9.2"
 	},
 	"dependencies": {
-		"zod": "^4.0.14",
-		"@asteasolutions/zod-to-openapi": "^8.1.0"
+		"zod": "^4.0.14"
 	}
 }
