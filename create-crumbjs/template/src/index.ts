@@ -1,4 +1,4 @@
-import { App } from '@crumbjs/core';
+import { App, spec } from '@crumbjs/core';
 import z from 'zod';
 
 const app = new App('/api');
@@ -14,7 +14,15 @@ app.post(
 		body: z.object({
 			name: z.string().meta({ example: 'Crumb' }),
 		}),
+		responses: [
+			spec.response(
+				200,
+				z.object({
+					name: z.string().meta({ example: 'Crumb' }),
+				}),
+			),
+		],
 	},
 );
 
-export default app.serve();
+app.serve();

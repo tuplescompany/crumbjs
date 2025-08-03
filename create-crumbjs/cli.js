@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
-const dest = resolve(process.argv[2] ?? '.'); // target dir
+const dest = resolve(process.argv[2] ?? null); // target dir throw if not set
 
 // 1 • scaffold files
 if (!existsSync(dest)) mkdirSync(dest, { recursive: true });
