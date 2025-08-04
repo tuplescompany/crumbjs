@@ -1,4 +1,4 @@
-export class Store {
+export class RequestStore {
 	private readonly data: Map<string, any>;
 
 	constructor() {

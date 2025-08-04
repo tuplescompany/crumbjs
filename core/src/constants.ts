@@ -1,5 +1,6 @@
 import type { APIConfig } from './types';
 import { Exception } from './exception';
+import { getStatusText } from './utils';
 
 /**
  * Some options can be casted from ENV
@@ -31,12 +32,10 @@ export const defaultApiConfig: APIConfig = {
 			},
 		});
 	},
-	errorHandler: (req, error) => {
-		console.error(`${new Date().toISOString()} [REQUEST ERROR] ${req.method} ${req.url}:`, error);
-
-		const parsed = error instanceof Exception ? error.toObject() : Exception.parse(error).toObject();
-		return new Response(JSON.stringify(parsed), {
-			status: parsed.status,
+	errorHandler: (req, ex) => {
+		return new Response(JSON.stringify(ex.toObject()), {
+			status: ex.status,
+			statusText: getStatusText(ex.status),
 			headers: {
 				'Content-Type': 'application/json',
 			},
@@ -51,3 +50,22 @@ export const modes = ['development', 'production', 'test', 'staging'] as const;
 export const pathRegex: RegExp = /^\/(?:[^\/\0]+\/)*[^\/\0]*$/;
 
 export const openapiUis = ['swagger', 'scalar'] as const;
+
+export const emptyRequestJournal = {
+	method: '',
+	path: '',
+	ip: '',
+	request: {
+		body: null,
+		params: null,
+		query: null,
+		headers: null,
+		validated: false,
+	},
+	response: {
+		status: 0,
+		statusText: '',
+		body: null,
+		headers: null,
+	},
+};

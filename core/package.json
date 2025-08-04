@@ -1,6 +1,6 @@
 {
 	"name": "@crumbjs/core",
-	"version": "0.0.31",
+	"version": "0.0.40",
 	"publishConfig": {
 		"access": "public"
 	},

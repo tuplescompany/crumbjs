@@ -1,18 +1,20 @@
+import { getStatusText } from '../utils';
+
 export class StatusBuilder {
 	constructor(
-		private status: number,
-		private statusText?: string,
+		public code: number,
+		public text?: string,
 	) {}
 
-	set(code: number, text?: string) {
-		this.status = code;
-		this.statusText = text ?? String(code);
+	set(code: number, customText?: string) {
+		this.code = code;
+		this.text = customText || getStatusText(code);
 	}
 
 	get() {
 		return {
-			code: this.status,
-			statusText: this.statusText,
+			status: this.code,
+			statusText: this.text,
 		};
 	}
 }

@@ -10,15 +10,15 @@ export class HeaderBuilder {
 	}
 
 	set(key: string, value: string) {
-		this.headers.set(key, value);
+		this.headers.set(key.toLowerCase(), value);
 	}
 
 	append(key: string, value: string) {
-		this.headers.append(key, value);
+		this.headers.append(key.toLowerCase(), value);
 	}
 
 	delete(key: string) {
-		this.headers.delete(key);
+		this.headers.delete(key.toLowerCase());
 	}
 
 	toObject(): Headers {

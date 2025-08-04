@@ -1,25 +1,7 @@
-import z, {
-	type ZodObject,
-	type infer as ZodInfer,
-	type ZodString,
-	type ZodNumber,
-	type ZodBoolean,
-	type ZodDate,
-	type ZodLiteral,
-	type ZodFile,
-	type ZodArray,
-	type ZodCoercedNumber,
-	type ZodCoercedDate,
-	type ZodCoercedBigInt,
-	type ZodCoercedBoolean,
-	type ZodOptional,
-	type ZodNullable,
-	type ZodCoercedString,
-	ZodPipe,
-	ZodType,
-} from 'zod';
-import type { BunRequest } from 'bun';
+import type { ZodObject, infer as ZodInfer, ZodType } from 'zod';
+import type { BunRequest, CookieInit } from 'bun';
 import { locales, modes, openapiUis } from './constants';
+import { Exception } from './exception';
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -41,7 +23,7 @@ export type ContentType =
 	| 'application/octet-stream'
 	| (string & {});
 
-export type BunHandler = (req: BunRequest) => Response | Promise<Response>;
+export type BunHandler = (req: BunRequest, server: Bun.Server) => Response | Promise<Response>;
 
 export type BunRouteHandlers = Partial<Record<Method, BunHandler>>;
 
@@ -49,15 +31,15 @@ export type BunRoutes = Record<string, BunRouteHandlers>;
 
 export type NotFoundHandler = (req: Request) => Response | Promise<Response>;
 
-export type ErrorHandler = (req: Request, error: unknown) => Response | Promise<Response>;
+export type ErrorHandler = (req: Request, ex: Exception) => Response | Promise<Response>;
 
 export type InferOrAny<T extends ZodObject | undefined> = T extends ZodObject ? ZodInfer<T> : any;
 
-export type HandlerReturn = Promise<string | object | null | Response> | (string | object | null | Response);
+export type HandlerResult = Promise<string | object | null | Response> | (string | object | null | Response);
 
-export type Next = () => Promise<HandlerReturn>;
+export type Next = () => Promise<HandlerResult>;
 
-export type Middleware = (input: MiddlewareContext) => Promise<HandlerReturn>;
+export type Middleware = (input: MiddlewareContext) => Promise<HandlerResult>;
 
 export type MiddlewareContext = RootContext & { next: Next };
 
@@ -71,6 +53,12 @@ export type OnStart = () => void | Promise<void>;
 export type RootContext = {
 	/** The original Fetch API Request object */
 	request: Request;
+
+	/** extracted request Origin */
+	origin: string;
+
+	/** extracted request client ip address */
+	ip: string;
 
 	/**
 	 * Raw, unvalidated request body parsed into a plain object.
@@ -107,13 +95,31 @@ export type RootContext = {
 	setStatus: (code: number, text?: string) => void;
 
 	/**
-	 * Sets the `Set-Cookie` header.
-	 * @param value - Raw cookie string (e.g., "session=abc123; Path=/; HttpOnly")
+	 * Adds or updates a cookie in the map.
+	 *
+	 * @param name - The name of the cookie
+	 * @param value - The value of the cookie
+	 * @param options - Optional cookie attributes
 	 */
-	setCookie: (value: string) => void;
+	setCookie: (name: string, value: string, options?: CookieInit) => void;
 
 	/**
-	 * Stores a value in the per-request context.
+	 * Gets the value of a cookie with the specified name.
+	 *
+	 * @param name - The name of the cookie to retrieve
+	 * @returns The cookie value as a string, or null if the cookie doesn't exist
+	 */
+	getCookie: (name: string) => string | null;
+
+	/**
+	 * Removes a cookie from the map.
+	 *
+	 * @param name - The name of the cookie to delete
+	 */
+	deleteCookie: (name: string) => void;
+
+	/**
+	 * RequestStores a value in the per-request context.
 	 * Useful for passing data between middlewares and handlers.
 	 * @param key - Unique key
 	 * @param value - Any value to store
@@ -127,51 +133,6 @@ export type RootContext = {
 	 */
 	get: <T = any>(key: string) => T;
 };
-
-export type ZodPrimitive =
-	| ZodString
-	| ZodOptional<ZodString>
-	| ZodNullable<ZodString>
-	| ZodNullable<ZodOptional<ZodString>>
-	| ZodOptional<ZodNullable<ZodString>>
-	| ZodNumber
-	| ZodOptional<ZodNumber>
-	| ZodNullable<ZodNumber>
-	| ZodNullable<ZodOptional<ZodNumber>>
-	| ZodOptional<ZodNullable<ZodNumber>>
-	| ZodBoolean
-	| ZodOptional<ZodBoolean>
-	| ZodNullable<ZodBoolean>
-	| ZodNullable<ZodOptional<ZodBoolean>>
-	| ZodOptional<ZodNullable<ZodBoolean>>
-	| ZodDate
-	| ZodOptional<ZodDate>
-	| ZodNullable<ZodDate>
-	| ZodNullable<ZodOptional<ZodDate>>
-	| ZodOptional<ZodNullable<ZodDate>>;
-
-type ZodPrimitiveArray = ZodArray<ZodPrimitive>;
-
-type ZodOptionalPrimitiveArray =
-	| ZodPrimitiveArray
-	| ZodOptional<ZodPrimitiveArray>
-	| ZodNullable<ZodPrimitiveArray>
-	| ZodNullable<ZodOptional<ZodPrimitiveArray>>
-	| ZodOptional<ZodNullable<ZodPrimitiveArray>>;
-
-export type ZodPrimitiveOrArray = ZodPrimitive | ZodOptionalPrimitiveArray;
-
-export type ZodPrimitiveOrFile = ZodPrimitive | ZodFile | ZodOptional<ZodFile> | ZodNullable<ZodFile>;
-
-type ZodParamsValue = ZodString | ZodCoercedNumber | ZodCoercedDate | ZodCoercedBigInt | ZodCoercedString | ZodCoercedBoolean;
-
-export type ZodParams = ZodObject<Record<string, ZodParamsValue>>;
-
-export type ZodHeaders = ZodObject<Record<string, ZodString>>;
-
-export type ZodQuery = ZodObject<Record<string, ZodPrimitiveOrArray>>;
-
-export type ZodForm = ZodObject<Record<string, ZodPrimitiveOrFile>>;
 
 /**
  * Extended request context that includes validated request data and core request utilities.
@@ -189,9 +150,9 @@ export type ZodForm = ZodObject<Record<string, ZodPrimitiveOrFile>>;
  */
 export type Context<
 	BODY extends ZodObject | undefined,
-	QUERY extends ZodQuery | undefined,
-	PARAMS extends ZodParams | undefined,
-	HEADERS extends ZodHeaders | undefined,
+	QUERY extends ZodObject | undefined,
+	PARAMS extends ZodObject | undefined,
+	HEADERS extends ZodObject | undefined,
 > = {
 	/** Validated request body (or `any` if no schema provided) */
 	body: InferOrAny<BODY>;
@@ -208,45 +169,59 @@ export type Context<
 
 export type Handler<
 	BODY extends ZodObject | undefined,
-	QUERY extends ZodQuery | undefined,
-	PARAMS extends ZodParams | undefined,
-	HEADERS extends ZodHeaders | undefined,
-> = (input: Context<BODY, QUERY, PARAMS, HEADERS>) => HandlerReturn;
+	QUERY extends ZodObject | undefined,
+	PARAMS extends ZodObject | undefined,
+	HEADERS extends ZodObject | undefined,
+> = (input: Context<BODY, QUERY, PARAMS, HEADERS>) => HandlerResult;
 
 export type RouteConfig<
 	BODY extends ZodObject | undefined = undefined,
-	QUERY extends ZodQuery | undefined = undefined,
-	PARAMS extends ZodParams | undefined = undefined,
-	HEADERS extends ZodHeaders | undefined = undefined,
+	QUERY extends ZodObject | undefined = undefined,
+	PARAMS extends ZodObject | undefined = undefined,
+	HEADERS extends ZodObject | undefined = undefined,
 > = {
 	body?: BODY;
-	/**
-	 * Shape allows string, number, date, boolean and his optional / nullable variables
-	 */
 	query?: QUERY;
-	/**
-	 * Shape allows string or corsed number, date, boolean
-	 */
 	params?: PARAMS;
-	/**
-	 * Shape allows only strings schemas
-	 */
 	headers?: HEADERS;
 	use?: Middleware | Middleware[];
 	type?: ContentType;
+	/**
+	 * Response documentation (openapi)
+	 * you may use the 'spec' helper
+	 * @example spec.response(200, schema, 'text/plain')
+	 */
 	responses?: ResponseConfig[];
 	openapi?: Partial<{
+		/**
+		 * Exclude from openapi doc if true
+		 * @default false
+		 */
 		hide: boolean;
+		/**
+		 * Will create the tag/s on openapi spec and asign to the route
+		 * you may want to add some tag description use 'openapi' helper (wich avoids duplication)
+		 * @example ['your-tag']
+		 * @example
+		 * // outside the route definition
+		 * import { openapi } from '@crumbjs/core';
+		 * openapi.addTag('your-tag', 'your-description')
+		 * @default 'Uncategorized'
+		 */
 		tags: string[];
+		/** openapi endpoint description */
 		description: string;
+		/** openapi endpoint summary */
 		summary: string;
+		/** openapi endpoint security component */
 		authorization: 'bearer' | 'basic';
+		/** if is not set will be inferred based on final path */
 		operationId: string;
 	}>;
 };
 
 export type ResponseConfig = {
-	status: number;
+	status: number | 'default';
 	schema: ZodType;
 	type: ContentType;
 };
@@ -388,4 +363,24 @@ export type OARoute = {
 	summary?: string;
 	authorization?: 'bearer' | 'basic';
 	operationId?: string;
+};
+
+export type RequestJournal = {
+	method: string;
+	path: string;
+	ip: string;
+	request: {
+		body: any;
+		params: any;
+		query: any;
+		headers: any;
+		validated: boolean;
+	};
+	response: {
+		status: number;
+		statusText: string;
+		body: any;
+		headers: any;
+	};
+	ex?: Exception;
 };

@@ -1,5 +1,6 @@
 import { z, type ZodType } from 'zod';
 import type { ContentType, ResponseConfig } from './types';
+import { STATUS_CODES } from 'node:http';
 
 /**
  * Normalizes and joins multiple path segments into a clean, well-formed URL path.
@@ -10,7 +11,7 @@ import type { ContentType, ResponseConfig } from './types';
  *
  * Useful for dynamically composing route paths in a consistent and safe way.
  */
-export const buildPath = (...parts: string[]): string => {
+export function buildPath(...parts: string[]): string {
 	let result: string[] = [];
 
 	// Split each part by '/' and clean each segment
@@ -24,15 +25,22 @@ export const buildPath = (...parts: string[]): string => {
 
 	// Join back with single slashes and ensure no leading/trailing slashes
 	return `/${result.join('/')}`;
-};
+}
 
-export const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
+export function getStatusText(status: number | string, def: string = 'Unknown') {
+	if (STATUS_CODES[status]) return STATUS_CODES[status];
+	return def;
+}
+
+export function capitalize(str: string) {
+	return str.charAt(0).toUpperCase() + str.slice(1);
+}
 
 export const spec = {
 	file(name?: string) {
 		return z.file(name).meta({ type: 'string', format: 'binary' });
 	},
-	response(status: number, schema: ZodType, type: ContentType = 'application/json') {
+	response(status: number | 'default', schema: ZodType, type: ContentType = 'application/json') {
 		return {
 			status,
 			schema,
@@ -40,3 +48,13 @@ export const spec = {
 		} as ResponseConfig;
 	},
 } as const;
+
+export function headersToRecord(headers: Headers) {
+	const record: Record<string, string> = {};
+
+	headers.forEach((value, key) => {
+		record[key] = value;
+	});
+
+	return record;
+}

@@ -1,15 +1,10 @@
 import { App } from './app';
-import { parseBody } from './body-parser';
-import { HeaderBuilder } from './context/header-builder';
-import { StatusBuilder } from './context/status-builder';
-import { Store } from './context/store';
-import type { APIConfig, BunHandler, BunRoutes, ErrorHandler, Handler, HandlerReturn, OAMethod, RootContext, RouteConfig } from './types';
-import { CookieBuilder } from './context/cookie-builder';
+import type { APIConfig, BunHandler, BunRoutes, ErrorHandler, Handler, HandlerResult, OAMethod, RootContext, RouteConfig } from './types';
 import { buildPath } from './utils';
-import { flattenError, ZodObject, config as ZodConfig } from 'zod';
-import { BadRequest, InternalServerError } from './exception/http.exception';
+import { config as ZodConfig } from 'zod';
 import { openapi } from './openapi/openapi';
 import { config } from './config';
+import { ContextResolver } from './context/resolver';
 
 /**
  * Router build an Http server from your App routes using Bun.serve
@@ -19,24 +14,6 @@ export class Router {
 
 	constructor(private readonly app: App) {
 		this.startAt = performance.now();
-	}
-
-	private async validate(schema: any, data: any, part: 'body' | 'query' | 'params' | 'headers') {
-		// disable validation for non ZodObject schemas
-		if (!(schema instanceof ZodObject)) {
-			return data;
-		}
-
-		const res = schema.safeParse(data);
-
-		if (!res.success) {
-			throw new BadRequest({
-				part,
-				errors: flattenError(res.error).fieldErrors,
-			});
-		}
-
-		return res.data;
 	}
 
 	/**
@@ -57,95 +34,9 @@ export class Router {
 		config: RouteConfig<any, any, any, any>,
 		errorHandler: ErrorHandler,
 	): BunHandler {
-		return async (req) => {
-			try {
-				// Request context helpers
-				const reqStore = new Store();
-
-				// Response context helpers
-				const resHeaders = new HeaderBuilder({
-					'Content-Type': 'application/json',
-				});
-				const resCookie = new CookieBuilder(resHeaders);
-				const statusBuilder = new StatusBuilder(200, 'OK'); // default status is 200 OK
-
-				const method = req.method.toUpperCase();
-				const withBody = method !== 'GET' && method !== 'HEAD';
-
-				if (config.type && !req.headers.get('content-type')?.includes(config.type)) {
-					throw new BadRequest({
-						part: 'headers',
-						errors: [`Invalid Content-Type: expected “${config.type}”, got “${req.headers.get('content-type') ?? 'none'}”.`],
-					});
-				}
-
-				// Ignore body on GET or HEAD methods
-				const rawBody = withBody ? await parseBody(req) : {};
-
-				// Root context is avaiable on Middlewares to
-				const rootContext: RootContext = {
-					request: req,
-					setHeader: resHeaders.set.bind(resHeaders),
-					deleteHeader: resHeaders.delete.bind(resHeaders),
-					setCookie: resCookie.set.bind(resCookie),
-					setStatus: statusBuilder.set.bind(statusBuilder),
-					set: reqStore.set.bind(reqStore),
-					get: reqStore.get.bind(reqStore),
-					rawBody,
-				};
-
-				const url = new URL(req.url);
-				const queryParams = Object.fromEntries(url.searchParams.entries());
-
-				const headersRecord: Record<string, string> = {};
-				req.headers.forEach((value, key) => {
-					headersRecord[key] = value;
-				});
-
-				const parsedContext = {
-					body: await this.validate(config.body, rawBody, 'body'),
-					query: await this.validate(config.query, queryParams, 'query'),
-					params: await this.validate(config.params, req.params, 'params'),
-					headers: await this.validate(config.headers, headersRecord, 'headers'),
-				};
-
-				const handlerContext = {
-					...parsedContext,
-					...rootContext,
-				};
-
-				const middlewares = this.app.getRouteMiddlewares(config);
-
-				let index = -1;
-				const next = async (): Promise<HandlerReturn> => {
-					index++;
-					if (index < middlewares.length) {
-						return await middlewares[index]({ ...rootContext, next });
-					} else {
-						return await handler(handlerContext);
-					}
-				};
-
-				const res = await next();
-
-				if (res instanceof Response) return res;
-
-				// string, object or null are allowed returns
-				const responseBody = typeof res === 'string' || res === null ? res : JSON.stringify(res);
-
-				if (typeof responseBody === 'string' || responseBody === null) {
-					return new Response(responseBody, {
-						headers: resHeaders.toObject(),
-						...statusBuilder.get(),
-					});
-				}
-
-				throw new InternalServerError(
-					`No result (string, null, object or Response) after execution chain. Did you forget some 'return next()' on middlewares?`,
-				);
-			} catch (error) {
-				return await errorHandler(req, error);
-			}
+		return (req, server) => {
+			const rc = new ContextResolver(req, server, config, this.app.getGlobalMiddlewares(), handler, errorHandler);
+			return rc.execute();
 		};
 	}
 
@@ -162,7 +53,7 @@ export class Router {
 	 * @param apiConfig - Configuration object that controls OpenAPI, error handling, and more.
 	 * @returns A fully populated `BunRoutes` object ready for `Bun.serve()`.
 	 */
-	private async compileServerRoutes() {
+	private async buildRoutes() {
 		const { withOpenapi, openapiBasePath, openapiUi, errorHandler } = config.all();
 
 		let routes: BunRoutes = {};
@@ -238,7 +129,7 @@ export class Router {
 		return { routes, statics };
 	}
 
-	log(info: string) {
+	private log(info: string) {
 		console.log(`${new Date().toISOString()} ${info}`);
 	}
 
@@ -259,18 +150,19 @@ export class Router {
 			trigger();
 		}
 
-		const routes = await this.compileServerRoutes();
+		const routes = await this.buildRoutes();
 
 		const server = Bun.serve({
 			port: config.get('port'),
 			routes: {
 				...routes.routes,
 				...routes.statics,
-				'/up': new Response(`OK, started at: ${new Date().toISOString()}`),
+				'/up': new Response(`OK, started at: ${new Date().toISOString()}`), // static
 			},
 
 			// Not found handler
 			fetch(req) {
+				console.error(`${new Date().toISOString()} ${req.method} ${new URL(req.url).pathname}: 404-Not Found`);
 				return config.get('notFoundHandler')(req);
 			},
 		});

@@ -32,11 +32,10 @@ bun add @crumbjs/core
 import { App, spec } from '@crumbjs/core';
 import { z } from 'zod';
 
-const app = new App('api')
-  .get('/hello/:name', ({ params: { name } }) => ({ name }), {
-    params: z.object({ name: z.string() }),
-    responses: [spec.response(200, z.object({ name: z.string() }))],
-  });
+const app = new App('api').get('/hello/:name', ({ params: { name } }) => ({ name }), {
+	params: z.object({ name: z.string() }),
+	responses: [spec.response(200, z.object({ name: z.string() }))],
+});
 
 app.serve();
 ```
@@ -53,17 +52,17 @@ OpenAPI documentation is served automatically at `http://localhost:8080/openapi`
 
 Configuration can be supplied via environment variables or programmatically. The following variables are supported:
 
-| Variable | Description | Default |
-|---------|-------------|---------|
-| `APP_MODE`/`NODE_ENV` | Application mode (`development`, `production`, `test`, `staging`) | `development` |
-| `APP_VERSION` | API/app version | `1.0.0` |
-| `PORT` | HTTP port | `8080` |
-| `OPENAPI` | Enable/disable OpenAPI generation (`true`/`false`) | `true` |
-| `LOCALE` | Zod error locale (`en`, `es`, `pt`) | `en` |
-| `OPENAPI_TITLE` | Global OpenAPI title | `API` |
-| `OPENAPI_DESCRIPTION` | Global OpenAPI description | `API Documentation` |
-| `OPENAPI_PATH` | Base path for OpenAPI routes | `openapi` |
-| `OPENAPI_UI` | UI for docs (`swagger` or `scalar`) | `scalar` |
+| Variable              | Description                                                       | Default             |
+| --------------------- | ----------------------------------------------------------------- | ------------------- |
+| `APP_MODE`/`NODE_ENV` | Application mode (`development`, `production`, `test`, `staging`) | `development`       |
+| `APP_VERSION`         | API/app version                                                   | `1.0.0`             |
+| `PORT`                | HTTP port                                                         | `8080`              |
+| `OPENAPI`             | Enable/disable OpenAPI generation (`true`/`false`)                | `true`              |
+| `LOCALE`              | Zod error locale (`en`, `es`, `pt`)                               | `en`                |
+| `OPENAPI_TITLE`       | Global OpenAPI title                                              | `API`               |
+| `OPENAPI_DESCRIPTION` | Global OpenAPI description                                        | `API Documentation` |
+| `OPENAPI_PATH`        | Base path for OpenAPI routes                                      | `openapi`           |
+| `OPENAPI_UI`          | UI for docs (`swagger` or `scalar`)                               | `scalar`            |
 
 Example `.env`:
 

@@ -1,4 +1,3 @@
-import { STATUS_CODES } from 'node:http';
 import {
 	ContentObject,
 	MediaTypeObject,
@@ -13,7 +12,7 @@ import {
 	TagObject,
 } from 'openapi3-ts/oas31';
 import { OARoute } from '../types';
-import { capitalize } from '../utils';
+import { capitalize, getStatusText } from '../utils';
 import { ZodSchemaInspector } from './zod-schema.inspector';
 
 /**
@@ -132,7 +131,7 @@ export class OpenApiOperationBuilder {
 			this.route.responses.map(({ status, type, schema }) => {
 				const meta = ZodSchemaInspector.metadata(schema);
 				const code = String(status);
-				const description = meta.description ?? `${code} ${STATUS_CODES[code] ?? 'Unknown'}`;
+				const description = meta.description ?? `${code} ${getStatusText(code) ?? 'Unknown'}`;
 
 				return [
 					code,

@@ -13,6 +13,7 @@ export class Exception extends Error {
 		message: string,
 		public status: number,
 		public invalidFields?: any,
+		public raw?: unknown,
 	) {
 		super(message);
 	}
@@ -58,11 +59,13 @@ export class Exception extends Error {
 	 * Convert any unknown error type to an Exception instance
 	 */
 	static parse(error: unknown, statusCode: number = 500): Exception {
+		if (error instanceof Exception) return error;
+
 		const defaultMessage = '¡Opps! Ocurrió un error';
 		const defaultCode = statusCode;
 
 		if (typeof error === 'string') {
-			return new Exception(error, defaultCode);
+			return new Exception(error, defaultCode, undefined, error);
 		}
 
 		if (error && typeof error === 'object') {
@@ -100,6 +103,6 @@ class ExceptionObjectParser {
 	}
 
 	parse(): Exception {
-		return new Exception(this.resolveMessage(), this.resolveCode(), this.resolveInvalidFields());
+		return new Exception(this.resolveMessage(), this.resolveCode(), this.resolveInvalidFields(), this.err);
 	}
 }
