@@ -1,12 +1,23 @@
 {
 	"name": "@crumbjs/core",
-	"version": "0.0.41",
+	"version": "0.0.44",
 	"publishConfig": {
 		"access": "public"
 	},
 	"files": [
 		"dist"
 	],
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./cors": {
+			"import": "./dist/middlewares/cors.js",
+			"types": "./dist/middlewares/cors.d.ts"
+		},
+		"./package.json": "./package.json"
+	},
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/tuplescompany/crumbjs"
