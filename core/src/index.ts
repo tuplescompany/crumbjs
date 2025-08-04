@@ -19,3 +19,5 @@ export { config } from './config';
 export { openapi } from './openapi/openapi';
 
 export { spec } from './utils';
+
+export { cors } from './middlewares/cors';

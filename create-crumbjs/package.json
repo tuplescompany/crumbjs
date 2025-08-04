@@ -1,6 +1,6 @@
 {
 	"name": "create-crumbjs",
-	"version": "0.0.7",
+	"version": "0.0.8",
 	"publishConfig": {
 		"access": "public"
 	},
@@ -13,7 +13,7 @@
 		"url": "https://github.com/tuplescompany/crumbjs"
 	},
 	"files": [
-		"cli.js",
+		"create-app.js",
 		"template/"
 	],
 	"type": "module"
