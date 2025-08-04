@@ -13,7 +13,7 @@ export type Cors = {
 	origin: Origin;
 	methods: Method[];
 	allowedHeaders: string[];
-	exposedHeaders: string[];
+	exposedHeaders?: string[];
 	maxAge?: number;
 	credentials?: boolean;
 };
@@ -35,7 +35,7 @@ export const cors = (opts: Cors): Middleware => {
 
 		if (allowedHeaders.length) ctx.setHeader('Access-Control-Allow-Headers', allowedHeaders.join(','));
 
-		if (exposedHeaders.length) ctx.setHeader('Access-Control-Expose-Headers', exposedHeaders.join(','));
+		if (exposedHeaders && exposedHeaders.length) ctx.setHeader('Access-Control-Expose-Headers', exposedHeaders.join(','));
 
 		if (maxAge) ctx.setHeader('Access-Control-Max-Age', String(maxAge));
 

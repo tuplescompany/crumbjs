@@ -1,7 +1,17 @@
-import { App, spec } from '@crumbjs/core';
+import { App, spec, cors } from '@crumbjs/core';
 import z from 'zod';
 
 const app = new App('/api');
+
+app.use(
+	cors({
+		origin: '*',
+		methods: ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT'],
+		allowedHeaders: ['Content-Type', 'Authorization', 'X-Api-Key'],
+		credentials: true,
+		maxAge: 600,
+	}),
+);
 
 app.get('/hello', () => 'world');
 
