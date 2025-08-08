@@ -14,7 +14,7 @@ export class App {
 
 	private onStartTriggers: Record<string, OnStart> = {};
 
-	constructor(opts: Partial<AppConfig>) {
+	constructor(opts: Partial<AppConfig> = {}) {
 		this.config = { ...defaultAppConfig, ...opts };
 	}
 
