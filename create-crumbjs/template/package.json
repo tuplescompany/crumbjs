@@ -16,6 +16,6 @@
 		"prettier": "^3.6.2"
 	},
 	"dependencies": {
-		"@crumbjs/core": "^0.0.46"
+		"@crumbjs/core": "^0.1.0"
 	}
 }

@@ -6,20 +6,15 @@ import { config } from '@crumbjs/core';
 const httpPort = config.get('port');
 
 describe('🧪 /hello endpoints', () => {
-	it("GET /hello → 'world'", async () => {
-		const res = await fetch(`http://localhost:${httpPort}/api/hello`);
-		expect(res.status).toBe(200);
-		expect(await res.text()).toBe('world');
-	});
-
-	it('POST /hello echoes name', async () => {
+	it("POST /hello → 'world'", async () => {
 		const res = await fetch(`http://localhost:${httpPort}/api/hello`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ name: 'Crumb' }),
+			body: JSON.stringify({
+				hello: 'world',
+			}),
 		});
-
 		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({ name: 'Crumb' });
+		expect(await res.text()).toBe('world');
 	});
 });

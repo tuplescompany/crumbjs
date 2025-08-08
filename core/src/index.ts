@@ -12,7 +12,7 @@ export {
 
 export { App } from './app';
 
-export type { Middleware, NotFoundHandler, ErrorHandler } from './types';
+export type { Middleware, NotFoundHandler, ErrorHandler, Method, MiddlewareContext, ErrorContext } from './types';
 
 export { config } from './config';
 
@@ -20,4 +20,6 @@ export { openapi } from './openapi/openapi';
 
 export { spec } from './utils';
 
+// Included middlewares
 export { cors } from './middlewares/cors';
+export { signals } from './middlewares/signals';

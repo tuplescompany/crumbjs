@@ -1,38 +1,9 @@
-import { App, spec, cors } from '@crumbjs/core';
-import z from 'zod';
+import { App, cors, signals } from '@crumbjs/core';
+import { indexController } from './controllers/index.controller';
 
-const app = new App('/api');
-
-app.use(
-	cors({
-		origin: '*',
-		methods: ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT'],
-		allowedHeaders: ['Content-Type', 'Authorization', 'X-Api-Key'],
-		credentials: true,
-		maxAge: 600,
-	}),
-);
-
-app.get('/hello', () => 'world');
-
-app.post(
-	'/hello',
-	({ body }) => ({
-		name: body.name,
-	}),
-	{
-		body: z.object({
-			name: z.string().meta({ example: 'Crumb' }),
-		}),
-		responses: [
-			spec.response(
-				200,
-				z.object({
-					name: z.string().meta({ example: 'Crumb' }),
-				}),
-			),
-		],
-	},
-);
+const app = new App({ prefix: 'api' })
+	.use(cors({ origin: '*' }))
+	.use(signals(true))
+	.use(indexController);
 
 app.serve();

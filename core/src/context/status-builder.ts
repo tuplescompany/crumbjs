@@ -1,10 +1,14 @@
 import { getStatusText } from '../utils';
 
 export class StatusBuilder {
+	public text: string;
+
 	constructor(
 		public code: number,
-		public text?: string,
-	) {}
+		text?: string,
+	) {
+		this.text = text ? text : getStatusText(code);
+	}
 
 	set(code: number, customText?: string) {
 		this.code = code;

@@ -1,6 +1,5 @@
-import type { APIConfig } from './types';
-import { Exception } from './exception';
-import { getStatusText } from './utils';
+import { Cors } from './middlewares/cors';
+import type { APIConfig, AppConfig } from './types';
 
 /**
  * Some options can be casted from ENV
@@ -24,23 +23,27 @@ export const defaultApiConfig: APIConfig = {
 	openapiDescription: 'API Documentation',
 	openapiBasePath: 'openapi',
 	openapiUi: 'scalar',
-	notFoundHandler: () => {
-		return new Response('NOT_FOUND', {
-			status: 404,
-			headers: {
-				'Content-Type': 'text/plain',
-			},
-		});
+	notFoundHandler: ({ setStatus, setHeader }) => {
+		setStatus(404);
+		setHeader('Content-Type', 'text/plain');
+		return '';
 	},
-	errorHandler: (req, ex) => {
-		return new Response(JSON.stringify(ex.toObject()), {
-			status: ex.status,
-			statusText: getStatusText(ex.status),
-			headers: {
-				'Content-Type': 'application/json',
-			},
-		});
+	errorHandler: ({ setStatus, exception }) => {
+		setStatus(exception.status);
+		return exception.toObject();
 	},
+};
+
+export const defaultAppConfig: AppConfig = {
+	prefix: '',
+};
+
+export const defaultCorsConfig: Omit<Cors, 'origin'> = {
+	methods: ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT'],
+	allowedHeaders: ['Content-Type', 'Authorization', 'X-Api-Key'],
+	credentials: true,
+	exposedHeaders: [],
+	maxAge: 600,
 };
 
 export const locales = ['en', 'es', 'pt'] as const;
@@ -50,22 +53,3 @@ export const modes = ['development', 'production', 'test', 'staging'] as const;
 export const pathRegex: RegExp = /^\/(?:[^\/\0]+\/)*[^\/\0]*$/;
 
 export const openapiUis = ['swagger', 'scalar'] as const;
-
-export const emptyRequestJournal = {
-	method: '',
-	path: '',
-	ip: '',
-	request: {
-		body: null,
-		params: null,
-		query: null,
-		headers: null,
-		validated: false,
-	},
-	response: {
-		status: 0,
-		statusText: '',
-		body: null,
-		headers: null,
-	},
-};

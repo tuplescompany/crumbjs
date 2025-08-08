@@ -25,7 +25,7 @@ export interface FieldInfo {
  *  • collect description / example metadata
  *  • list object fields with `required` flags
  */
-export class ZodSchemaInspector {
+export class ZodInspector {
 	constructor(private readonly schema: ZodType) {}
 
 	// ---------------------------------------------------------------------------
@@ -58,15 +58,15 @@ export class ZodSchemaInspector {
 	// ---------------------------------------------------------------------------
 
 	static convert(schema: ZodType): SchemaObject {
-		return new ZodSchemaInspector(schema).toOpenApiSchema();
+		return new ZodInspector(schema).toOpenApiSchema();
 	}
 
 	static metadata(schema: ZodType): FieldMeta {
-		return new ZodSchemaInspector(schema).getMetadata();
+		return new ZodInspector(schema).getMetadata();
 	}
 
 	static fields(schema: ZodType): FieldInfo[] {
-		return new ZodSchemaInspector(schema).getFields();
+		return new ZodInspector(schema).getFields();
 	}
 }
 

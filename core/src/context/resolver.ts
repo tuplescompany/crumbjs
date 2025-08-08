@@ -2,30 +2,42 @@ import { BunRequest } from 'bun';
 import { RequestStore } from './request-store';
 import { HeaderBuilder } from './header-builder';
 import { StatusBuilder } from './status-builder';
-import { Context, ErrorHandler, Handler, HandlerResult, Middleware, RequestJournal, RootContext, RouteConfig } from '../types';
-import { getStatusText, headersToRecord } from '../utils';
+import { Context, ErrorContext, ErrorHandler, Handler, Result, Middleware, RootContext, RouteConfig } from '../types';
+import { getStatusText, headersToRecord, signal } from '../utils';
 import { parseBody } from '../body-parser';
 import { flattenError, ZodObject } from 'zod';
 import { BadRequest, InternalServerError } from '../exception/http.exception';
 import { Exception } from '../exception';
-import { config } from '../config';
-import { emptyRequestJournal } from '../constants';
+import { logger } from '../logger';
+
+/** Handy method to create a BunHandler for the specified application route parameters */
+export const createHandler =
+	(
+		routeConfig: RouteConfig<any, any, any, any>,
+		middlewares: Middleware[], // initial global middlewares array
+		routeHandler: Handler<any, any, any, any>,
+		errorHandler: ErrorHandler,
+	) =>
+	(req: BunRequest, server: Bun.Server) => {
+		return new ContextResolver(req, server, routeConfig, middlewares, routeHandler, errorHandler).execute();
+	};
 
 export class ContextResolver {
-	private startAt: number;
-	private readonly reqStore: RequestStore;
-	private readonly resHeaders: HeaderBuilder;
-	private readonly cookies: Bun.CookieMap;
-	private readonly statusBuilder: StatusBuilder;
 	private readonly rootContext: RootContext;
 
-	// Request unmutable data
-	private readonly requestUrl: URL;
-	private readonly requestHeaders: Record<string, string> = {};
-	private readonly requestQuery: Record<string, string> = {};
+	private readonly reqStore: RequestStore;
 
-	/** Black‑box recorder used for structured logs. */
-	public journal: RequestJournal = emptyRequestJournal;
+	private readonly reqUrl: URL;
+
+	private readonly reqHeaders: Record<string, string> = {};
+
+	private readonly reqQuery: Record<string, string> = {};
+
+	private readonly cookies: Bun.CookieMap;
+
+	private readonly resHeaders: HeaderBuilder;
+
+	private readonly statusBuilder: StatusBuilder;
 
 	constructor(
 		private readonly req: BunRequest,
@@ -35,36 +47,35 @@ export class ContextResolver {
 		private readonly routeHandler: Handler<any, any, any, any>,
 		private readonly errorHandler: ErrorHandler,
 	) {
-		this.startAt = performance.now();
-
 		// instance built-in context helpers
 		this.reqStore = new RequestStore();
 		this.resHeaders = new HeaderBuilder({ 'Content-Type': 'application/json' });
 		this.cookies = this.req.cookies;
 		this.statusBuilder = new StatusBuilder(200);
 
+		this.reqUrl = new URL(this.req.url);
+		this.reqQuery = Object.fromEntries(this.reqUrl.searchParams.entries());
+		this.reqHeaders = headersToRecord(req.headers);
+
 		this.rootContext = {
+			start: performance.now(),
 			request: this.req,
+			server,
+			url: this.reqUrl,
 			ip: server.requestIP(req)?.address ?? 'unknown',
 			origin: this.req.headers.get('origin') ?? '',
 			setHeader: this.resHeaders.set.bind(this.resHeaders),
 			deleteHeader: this.resHeaders.delete.bind(this.resHeaders),
+			getResponseHeaders: this.resHeaders.get.bind(this.resHeaders),
 			setCookie: this.cookies.set.bind(this.cookies),
 			getCookie: this.cookies.get.bind(this.cookies),
 			deleteCookie: this.cookies.delete.bind(this.cookies),
 			setStatus: this.statusBuilder.set.bind(this.statusBuilder),
+			getResponseStatus: this.statusBuilder.get.bind(this.statusBuilder),
 			set: this.reqStore.set.bind(this.reqStore),
 			get: this.reqStore.get.bind(this.reqStore),
 			rawBody: {}, // unparsed yet
 		};
-
-		this.requestUrl = new URL(this.req.url);
-		this.requestQuery = Object.fromEntries(this.requestUrl.searchParams.entries());
-		this.requestHeaders = headersToRecord(req.headers);
-
-		this.journal.method = this.req.method.toUpperCase();
-		this.journal.path = this.requestUrl.pathname;
-		this.journal.ip = this.rootContext.ip;
 	}
 
 	private async validate(schema: any, data: any, part: 'body' | 'query' | 'params' | 'headers') {
@@ -86,7 +97,7 @@ export class ContextResolver {
 	 * Get response headers from Context HeaderBuilder helper
 	 */
 	private getBuildedHeaders() {
-		return this.resHeaders.toObject();
+		return this.resHeaders.get();
 	}
 
 	/**
@@ -103,10 +114,9 @@ export class ContextResolver {
 		try {
 			if (this.req.method !== 'GET' && this.req.method !== 'HEAD') {
 				this.rootContext.rawBody = await parseBody(this.req);
-				this.journal.request.body = this.rootContext.request.body;
 			}
 		} catch (error) {
-			console.error(`${new Date().toISOString()} parseBody() error:`, error);
+			logger.error('parseBody() fails', error);
 		}
 	}
 
@@ -128,12 +138,10 @@ export class ContextResolver {
 	private async getHandlerContext(): Promise<Context<any, any, any, any>> {
 		const [body, query, params, headers] = await Promise.all([
 			this.validate(this.routeConfig.body, this.rootContext.rawBody, 'body'),
-			this.validate(this.routeConfig.query, this.requestQuery, 'query'),
+			this.validate(this.routeConfig.query, this.reqQuery, 'query'),
 			this.validate(this.routeConfig.params, this.req.params, 'params'),
-			this.validate(this.routeConfig.headers, this.requestHeaders, 'headers'),
+			this.validate(this.routeConfig.headers, this.reqHeaders, 'headers'),
 		]);
-
-		Object.assign(this.journal.request, { body, query, params, headers, validated: true });
 
 		return {
 			...this.rootContext,
@@ -144,30 +152,14 @@ export class ContextResolver {
 		};
 	}
 
-	private parseResponse(result: HandlerResult) {
-		if (result instanceof Response) {
-			this.journal.response = {
-				status: result.status,
-				statusText: result.statusText,
-				body: '<raw-response-instance>',
-				headers: headersToRecord(result.headers),
-			};
-
-			return result;
-		}
+	private parseResponse(result: Result) {
+		if (result instanceof Response) return result;
 
 		const responseBody = typeof result === 'string' || result === null ? result : JSON.stringify(result);
 
 		if (typeof responseBody === 'string' || responseBody === null) {
 			const status = this.getBuildedStatus();
 			const buildedHeaders = this.getBuildedHeaders();
-
-			this.journal.response = {
-				status: status.status,
-				statusText: status.statusText ?? getStatusText(status.status),
-				body: responseBody,
-				headers: headersToRecord(buildedHeaders),
-			};
 
 			return new Response(responseBody, {
 				headers: buildedHeaders,
@@ -190,9 +182,9 @@ export class ContextResolver {
 				this.middlewares.concat(routeMiddleware);
 			}
 
-			// 3- Define Route Chain
+			// 3- Create functional route chain
 			let index = -1;
-			const next = async (): Promise<HandlerResult> => {
+			const next = async (): Promise<Result> => {
 				index++;
 				if (index < this.middlewares.length) {
 					// a- Execute middleware function
@@ -206,44 +198,18 @@ export class ContextResolver {
 				}
 			};
 
-			// 4- Execute Route Chain
-			const res = await next();
-
-			// 5- Parse and return Response
-			return this.parseResponse(res);
+			// 4- Parse and return Response
+			return this.parseResponse(await next());
 		} catch (error) {
+			console.error(error); // RAW Error LOG
 			const ex = Exception.parse(error);
 
-			this.journal.response = {
-				body: ex.toObject(),
-				headers: this.getBuildedHeaders(),
-				status: ex.status,
-				statusText: getStatusText(ex.status),
-			};
+			const duration = performance.now() - this.rootContext.start;
+			signal('error', this.req.method, this.reqUrl.pathname, ex.status, getStatusText(ex.status), duration, this.rootContext.ip);
 
-			this.journal.ex = ex;
+			const errorContext: ErrorContext = { ...this.rootContext, exception: ex };
 
-			return await this.errorHandler(this.req, ex);
-		} finally {
-			this.log();
-		}
-	}
-
-	private log() {
-		const duration = performance.now() - this.startAt;
-		const now = new Date().toISOString();
-		const { method, path, ip, response, ex } = this.journal;
-		const logfn = ex ? 'error' : 'log';
-
-		const message = `${now} ${method} ${path}: ${response.status}-${response.statusText} from '${ip}' - ${duration.toFixed(2)} ms`;
-
-		console[logfn](message);
-
-		// Request + Response log on Development mode
-		if (config.get('mode') === 'development') {
-			console[logfn](`----development:mode printing journal request/response----`);
-			console[logfn](`${now} Request ${JSON.stringify(this.journal.request, null, 2)}`);
-			console[logfn](`${now} Response ${JSON.stringify(this.journal.response, null, 2)}`);
+			return this.parseResponse(await this.errorHandler(errorContext));
 		}
 	}
 }

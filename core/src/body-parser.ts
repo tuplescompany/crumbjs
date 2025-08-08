@@ -11,7 +11,7 @@ export class BodyParser {
 	 * Parses FormData and converts it into a plain JavaScript object.
 	 * Handles multiple values for the same key by creating an array.
 	 */
-	private async parseFormData(formData: FormData): Promise<Record<string, any>> {
+	private parseFormData(formData: FormData): Record<string, any> {
 		const data: Record<string, any> = {};
 
 		for (const [key, value] of formData.entries()) {
@@ -32,7 +32,7 @@ export class BodyParser {
 	 * Parses URL-encoded string and converts it into a plain JavaScript object.
 	 * Handles multiple values for the same key by creating an array.
 	 */
-	private async parseUrlEncoded(body: string): Promise<Record<string, any>> {
+	private parseUrlEncoded(body: string): Record<string, any> {
 		const params = new URLSearchParams(body);
 		const data: Record<string, any> = {};
 
@@ -48,13 +48,6 @@ export class BodyParser {
 	}
 
 	/**
-	 * Parses plain text body and returns it as an object with a 'text' property.
-	 */
-	private async parsePlain(body: string): Promise<Record<string, any>> {
-		return { text: body };
-	}
-
-	/**
 	 * Parses the request body based on its Content-Type header.
 	 * @returns A promise that resolves to the parsed body data.
 	 */
@@ -66,14 +59,14 @@ export class BodyParser {
 			return json ? (JSON.parse(json) as Record<string, any>) : {};
 		} else if (contentType.includes('multipart/form-data')) {
 			const formData = await this.request.formData(); // NOSONAR
-			return await this.parseFormData(formData);
+			return this.parseFormData(formData);
 		} else if (contentType.includes('application/x-www-form-urlencoded')) {
 			const text = await this.request.text();
-			return await this.parseUrlEncoded(text);
+			return this.parseUrlEncoded(text);
 		} else {
 			// Default to plain text parsing if content type is not recognized
 			const text = await this.request.text();
-			return await this.parsePlain(text);
+			return { content: text };
 		}
 	}
 }

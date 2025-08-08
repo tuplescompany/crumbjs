@@ -1,8 +1,11 @@
-import type { APIConfig, ContentType, Handler, Method, Middleware, OnStart, Route, RouteConfig, StaticRoute } from './types';
+import type { APIConfig, AppConfig, ContentType, Handler, Method, Middleware, OnStart, Route, RouteConfig, StaticRoute } from './types';
 import { Router } from './router';
 import { ZodObject } from 'zod';
+import { defaultAppConfig } from './constants';
 
 export class App {
+	private config: AppConfig;
+
 	private routes: Route[] = [];
 
 	private statics: StaticRoute[] = [];
@@ -11,10 +14,12 @@ export class App {
 
 	private onStartTriggers: Record<string, OnStart> = {};
 
-	constructor(private readonly prefix: string = '') {}
+	constructor(opts: Partial<AppConfig>) {
+		this.config = { ...defaultAppConfig, ...opts };
+	}
 
 	getPrefix() {
-		return this.prefix;
+		return this.config.prefix;
 	}
 
 	getRoutes() {
@@ -184,6 +189,6 @@ export class App {
 
 	serve(config?: Partial<APIConfig>) {
 		const router = new Router(this);
-		return router.serve(config ?? {});
+		return router.serve(config ?? undefined);
 	}
 }

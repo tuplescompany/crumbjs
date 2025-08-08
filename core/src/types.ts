@@ -29,17 +29,17 @@ export type BunRouteHandlers = Partial<Record<Method, BunHandler>>;
 
 export type BunRoutes = Record<string, BunRouteHandlers>;
 
-export type NotFoundHandler = (req: Request) => Response | Promise<Response>;
+export type Result = Promise<string | object | null | Response> | (string | object | null | Response);
 
-export type ErrorHandler = (req: Request, ex: Exception) => Response | Promise<Response>;
+export type NotFoundHandler = (ctx: RootContext) => Result | Promise<Result>;
+
+export type ErrorHandler = (ctx: ErrorContext) => Result | Promise<Result>;
 
 export type InferOrAny<T extends ZodObject | undefined> = T extends ZodObject ? ZodInfer<T> : any;
 
-export type HandlerResult = Promise<string | object | null | Response> | (string | object | null | Response);
+export type Next = () => Promise<Result>;
 
-export type Next = () => Promise<HandlerResult>;
-
-export type Middleware = (input: MiddlewareContext) => Promise<HandlerResult>;
+export type Middleware = (ctx: MiddlewareContext) => Promise<Result>;
 
 export type MiddlewareContext = RootContext & { next: Next };
 
@@ -51,14 +51,23 @@ export type OnStart = () => void | Promise<void>;
  * and a per-request key–value store.
  */
 export type RootContext = {
+	/** start time context resolution: performance.now() */
+	start: DOMHighResTimeStamp;
+
 	/** The original Fetch API Request object */
 	request: Request;
+
+	/** The bun server instance */
+	server: Bun.Server;
 
 	/** extracted request Origin */
 	origin: string;
 
 	/** extracted request client ip address */
 	ip: string;
+
+	/** request URL instance */
+	url: URL;
 
 	/**
 	 * Raw, unvalidated request body parsed into a plain object.
@@ -88,11 +97,21 @@ export type RootContext = {
 	deleteHeader: (key: string) => void;
 
 	/**
+	 * Gets the current response headers
+	 */
+	getResponseHeaders: () => Headers;
+
+	/**
 	 * Sets the HTTP status code and optional status text for the response.
 	 * @param code - HTTP status code (e.g., 200, 404)
 	 * @param text - Optional status message (e.g., "OK", "Not Found")
 	 */
 	setStatus: (code: number, text?: string) => void;
+
+	/**
+	 * Gets the current status values
+	 */
+	getResponseStatus: () => { status: number; statusText: string };
 
 	/**
 	 * Adds or updates a cookie in the map.
@@ -134,6 +153,8 @@ export type RootContext = {
 	get: <T = any>(key: string) => T;
 };
 
+export type ErrorContext = RootContext & { exception: Exception };
+
 /**
  * Extended request context that includes validated request data and core request utilities.
  *
@@ -172,7 +193,7 @@ export type Handler<
 	QUERY extends ZodObject | undefined,
 	PARAMS extends ZodObject | undefined,
 	HEADERS extends ZodObject | undefined,
-> = (input: Context<BODY, QUERY, PARAMS, HEADERS>) => HandlerResult;
+> = (ctx: Context<BODY, QUERY, PARAMS, HEADERS>) => Result;
 
 export type RouteConfig<
 	BODY extends ZodObject | undefined = undefined,
@@ -301,14 +322,11 @@ export type APIConfig = {
 	 *
 	 * Default:
 	 * ```ts
-	 * const notFoundHandler = () => {
-	 *   return new Response('NOT_FOUND', {
-	 *     status: 404,
-	 *     headers: {
-	 *       'Content-Type': 'text/plain',
-	 *     },
-	 *   });
-	 * };
+	 * ({ setStatus, setHeader }) => {
+	 *		setStatus(404);
+	 *		setHeader('Content-Type', 'text/plain');
+	 *		return '';
+	 * }
 	 * ```
 	 */
 	notFoundHandler: NotFoundHandler;
@@ -318,16 +336,10 @@ export type APIConfig = {
 	 *
 	 * Default:
 	 * ```ts
-	 * const errorHandler = (req, error) => {
-	 *   console.error(`[REQUEST ERROR] ${req.method} ${req.url}`, error);
-	 *   const parsed = Exception.parse(error).toObject();
-	 *   return new Response(JSON.stringify(parsed), {
-	 *     status: parsed.status,
-	 *     headers: {
-	 *       'Content-Type': 'application/json',
-	 *     },
-	 *   });
-	 * };
+	 * ({ setStatus, exception }) => {
+	 *  setStatus(exception.status);
+	 *  return exception.toObject();
+	 * },
 	 * ```
 	 */
 	errorHandler: ErrorHandler;
@@ -365,22 +377,14 @@ export type OARoute = {
 	operationId?: string;
 };
 
-export type RequestJournal = {
-	method: string;
-	path: string;
-	ip: string;
-	request: {
-		body: any;
-		params: any;
-		query: any;
-		headers: any;
-		validated: boolean;
-	};
-	response: {
-		status: number;
-		statusText: string;
-		body: any;
-		headers: any;
-	};
-	ex?: Exception;
+/**
+ * Application-level configuration object.
+ */
+export type AppConfig = {
+	/**
+	 * Global prefix for all routes (e.g., `/api`, `/v1`).
+	 * This is typically used to namespace endpoints.
+	 * @default ''
+	 */
+	prefix: string;
 };

@@ -1,10 +1,13 @@
 import { App } from './app';
-import type { APIConfig, BunHandler, BunRoutes, ErrorHandler, Handler, HandlerResult, OAMethod, RootContext, RouteConfig } from './types';
-import { buildPath } from './utils';
+import type { APIConfig, BunRoutes, OAMethod } from './types';
+import { buildPath, getModeLogLevel, signal, toBunRequest } from './utils';
 import { config as ZodConfig } from 'zod';
 import { openapi } from './openapi/openapi';
 import { config } from './config';
-import { ContextResolver } from './context/resolver';
+import { createHandler } from './context/resolver';
+import { logger } from './logger';
+import { BunRequest } from 'bun';
+import { NotFound } from './exception/http.exception';
 
 /**
  * Router build an Http server from your App routes using Bun.serve
@@ -14,30 +17,6 @@ export class Router {
 
 	constructor(private readonly app: App) {
 		this.startAt = performance.now();
-	}
-
-	/**
-	 * Builds a `Bun.serve`-compatible handler with full request lifecycle support.
-	 *
-	 * Processing steps:
-	 * - Initializes per-request context: store, headers, status, and unvalidated body.
-	 * - Parses request body (skipped for GET/HEAD).
-	 * - Validates `body`, `query`, `params`, and `headers` using Zod schemas from the route config.
-	 * - Executes middleware chain (app-level + route-specific) via a responsibility chain.
-	 * - Executes the final route handler with merged context.
-	 * - Catches and delegates errors to the provided `errorHandler`.
-	 *
-	 * The returned handler ensures type-safe validation, composable middleware, and structured error handling.
-	 */
-	private createHandler(
-		handler: Handler<any, any, any, any>,
-		config: RouteConfig<any, any, any, any>,
-		errorHandler: ErrorHandler,
-	): BunHandler {
-		return (req, server) => {
-			const rc = new ContextResolver(req, server, config, this.app.getGlobalMiddlewares(), handler, errorHandler);
-			return rc.execute();
-		};
 	}
 
 	/**
@@ -59,15 +38,30 @@ export class Router {
 		let routes: BunRoutes = {};
 		let statics: Record<string, Response> = {};
 
+		const globalMiddlewares = this.app.getGlobalMiddlewares();
+
 		for (const route of this.app.getRoutes()) {
 			const { pathParts, method, handler, config } = route;
 
 			const fullPath = buildPath(...pathParts);
 
-			// acumulate paths, if path is repeated will be overwritten by the last registered
+			/**
+			 * Builds and acumulate `Bun.serve`-compatible handlers with full request lifecycle support
+			 * @see {ContextResolver}
+			 *
+			 * Processing steps:
+			 * - Initializes per-request context: store, headers, status, and unvalidated body.
+			 * - Parses request body (skipped for GET/HEAD).
+			 * - Validates `body`, `query`, `params`, and `headers` using Zod schemas from the route config.
+			 * - Executes middleware chain (app-level + route-specific) via a responsibility chain.
+			 * - Executes the final route handler with merged context.
+			 * - Catches and delegates errors to the provided `errorHandler`.
+			 *
+			 * The returned handler ensures type-safe validation, composable middleware, and structured error handling.
+			 */
 			routes[fullPath] = {
 				...routes[fullPath],
-				[method]: this.createHandler(handler, config, errorHandler),
+				[method]: createHandler(config, globalMiddlewares, handler, errorHandler),
 			};
 
 			// Register openapi route if is enabled and not specifically hide on the route
@@ -89,7 +83,7 @@ export class Router {
 				});
 			}
 
-			this.log(`🌐 ${method} ${fullPath} Registered`);
+			logger.debug(`🌐 ${method} ${fullPath} Registered`);
 		}
 
 		for (const staticRoute of this.app.getStaticRoutes()) {
@@ -108,7 +102,7 @@ export class Router {
 				bodyType = contentType ?? 'text/plain';
 			}
 			statics[fullPath] = new Response(body, { headers: { 'Content-Type': bodyType } });
-			this.log(`🌐 GET ${fullPath} Registered (static)`);
+			logger.debug(`🌐 GET ${fullPath} Registered (static)`);
 		}
 
 		/**
@@ -121,20 +115,50 @@ export class Router {
 			statics[documentPath] = Response.json(openapi.getSpec());
 			statics[openapiUiPath] = new Response(openapi[openapiUi](documentPath));
 
-			this.log(`📘 GET ${documentPath} Registered (static)`);
-			this.log(`📘 GET ${openapiUiPath} Registered (static)`);
-			this.log(`✅ OPENAPI: enabled, UI: ${openapiUi}`);
+			logger.debug(`📘 GET ${documentPath} Registered (static)`);
+			logger.debug(`📘 GET ${openapiUiPath} Registered (static)`);
 		}
+
+		// health
+		statics['/up'] = Response.json({
+			up: true,
+			at: new Date().toISOString(),
+		});
+
+		logger.debug(`🌡️ GET /up Registered (static)`);
+
+		logger.debug(`✅ OPENAPI: ${withOpenapi ? `enabled, UI: ${openapiUi}` : 'disabled'}`);
 
 		return { routes, statics };
 	}
 
-	private log(info: string) {
-		console.log(`${new Date().toISOString()} ${info}`);
+	/**
+	 * 404 Not Found handler using the application's global middlewares.
+	 *
+	 * This handler behaves like any other application route handler, ensuring that all
+	 * global middlewares are applied before executing the fallback logic.
+	 *
+	 * Logs the 404 error via `signal()` and delegates the response to the
+	 * `notFoundHandler` defined in the config.
+	 */
+	private async notFound(req: Request, server: Bun.Server) {
+		const applicationHandler = createHandler(
+			{},
+			this.app.getGlobalMiddlewares(),
+			(ctx) => {
+				return config.get('notFoundHandler')(ctx);
+			},
+			config.get('errorHandler'),
+		);
+
+		return applicationHandler(toBunRequest(req), server);
 	}
 
 	async serve(options?: Partial<APIConfig>) {
 		if (options) config.merge(options);
+
+		// set level to the global Logger instance on server starts
+		logger.setLevel(getModeLogLevel(config.get('mode')));
 
 		if (config.get('locale') != 'en') {
 			const { es, en, pt } = await import('zod/locales');
@@ -143,10 +167,10 @@ export class Router {
 			ZodConfig(langs[appLocale]());
 		}
 
-		this.log(`🈯 Locale set to: ${config.get('locale')}`);
+		logger.debug(`🈯 Locale set to: ${config.get('locale')}`);
 
 		for (const [triggerName, trigger] of Object.entries(this.app.getStartupTriggers())) {
-			this.log(`🛠️ Executing on-start '${triggerName}' trigger`);
+			logger.debug(`🛠️ Executing on-start '${triggerName}' trigger`);
 			trigger();
 		}
 
@@ -157,19 +181,13 @@ export class Router {
 			routes: {
 				...routes.routes,
 				...routes.statics,
-				'/up': new Response(`OK, started at: ${new Date().toISOString()}`), // static
 			},
-
-			// Not found handler
-			fetch(req) {
-				console.error(`${new Date().toISOString()} ${req.method} ${new URL(req.url).pathname}: 404-Not Found`);
-				return config.get('notFoundHandler')(req);
-			},
+			fetch: (req, server) => this.notFound(req, server),
 		});
 
 		const duration = performance.now() - this.startAt;
-		this.log(`⚡ Startup time: ${duration.toFixed(2)} ms`);
-		this.log(`🔌 HTTP Server listening on port ${config.get('port')}`);
+		logger.debug(`⚡ Startup time: ${duration.toFixed(2)} ms`);
+		logger.debug(`🔌 HTTP Server listening on port ${config.get('port')}`);
 
 		return server;
 	}

@@ -1,4 +1,5 @@
 import { defaultApiConfig, locales, modes, openapiUis, pathRegex } from './constants';
+import { logger } from './logger';
 import { APIConfig, AppLocale, AppMode, OpenApiUi } from './types';
 
 class Config {
@@ -19,7 +20,7 @@ class Config {
 	}
 
 	private warnInvalidEnv(envIndex: string, invalidValue: any) {
-		console.warn(
+		logger.warn(
 			`${new Date().toISOString()} ⚠️  '${envIndex}' contains an invalid value (${invalidValue}). Falling back to the configured fallback value.`,
 		);
 	}

@@ -21,7 +21,7 @@ export class HeaderBuilder {
 		this.headers.delete(key.toLowerCase());
 	}
 
-	toObject(): Headers {
+	get(): Headers {
 		return this.headers;
 	}
 }
