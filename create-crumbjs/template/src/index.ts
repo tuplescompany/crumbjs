@@ -1,5 +1,5 @@
 import { App, cors, signals } from '@crumbjs/core';
-import { indexController } from './controllers/index.controller';
+import { indexController } from './modules/index/index.controller';
 
 const app = new App({ prefix: 'api' })
 	.use(cors({ origin: '*' }))

@@ -11,10 +11,11 @@ describe('🧪 /hello endpoints', () => {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				hello: 'world',
+				name: 'world',
 			}),
 		});
 		expect(res.status).toBe(200);
-		expect(await res.text()).toBe('world');
+		const json = await res.json();
+		expect(json).toEqual({ hello: 'world' });
 	});
 });
