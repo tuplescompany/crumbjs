@@ -1,18 +1,3 @@
-// a global helper for simplify logger usage
-export const logger = (() => {
-	let instance = new Logger(LogLevel.DEBUG);
-
-	return {
-		instance,
-		setLevel: (level: LogLevel) => instance.level(level),
-		print: (...data: any[]) => instance.print(...data),
-		debug: (...data: any[]) => instance.debug(...data),
-		info: (...data: any[]) => instance.info(...data),
-		warn: (...data: any[]) => instance.warn(...data),
-		error: (...data: any[]) => instance.error(...data),
-	};
-})();
-
 export enum LogLevel {
 	DEBUG = 10,
 	INFO = 20,
@@ -83,3 +68,18 @@ export class Logger {
 		this.log('ERROR', false, ...data);
 	}
 }
+
+// a global helper for simplify logger usage
+export const logger = (() => {
+	let instance = new Logger(LogLevel.DEBUG);
+
+	return {
+		instance,
+		setLevel: (level: LogLevel) => instance.level(level),
+		print: (...data: any[]) => instance.print(...data),
+		debug: (...data: any[]) => instance.debug(...data),
+		info: (...data: any[]) => instance.info(...data),
+		warn: (...data: any[]) => instance.warn(...data),
+		error: (...data: any[]) => instance.error(...data),
+	};
+})();
