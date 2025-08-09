@@ -123,7 +123,8 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		PARAMS extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
-	>(path: string, handler: Handler<undefined, QUERY, PARAMS, HEADERS>, config?: RouteConfig<undefined, QUERY, PARAMS, HEADERS>) {
+		PATH extends string = '/',
+	>(path: PATH, handler: Handler<undefined, QUERY, PARAMS, HEADERS>, config?: RouteConfig<undefined, QUERY, PARAMS, HEADERS>) {
 		this.add('GET', path, handler, config);
 		return this;
 	}

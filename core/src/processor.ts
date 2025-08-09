@@ -1,14 +1,15 @@
 import { BunRequest } from 'bun';
-import { RequestStore } from './request-store';
-import { HeaderBuilder } from './header-builder';
-import { StatusBuilder } from './status-builder';
-import { Context, ErrorContext, ErrorHandler, Handler, Result, Middleware, RootContext, RouteConfig } from '../types';
-import { getStatusText, headersToRecord, signal } from '../utils';
-import { parseBody } from '../body-parser';
+import { RequestStore } from './context/request-store';
+import { HeaderBuilder } from './context/header-builder';
+import { StatusBuilder } from './context/status-builder';
+import { Context, ErrorContext, ErrorHandler, Handler, Result, Middleware, RootContext, RouteConfig } from './types';
+import { getStatusText, signal } from './utils';
+import { parseBody } from './body-parser';
 import { flattenError, ZodObject } from 'zod';
-import { BadRequest, InternalServerError } from '../exception/http.exception';
-import { Exception } from '../exception';
-import { logger } from '../logger';
+import { BadRequest, InternalServerError } from './exception/http.exception';
+import { Exception } from './exception';
+import { logger } from './logger';
+import { AuthorizationParser } from './context/authorization-parser';
 
 /** Handy method to create a BunHandler for the specified application route parameters */
 export const createHandler =
@@ -19,10 +20,10 @@ export const createHandler =
 		errorHandler: ErrorHandler,
 	) =>
 	(req: BunRequest, server: Bun.Server) => {
-		return new ContextResolver(req, server, routeConfig, middlewares, routeHandler, errorHandler).execute();
+		return new Processor(req, server, routeConfig, middlewares, routeHandler, errorHandler).execute();
 	};
 
-export class ContextResolver {
+export class Processor {
 	private readonly rootContext: RootContext;
 
 	private readonly reqStore: RequestStore;
@@ -32,6 +33,8 @@ export class ContextResolver {
 	private readonly reqHeaders: Record<string, string> = {};
 
 	private readonly reqQuery: Record<string, string> = {};
+
+	private readonly authorizationParser: AuthorizationParser;
 
 	private readonly cookies: Bun.CookieMap;
 
@@ -50,12 +53,14 @@ export class ContextResolver {
 		// instance built-in context helpers
 		this.reqStore = new RequestStore();
 		this.resHeaders = new HeaderBuilder({ 'Content-Type': 'application/json' });
-		this.cookies = this.req.cookies;
 		this.statusBuilder = new StatusBuilder(200);
+		this.authorizationParser = new AuthorizationParser(req);
+		this.cookies = this.req.cookies;
 
 		this.reqUrl = new URL(this.req.url);
+
 		this.reqQuery = Object.fromEntries(this.reqUrl.searchParams.entries());
-		this.reqHeaders = headersToRecord(req.headers);
+		this.reqHeaders = req.headers.toJSON();
 
 		this.rootContext = {
 			start: performance.now(),
@@ -64,6 +69,8 @@ export class ContextResolver {
 			url: this.reqUrl,
 			ip: server.requestIP(req)?.address ?? 'unknown',
 			origin: this.req.headers.get('origin') ?? '',
+			bearer: this.authorizationParser.getBearer.bind(this.authorizationParser),
+			basicCredentials: this.authorizationParser.getBasicCredentials.bind(this.authorizationParser),
 			setHeader: this.resHeaders.set.bind(this.resHeaders),
 			deleteHeader: this.resHeaders.delete.bind(this.resHeaders),
 			getResponseHeaders: this.resHeaders.get.bind(this.resHeaders),
@@ -80,9 +87,10 @@ export class ContextResolver {
 
 	private async validate(schema: any, data: any, part: 'body' | 'query' | 'params' | 'headers') {
 		// disable validation for non ZodObject schemas
-		if (!(schema instanceof ZodObject)) {
+		if (!schema || !(schema instanceof ZodObject)) {
 			return data;
 		}
+
 		const res = schema.safeParse(data);
 		if (!res.success) {
 			throw new BadRequest({
@@ -91,20 +99,6 @@ export class ContextResolver {
 			});
 		}
 		return res.data;
-	}
-
-	/**
-	 * Get response headers from Context HeaderBuilder helper
-	 */
-	private getBuildedHeaders() {
-		return this.resHeaders.get();
-	}
-
-	/**
-	 * Get response status from Context StatusBuilder helper
-	 */
-	private getBuildedStatus() {
-		return this.statusBuilder.get();
 	}
 
 	/**
@@ -152,24 +146,64 @@ export class ContextResolver {
 		};
 	}
 
-	private parseResponse(result: Result) {
+	/**
+	 * Normalizes an awaited `Result` value into a `Response` instance.
+	 *
+	 * Accepted types:
+	 * - `Response` → returned as-is.
+	 * - `null` → empty body
+	 * - `string` → plain text
+	 * - `object` → serializes JSON body
+	 *
+	 * Error handling:
+	 * - Throws `InternalServerError` if Result is not null - string - object or Response
+	 *
+	 * @param result - The handler or middleware return value to normalize.
+	 * @returns A `Response` object ready to be returned to the client.
+	 */
+	private parseResponse(result: Awaited<Result>) {
 		if (result instanceof Response) return result;
 
 		const responseBody = typeof result === 'string' || result === null ? result : JSON.stringify(result);
 
 		if (typeof responseBody === 'string' || responseBody === null) {
-			const status = this.getBuildedStatus();
-			const buildedHeaders = this.getBuildedHeaders();
-
 			return new Response(responseBody, {
-				headers: buildedHeaders,
-				...status,
+				headers: this.resHeaders.get(),
+				...this.statusBuilder.get(),
 			});
 		}
 
-		throw new InternalServerError(
-			`No result (string, null, object or Response) after execution chain. Did you forget some 'return next()' on middlewares?`,
-		);
+		throw new InternalServerError(`Unable to parse response. Did you forget some 'return next()' on middlewares?`);
+	}
+
+	/**
+	 * Exception to Response with Error handler
+	 * its parsed within another try-catch, because if at error fails "we will never know what happen"
+	 * @param ex
+	 */
+	private async parseErrorResponse(ex: Exception) {
+		try {
+			const duration = performance.now() - this.rootContext.start;
+			signal('error', this.req.method, this.reqUrl.pathname, ex.status, getStatusText(ex.status), duration, this.rootContext.ip);
+
+			const errorContext: ErrorContext = { ...this.rootContext, exception: ex };
+
+			return this.parseResponse(await this.errorHandler(errorContext));
+		} catch (error) {
+			// Border case, bad coded ExceptionHandler
+			const safeError = error instanceof Error ? error.message : String(error);
+
+			const messages = [
+				'Failed to serialize the exception response',
+				`Error: ${safeError}`,
+				'The exception handler itself threw an error, review and fix its logic',
+			];
+
+			return new Response(messages.join('\n'), {
+				headers: { 'Content-Type': 'text/plain' },
+				status: 500,
+			});
+		}
 	}
 
 	async execute() {
@@ -201,15 +235,8 @@ export class ContextResolver {
 			// 4- Parse and return Response
 			return this.parseResponse(await next());
 		} catch (error) {
-			console.error(error); // RAW Error LOG
-			const ex = Exception.parse(error);
-
-			const duration = performance.now() - this.rootContext.start;
-			signal('error', this.req.method, this.reqUrl.pathname, ex.status, getStatusText(ex.status), duration, this.rootContext.ip);
-
-			const errorContext: ErrorContext = { ...this.rootContext, exception: ex };
-
-			return this.parseResponse(await this.errorHandler(errorContext));
+			console.error(error); // Log raw Error
+			return this.parseErrorResponse(Exception.parse(error));
 		}
 	}
 }

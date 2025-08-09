@@ -1,13 +1,11 @@
 import { App } from './app';
 import type { APIConfig, BunRoutes, OAMethod } from './types';
-import { buildPath, getModeLogLevel, signal, toBunRequest } from './utils';
+import { buildPath, getModeLogLevel, toBunRequest } from './utils';
 import { config as ZodConfig } from 'zod';
 import { openapi } from './openapi/openapi';
 import { config } from './config';
-import { createHandler } from './context/resolver';
+import { createHandler } from './processor';
 import { logger } from './logger';
-import { BunRequest } from 'bun';
-import { NotFound } from './exception/http.exception';
 
 /**
  * Router build an Http server from your App routes using Bun.serve
@@ -47,7 +45,7 @@ export class Router {
 
 			/**
 			 * Builds and acumulate `Bun.serve`-compatible handlers with full request lifecycle support
-			 * @see {ContextResolver}
+			 * @see {Processor}
 			 *
 			 * Processing steps:
 			 * - Initializes per-request context: store, headers, status, and unvalidated body.
@@ -83,7 +81,9 @@ export class Router {
 				});
 			}
 
-			logger.debug(`🌐 ${method} ${fullPath} Registered`);
+			const typeStr = config.type ? ` (${config.type})` : '';
+
+			logger.debug(`🌐 ${method} ${fullPath}${typeStr} Registered`);
 		}
 
 		for (const staticRoute of this.app.getStaticRoutes()) {

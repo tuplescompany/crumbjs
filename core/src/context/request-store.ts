@@ -1,3 +1,5 @@
+import { InternalServerError } from '../exception/http.exception';
+
 export class RequestStore {
 	private readonly data: Map<string, any>;
 
@@ -11,7 +13,7 @@ export class RequestStore {
 
 	get<T = any>(key: string): T {
 		const value = this.data.get('key');
-		if (!value) throw new Error(`${key} doesnt exists in store`);
+		if (!value) throw new InternalServerError(`${key} doesnt exists in store`);
 		return this.data.get(key) as T;
 	}
 }

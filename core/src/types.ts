@@ -63,6 +63,18 @@ export type RootContext = {
 	/** extracted request Origin */
 	origin: string;
 
+	/**
+	 * parse bearer authorization returning only the token string
+	 * @throws {BadRequest} on inexistent or short)
+	 */
+	bearer: () => string;
+
+	/**
+	 * parse the basic authorization returning user and password object
+	 * @throws {BadRequest} on inexistent or invalid)
+	 */
+	basicCredentials: () => { user: string; password: string };
+
 	/** extracted request client ip address */
 	ip: string;
 
@@ -70,16 +82,16 @@ export type RootContext = {
 	url: URL;
 
 	/**
-	 * Raw, unvalidated request body parsed into a plain object.
+	 * rawBody, is the unvalidated request body parsed into a plain object.
 	 *
-	 * Supported Content-Types:
+	 * Supported auto-parseables Content-Types:
 	 * - `application/json`
 	 * - `application/x-www-form-urlencoded`
 	 * - `multipart/form-data`
 	 *
-	 * For unsupported types, the body is parsed as text and returned as: `{ text: string }`.
+	 * For unsupported types, the body is parsed as text and returned as: `{ content: string }`.
 	 *
-	 * Note: No schema validation is applied to this object.
+	 * Note: No schema validation is applied to this object and is available and writable in middlewares
 	 */
 	rawBody: Record<string, any>;
 
@@ -148,7 +160,8 @@ export type RootContext = {
 	/**
 	 * Retrieves a stored value from the per-request context.
 	 * @param key - Key to retrieve
-	 * @returns The stored value, or `undefined` if not set
+	 * @returns The stored value
+	 * @throws {InternalServerError} if the key not exists
 	 */
 	get: <T = any>(key: string) => T;
 };
@@ -174,7 +187,7 @@ export type Context<
 	QUERY extends ZodObject | undefined,
 	PARAMS extends ZodObject | undefined,
 	HEADERS extends ZodObject | undefined,
-> = {
+> = RootContext & {
 	/** Validated request body (or `any` if no schema provided) */
 	body: InferOrAny<BODY>;
 
@@ -186,7 +199,7 @@ export type Context<
 
 	/** Validated request headers (or `any` if no schema provided) */
 	headers: InferOrAny<HEADERS>;
-} & RootContext;
+};
 
 export type Handler<
 	BODY extends ZodObject | undefined,
@@ -388,3 +401,13 @@ export type AppConfig = {
 	 */
 	prefix: string;
 };
+
+export type ExtractPathParams<S extends string> = S extends `${string}:${infer Param}/${infer Rest}`
+	? { [K in Param | keyof ExtractPathParams<`/${Rest}`>]: string }
+	: S extends `${string}:${infer Param}`
+		? { [K in Param]: string }
+		: {};
+
+function a<P extends string>(params: ExtractPathParams<P>) {
+	return params;
+}

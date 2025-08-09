@@ -4,7 +4,7 @@
 export type ExceptionType = {
 	status: number;
 	message: string;
-	invalidFields?: any;
+	fields?: any;
 	debug?: any;
 };
 
@@ -12,7 +12,7 @@ export class Exception extends Error {
 	constructor(
 		message: string,
 		public status: number,
-		public invalidFields?: any,
+		public fields?: any,
 		public raw?: unknown,
 	) {
 		super(message);
@@ -34,7 +34,7 @@ export class Exception extends Error {
 		return {
 			status: this.status,
 			message: this.message,
-			invalidFields: this.invalidFields,
+			fields: this.fields,
 			...this.getDebug(),
 		};
 	}
@@ -52,7 +52,7 @@ export class Exception extends Error {
 	 * Convert ExceptionType object to an Exception instance
 	 */
 	static from(ex: ExceptionType) {
-		return new Exception(ex.message, ex.status, ex.invalidFields);
+		return new Exception(ex.message, ex.status, ex.fields);
 	}
 
 	/**
@@ -99,7 +99,7 @@ class ExceptionObjectParser {
 	}
 
 	private resolveInvalidFields(): any {
-		return this.pick<object>('invalidFields', 'object') ?? {};
+		return this.pick<object>('fields', 'object') ?? {};
 	}
 
 	parse(): Exception {

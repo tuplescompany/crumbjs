@@ -1,8 +1,8 @@
 import { Exception } from '.';
 
 export class BadRequest extends Exception {
-	constructor(invalidFields: any) {
-		super('Bad Request', 400, invalidFields);
+	constructor(data: any) {
+		super('Bad Request', 400, data);
 	}
 }
 
@@ -31,8 +31,8 @@ export class Conflict extends Exception {
 }
 
 export class UnprocessableEntity extends Exception {
-	constructor(invalidFields: any) {
-		super('Unprocessable Entity', 422, invalidFields);
+	constructor(fields: any) {
+		super('Unprocessable Entity', 422, fields);
 	}
 }
 

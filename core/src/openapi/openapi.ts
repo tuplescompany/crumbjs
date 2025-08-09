@@ -4,7 +4,7 @@ import type { OARoute } from '../types';
 
 import { config } from '../config';
 import { swaggerPage, scalarPage } from './ui';
-import { OpenApiOperationBuilder } from './operation.builder';
+import { OpenapiOperationBuilder } from './operation.builder';
 import { ZodInspector } from './zod-inspector';
 
 /**
@@ -13,19 +13,19 @@ import { ZodInspector } from './zod-inspector';
  * ---------------------------------------------------------------------------
  *
  * Responsibilities
- *  • Hold a single `OpenApiBuilder` instance.
- *  • Provide convenience helpers for:
- *      – routes      (`addRoute`)
+ *  - Hold a single `OpenApiBuilder` instance.
+ *  - Provide convenience helpers for:
+ *      - routes      (`addRoute`)
  *      – schemas     (`addSchema`)
  *      – tags        (`addTag`)
  *      – servers     (`addServer`)
  *      – spec output (`getJson`, `getYaml`, `getSpec`)
- *  • Ensure `info` fields fall back to app-level defaults from `config`.
+ *  - Ensure `info` fields fall back to app-level defaults from `config`.
  *
  * Environment overrides:
- *  OPENAPI_TITLE        → default title
- *  OPENAPI_DESCRIPTION  → default description
- *  VERSION              → default version
+ *  - OPENAPI_TITLE        default title
+ *  - OPENAPI_DESCRIPTION  default description
+ *  - VERSION              default version
  */
 export const openapi = (() => {
 	/* ----------------------------------------------------------------------- */
@@ -71,7 +71,7 @@ export const openapi = (() => {
 
 	/** Add an application route and any new tags it introduces. */
 	const addRoute = (route: OARoute): void => {
-		const { path, item, tags } = new OpenApiOperationBuilder(route).buildPathItem();
+		const { path, item, tags } = new OpenapiOperationBuilder(route).buildPathItem();
 
 		tags.forEach((t) => upsertTag(t.name, t.description));
 		builder().addPath(path, item);
