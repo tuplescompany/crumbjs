@@ -1,8 +1,6 @@
 # crumbjs | The tasty way to build fast apps.
 
-<p align="center">
-  <img src="../logo/crumbjs.png" alt="CrumbJS Logo" width="200"/>
-</p>
+<img src="./logo/crumbjs.png" alt="CrumbJS Logo" width="200"/>
 
 - ...Documentation page in progress
 
