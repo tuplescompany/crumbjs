@@ -16,39 +16,75 @@ export class BodyParser {
 	 * Handles multiple values for the same key by creating an array.
 	 */
 	private parseFormData(formData: FormData): Record<string, any> {
-		const data: Record<string, any> = {};
+		const data: Record<string, any> = Object.create(null);
 
-		for (const [key, value] of formData.entries()) {
-			if ((value as any) instanceof File) {
-				// You can extend this to handle files specifically, e.g., save them or store their metadata
-				data[key] = value;
-			} else if (data[key] !== undefined) {
-				// If the key already exists, convert to array or add to existing array
-				data[key] = Array.isArray(data[key]) ? [...(data[key] as any[]), value] : [data[key], value];
-			} else {
-				data[key] = value;
-			}
-		}
+		formData.forEach((value, key) => {
+			data[key] = value;
+		});
+
 		return data;
 	}
 
 	/**
-	 * Parses URL-encoded string and converts it into a plain JavaScript object.
-	 * Handles multiple values for the same key by creating an array.
+	 * Fast URL-encoded parser: single pass, no intermediate arrays.
+	 * - Supports repeated keys and array-like keys (`key[]`).
+	 * - Decodes '+' to space and percent-encoded sequences.
+	 * - Returns plain object with either string or string[] values.
 	 */
 	private parseUrlEncoded(body: string): Record<string, any> {
-		const params = new URLSearchParams(body);
-		const data: Record<string, any> = {};
+		const out: Record<string, any> = Object.create(null);
+		if (body.length === 0) return out;
 
-		for (const [key, value] of params.entries()) {
-			if (data[key] !== undefined) {
-				// If the key already exists, convert to array or add to existing array
-				data[key] = Array.isArray(data[key]) ? [...(data[key] as any[]), value] : [data[key], value];
-			} else {
-				data[key] = value;
+		let start = 0;
+		for (let i = 0; i <= body.length; i++) {
+			// '&' (charCode 38) separates pairs or marks the end of the string
+			if (i === body.length || body.charCodeAt(i) === 38 /* & */) {
+				const seg = body.slice(start, i);
+				if (seg) {
+					// No '=' present: treat as key with empty value
+					const eq = seg.indexOf('=');
+					let rawKey: string, rawVal: string;
+					if (eq === -1) {
+						rawKey = seg;
+						rawVal = '';
+					} else {
+						rawKey = seg.slice(0, eq);
+						rawVal = seg.slice(eq + 1);
+					}
+
+					// Decode '+' to space and percent sequences
+					const key = this.safeDecode(rawKey);
+					const val = this.safeDecode(rawVal);
+
+					// Detect array-like key pattern (e.g., "tags[]")
+					const isArrayKey = key.endsWith('[]');
+					const k = isArrayKey ? key.slice(0, -2) : key;
+
+					const prev = out[k];
+					if (prev === undefined) {
+						out[k] = isArrayKey ? [val] : val;
+					} else if (Array.isArray(prev)) {
+						prev.push(val);
+					} else {
+						out[k] = [prev, val];
+					}
+				}
+				start = i + 1;
 			}
 		}
-		return data;
+
+		return out;
+	}
+
+	private safeDecode(s: string): string {
+		if (s.indexOf('%') === -1 && s.indexOf('+') === -1) return s;
+		try {
+			// reemplaza '+' por espacio antes de decodeURIComponent
+			return decodeURIComponent(s.replace(/\+/g, ' '));
+		} catch {
+			// si viene roto, devolvemos crudo
+			return s.replace(/\+/g, ' ');
+		}
 	}
 
 	private parseContentType(): ParsedContentType {

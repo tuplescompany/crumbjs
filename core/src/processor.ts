@@ -2,7 +2,7 @@ import { BunRequest } from 'bun';
 import { RequestStore } from './context/request-store';
 import { HeaderBuilder } from './context/header-builder';
 import { StatusBuilder } from './context/status-builder';
-import { Context, ErrorContext, ErrorHandler, Handler, Result, Middleware, RootContext, RouteConfig } from './types';
+import { Context, ErrorHandler, Handler, Result, Middleware, RootContext, RouteConfig } from './types';
 import { getStatusText, signal } from './utils';
 import { parseBody } from './body-parser';
 import { flattenError, ZodObject } from 'zod';
@@ -10,18 +10,6 @@ import { BadRequest, InternalServerError } from './exception/http.exception';
 import { Exception } from './exception';
 import { logger } from './logger';
 import { AuthorizationParser } from './context/authorization-parser';
-
-/** Handy method to create a BunHandler for the specified application route parameters */
-export const createHandler =
-	(
-		routeConfig: RouteConfig<any, any, any>,
-		middlewares: Middleware[], // initial global middlewares array
-		routeHandler: Handler<any, any, any, any>,
-		errorHandler: ErrorHandler,
-	) =>
-	(req: BunRequest, server: Bun.Server) => {
-		return new Processor(req, server, routeConfig, middlewares, routeHandler, errorHandler).execute();
-	};
 
 export class Processor {
 	private readonly rootContext: RootContext;
@@ -45,9 +33,9 @@ export class Processor {
 	constructor(
 		private readonly req: BunRequest,
 		server: Bun.Server,
-		private readonly routeConfig: RouteConfig<any, any, any>,
+		private readonly routeConfig: RouteConfig,
 		private readonly middlewares: Middleware[], // initial global middlewares array
-		private readonly routeHandler: Handler<any, any, any, any>,
+		private readonly routeHandler: Handler,
 		private readonly errorHandler: ErrorHandler,
 	) {
 		// instance built-in context helpers
@@ -85,7 +73,7 @@ export class Processor {
 		};
 	}
 
-	private async validate(schema: any, data: any, part: 'body' | 'query' | 'params' | 'headers') {
+	private async validate(schema: any, data: any, part: 'body' | 'query' | 'headers') {
 		// disable validation for non ZodObject schemas
 		if (!schema || !(schema instanceof ZodObject)) {
 			return data;
@@ -110,6 +98,7 @@ export class Processor {
 				this.rootContext.rawBody = await parseBody(this.req);
 			}
 		} catch (error) {
+			// border, this should never happen
 			logger.error('parseBody() fails', error);
 		}
 	}
@@ -126,15 +115,10 @@ export class Processor {
 		}
 	}
 
-	private getRootContext() {
-		return this.rootContext;
-	}
-
-	private async getHandlerContext(): Promise<Context<any, any, any, any>> {
-		const [body, query, params, headers] = await Promise.all([
+	private async getHandlerContext(): Promise<Context> {
+		const [body, query, headers] = await Promise.all([
 			this.validate(this.routeConfig.body, this.rootContext.rawBody, 'body'),
 			this.validate(this.routeConfig.query, this.reqQuery, 'query'),
-			this.validate(this.routeConfig.params, this.req.params, 'params'),
 			this.validate(this.routeConfig.headers, this.reqHeaders, 'headers'),
 		]);
 
@@ -142,7 +126,7 @@ export class Processor {
 			...this.rootContext,
 			body,
 			query,
-			params,
+			params: this.req.params,
 			headers,
 		};
 	}
@@ -162,7 +146,7 @@ export class Processor {
 	 * @param result - The handler or middleware return value to normalize.
 	 * @returns A `Response` object ready to be returned to the client.
 	 */
-	private parseResponse(result: Awaited<Result>) {
+	private createResponse(result: Awaited<Result>) {
 		if (result instanceof Response) return result;
 
 		const responseBody = typeof result === 'string' || result === null ? result : JSON.stringify(result);
@@ -182,14 +166,9 @@ export class Processor {
 	 * its parsed within another try-catch, because if at error fails "we will never know what happen"
 	 * @param ex
 	 */
-	private async parseErrorResponse(ex: Exception) {
+	private async createErrorResponse(ex: Exception) {
 		try {
-			const duration = performance.now() - this.rootContext.start;
-			signal('error', this.req.method, this.reqUrl.pathname, ex.status, getStatusText(ex.status), duration, this.rootContext.ip);
-
-			const errorContext: ErrorContext = { ...this.rootContext, exception: ex };
-
-			return this.parseResponse(await this.errorHandler(errorContext));
+			return this.createResponse(await this.errorHandler({ ...this.rootContext, exception: ex }));
 		} catch (error) {
 			// Border case, bad coded ExceptionHandler
 			const safeError = error instanceof Error ? error.message : String(error);
@@ -209,35 +188,37 @@ export class Processor {
 
 	async execute() {
 		try {
-			// 1- safe body parse, on fail will log and set rawBody = {}
+			// 1- safe body parse, on fail will log and rawBody will still "{}"
 			await this.parseBody();
 			// 2- add route specific middlewares
 			if (this.routeConfig.use) {
-				const routeMiddleware = Array.isArray(this.routeConfig.use) ? this.routeConfig.use : [this.routeConfig.use];
-				this.middlewares.concat(routeMiddleware);
+				const m = Array.isArray(this.routeConfig.use) ? this.routeConfig.use : [this.routeConfig.use];
+				this.middlewares.push(...m);
 			}
 
 			// 3- Create functional route chain
-			let index = -1;
-			const next = async (): Promise<Result> => {
-				index++;
-				if (index < this.middlewares.length) {
-					// a- Execute middleware function
-					return await this.middlewares[index]({ ...this.getRootContext(), next });
-				} else {
-					// b- Validate request content type with configured route type
-					this.validateContentType();
-					// c- Validate body, headers, params and query and obtain the full handler context
-					const handlerContext = await this.getHandlerContext();
-					return await this.routeHandler(handlerContext);
-				}
+			let i = 0;
+			const run = async (): Promise<Result> => {
+				// global and route middlewares
+				const mw = this.middlewares[i++];
+				if (mw) return mw({ ...this.rootContext, next: run });
+				// route handler
+				this.validateContentType(); // if route config includes content-type and is different from request, throws
+				const ctx = await this.getHandlerContext(); // validates data and construct the final context
+				return this.routeHandler(ctx);
 			};
 
 			// 4- Parse and return Response
-			return this.parseResponse(await next());
+			return this.createResponse(await run());
 		} catch (error) {
 			console.error(error); // Log raw Error
-			return this.parseErrorResponse(Exception.parse(error));
+
+			const ex = Exception.parse(error);
+
+			const duration = performance.now() - this.rootContext.start;
+			signal('error', this.req.method, this.reqUrl.pathname, ex.status, getStatusText(ex.status), duration, this.rootContext.ip);
+
+			return this.createErrorResponse(ex);
 		}
 	}
 }

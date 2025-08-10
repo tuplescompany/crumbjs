@@ -1,11 +1,12 @@
 import { App } from './app';
-import type { APIConfig, BunRoutes, OAMethod } from './types';
-import { buildPath, getModeLogLevel, toBunRequest } from './utils';
+import type { APIConfig, BunHandler, BunRoutes, ErrorHandler, Handler, Middleware, OAMethod, RouteConfig } from './types';
+import { buildPath, getModeLogLevel } from './utils';
 import { config as ZodConfig } from 'zod';
 import { openapi } from './openapi/openapi';
 import { config } from './config';
-import { createHandler } from './processor';
+import { Processor } from './processor';
 import { logger } from './logger';
+import { BunRequest, CookieMap } from 'bun';
 
 /**
  * Router build an Http server from your App routes using Bun.serve
@@ -18,17 +19,7 @@ export class Router {
 	}
 
 	/**
-	 * Compiles the application's route definitions into a Bun-compatible route map.
-	 *
-	 * - Instantiates the OpenAPI generator (if enabled).
-	 * - Iterates over all registered routes, builds full paths, and creates handler wrappers.
-	 * - Iterates over all registered static routes, builds full paths, and set content or filecontent static at boot time
-	 * - Automatically registers OpenAPI metadata unless explicitly hidden per route.
-	 * - Adds default routes to serve OpenAPI spec and Swagger UI if enabled.
-	 * - Logs each registered route to the console with timestamp and method.
-	 *
-	 * @param apiConfig - Configuration object that controls OpenAPI, error handling, and more.
-	 * @returns A fully populated `BunRoutes` object ready for `Bun.serve()`.
+	 * Takes all application routes and create Bun.serve compatible Handlers with all request life-cycle throught Processor
 	 */
 	private async buildRoutes() {
 		const { withOpenapi, openapiBasePath, openapiUi, errorHandler } = config.all();
@@ -44,13 +35,11 @@ export class Router {
 			const fullPath = buildPath(...pathParts);
 
 			/**
-			 * Builds and acumulate `Bun.serve`-compatible handlers with full request lifecycle support
 			 * @see {Processor}
-			 *
 			 * Processing steps:
-			 * - Initializes per-request context: store, headers, status, and unvalidated body.
+			 * - Initializes per-request context: path params, store, headers, status, unvalidated body and orther tools @see {Context}
 			 * - Parses request body (skipped for GET/HEAD).
-			 * - Validates `body`, `query`, `params`, and `headers` using Zod schemas from the route config.
+			 * - Validates `body`, `query` and `headers` using Zod schemas from the route config (if provided)
 			 * - Executes middleware chain (app-level + route-specific) via a responsibility chain.
 			 * - Executes the final route handler with merged context.
 			 * - Catches and delegates errors to the provided `errorHandler`.
@@ -59,25 +48,25 @@ export class Router {
 			 */
 			routes[fullPath] = {
 				...routes[fullPath],
-				[method]: createHandler(config, globalMiddlewares, handler, errorHandler),
+				[method]: this.createHandler(config, globalMiddlewares, handler, errorHandler),
 			};
 
 			// Register openapi route if is enabled and not specifically hide on the route
-			if (withOpenapi && !config.openapi?.hide) {
+			if (withOpenapi && !config.hide) {
 				openapi.addRoute({
 					method: method.toLowerCase() as OAMethod,
 					path: fullPath,
 					mediaType: config.type ?? 'application/json',
 					body: 'body' in config ? config.body : undefined,
 					query: config.query,
+					header: config.headers,
 					params: config.params,
-					headers: config.headers,
 					responses: config.responses,
-					tags: config.openapi?.tags ?? ['Uncategorized'],
-					description: config.openapi?.description,
-					summary: config.openapi?.summary,
-					authorization: config.openapi?.authorization,
-					operationId: config.openapi?.operationId,
+					tags: config.tags ?? ['Uncategorized'],
+					description: config.description,
+					summary: config.summary,
+					authorization: config.authorization,
+					operationId: config.operationId,
 				});
 			}
 
@@ -89,19 +78,14 @@ export class Router {
 		for (const staticRoute of this.app.getStaticRoutes()) {
 			const { pathParts, contentOrPath, isFile, contentType } = staticRoute;
 			const fullPath = buildPath(...pathParts);
-			let body: string;
-			let bodyType: string;
 			if (isFile) {
 				const file = Bun.file(contentOrPath);
 				const exists = await file.exists();
 				if (!exists) throw new Error(`Invalid static path: ${contentOrPath} doesnt exists`);
-				body = await file.text();
-				bodyType = file.type;
+				statics[fullPath] = new Response(file);
 			} else {
-				body = contentOrPath;
-				bodyType = contentType ?? 'text/plain';
+				statics[fullPath] = new Response(contentOrPath, { headers: { 'Content-Type': contentType ?? 'text/plain' } });
 			}
-			statics[fullPath] = new Response(body, { headers: { 'Content-Type': bodyType } });
 			logger.debug(`🌐 GET ${fullPath} Registered (static)`);
 		}
 
@@ -132,6 +116,26 @@ export class Router {
 		return { routes, statics };
 	}
 
+	private createHandler(
+		routeConfig: RouteConfig,
+		middlewares: Middleware[], // initial global middlewares array
+		routeHandler: Handler,
+		errorHandler: ErrorHandler,
+	): BunHandler {
+		return (req: BunRequest, server: Bun.Server) => {
+			return new Processor(req, server, routeConfig, middlewares, routeHandler, errorHandler).execute();
+		};
+	}
+
+	/** Convert standard Request to BunRequest */
+	private toBunRequest(req: Request): BunRequest {
+		return Object.assign(req, {
+			params: {},
+			cookies: new CookieMap(),
+			clone: () => this.toBunRequest(req.clone()),
+		}) as BunRequest;
+	}
+
 	/**
 	 * 404 Not Found handler using the application's global middlewares.
 	 *
@@ -142,7 +146,7 @@ export class Router {
 	 * `notFoundHandler` defined in the config.
 	 */
 	private async notFound(req: Request, server: Bun.Server) {
-		const applicationHandler = createHandler(
+		const notFoundHandler = this.createHandler(
 			{},
 			this.app.getGlobalMiddlewares(),
 			(ctx) => {
@@ -151,7 +155,7 @@ export class Router {
 			config.get('errorHandler'),
 		);
 
-		return applicationHandler(toBunRequest(req), server);
+		return notFoundHandler(this.toBunRequest(req), server);
 	}
 
 	async serve(options?: Partial<APIConfig>) {

@@ -1,8 +1,7 @@
 import { z, type ZodType } from 'zod';
-import type { AnyParamMeta, AppMode, ContentType, ResponseConfig } from './types';
+import type { AnyPathParams, AppMode, ContentType, ResponseConfig } from './types';
 import { STATUS_CODES } from 'node:http';
 import { logger, LogLevel } from './logger';
-import { BunRequest, CookieMap } from 'bun';
 
 /**
  * Normalizes and joins multiple path segments into a clean, well-formed URL path.
@@ -118,20 +117,12 @@ export function signal(
 	logger[type](method, path, `${status}::${statusText}`, `${duration.toFixed(2)} ms`, `-- ${ip}`);
 }
 
-export function toBunRequest(req: Request): BunRequest {
-	return Object.assign(req, {
-		params: {},
-		cookies: new CookieMap(),
-		clone: () => toBunRequest(req.clone()),
-	}) as BunRequest;
-}
-
 /**
- * Generates an AnyParamMeta from a path string like `/path/to/:param/foo/:param2`
+ * Generates an AnyPathParams from a path string like `/path/to/:param/foo/:param2`
  */
-export function generateDefaultParamMeta(path: string): AnyParamMeta {
+export function generateDefaultPathParams(path: string): AnyPathParams {
 	const matches = [...path.matchAll(/:([^/]+)/g)]; // captura todo después de ":" hasta la próxima "/"
-	const meta: AnyParamMeta = {};
+	const meta: AnyPathParams = {};
 
 	for (const [, paramName] of matches) {
 		meta[paramName] = {

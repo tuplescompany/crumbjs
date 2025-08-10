@@ -39,6 +39,41 @@ export class App {
 		return this.onStartTriggers;
 	}
 
+	/**
+	 * Mounts a middleware function or another {@link App} instance onto the current application.
+	 *
+	 * - If a **Middleware** is provided:
+	 *   The function is added to the list of global middlewares. These run for
+	 *   every request before route-specific middlewares and handlers.
+	 *
+	 * - If another **App** instance is provided:
+	 *   - All of its routes are merged into the current app, with this app's prefix
+	 *     automatically prepended to the child app's route paths.
+	 *   - All of its static routes are also merged, with prefixes applied.
+	 *   - All of its global middlewares are appended to the current app's
+	 *     global middleware chain.
+	 *   - Its `onStart` triggers are merged into the current app's triggers
+	 *     (overwriting by name to avoid duplication).
+	 *
+	 * This method is useful for:
+	 * - Composing large applications from smaller sub-apps (modular architecture).
+	 * - Sharing reusable route/middleware groups across projects.
+	 * - Applying global cross-cutting middleware.
+	 *
+	 * @param usable - Either:
+	 *   - A {@link Middleware} function to run on every request.
+	 *   - Another {@link App} instance whose routes, statics, middlewares,
+	 *     and startup triggers will be merged into this one.
+	 *
+	 * @returns The current {@link App} instance for chaining.
+	 *
+	 * @example
+	 * // Mount a global middleware
+	 * app.use(loggerMiddleware);
+	 *
+	 * // Mount a sub-application with its own routes
+	 * app.use(apiApp);
+	 */
 	use(usable: Middleware | App) {
 		if (usable instanceof App) {
 			this.routes = this.routes.concat(
@@ -89,7 +124,7 @@ export class App {
 		return root;
 	}
 
-	private add(method: Method, path: string, handler: Handler<any, any, any, any>, config?: RouteConfig<any, any, any, any>) {
+	private add(method: Method, path: string, handler: Handler<string>, config?: RouteConfig<any, any, any, any>) {
 		this.routes.push({
 			pathParts: [this.getPrefix(), path],
 			method,
@@ -98,16 +133,38 @@ export class App {
 		});
 	}
 
-	staticFile(path: string, filePath: string) {
+	/**
+	 * Registers a static file to be served at a specific route path.
+	 *
+	 * ⚡ Performance: Bun caches static paths at server start and serves them via a
+	 * zero-overhead fast path (ref {@link https://bun.com/docs/api/http#static-responses}). Middleware or route handlers are **not**
+	 * invoked for these requests.
+	 *
+	 * @param path - The request path where the file will be served (relative to the current prefix, if any).
+	 * @param filePath - The absolute or relative file system path to the file to serve.
+	 * @returns The current instance (for chaining).
+	 */
+	file(path: string, filePath: string) {
 		this.statics.push({
 			pathParts: [this.getPrefix(), path],
 			contentOrPath: filePath,
 			isFile: true,
 		});
-
 		return this;
 	}
 
+	/**
+	 * Registers static string content to be served at a specific route path.
+	 *
+	 * ⚡ Performance: Bun caches static paths at server start and serves them via a
+	 * zero-overhead fast path (ref {@link https://bun.com/docs/api/http#static-responses}). Middleware or route handlers are **not**
+	 * invoked for these requests.
+	 *
+	 * @param path - The request path where the content will be served (relative to the current prefix, if any).
+	 * @param content - The string content to serve.
+	 * @param type - The Content-Type to send with the response.
+	 * @returns The current instance (for chaining).
+	 */
 	static(path: string, content: string, type: ContentType) {
 		this.statics.push({
 			pathParts: [this.getPrefix(), path],
@@ -115,10 +172,10 @@ export class App {
 			isFile: false,
 			contentType: type,
 		});
-
 		return this;
 	}
 
+	/** Register a GET route */
 	get<PATH extends string = '/', QUERY extends ZodObject | undefined = undefined, HEADERS extends ZodObject | undefined = undefined>(
 		path: PATH,
 		handler: Handler<PATH, undefined, QUERY, HEADERS>,
@@ -128,6 +185,7 @@ export class App {
 		return this;
 	}
 
+	/** Register a POST route */
 	post<
 		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
@@ -138,6 +196,7 @@ export class App {
 		return this;
 	}
 
+	/** Register a PUT route */
 	put<
 		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
@@ -148,6 +207,7 @@ export class App {
 		return this;
 	}
 
+	/** Register a PATCH route */
 	patch<
 		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
@@ -158,6 +218,7 @@ export class App {
 		return this;
 	}
 
+	/** Register a DELETE route */
 	delete<
 		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
@@ -168,6 +229,7 @@ export class App {
 		return this;
 	}
 
+	/** Register a OPTIONS route */
 	options<
 		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
@@ -178,6 +240,7 @@ export class App {
 		return this;
 	}
 
+	/** Register a HEAD route */
 	head<PATH extends string = '/', QUERY extends ZodObject | undefined = undefined, HEADERS extends ZodObject | undefined = undefined>(
 		path: string,
 		handler: Handler<PATH, undefined, QUERY, HEADERS>,
@@ -187,6 +250,9 @@ export class App {
 		return this;
 	}
 
+	/**
+	 * Builds the Bun.Server and export it
+	 */
 	serve(config?: Partial<APIConfig>) {
 		const router = new Router(this);
 		return router.serve(config ?? undefined);

@@ -174,12 +174,18 @@ export type ExtractPathParams<S extends string> = S extends `${string}:${infer P
 		? { [K in Param]: string }
 		: {};
 
-export type ParamMeta<S extends string> = {
-	[K in keyof ExtractPathParams<S>]?: { example: string; description?: string };
+export type PathParams<S extends string> = {
+	[K in keyof ExtractPathParams<S>]?: {
+		example: string;
+		description?: string;
+	};
 };
 
-export type AnyParamMeta = {
-	[key: string]: { example: string; description?: string };
+export type AnyPathParams = {
+	[key: string]: {
+		example: string;
+		description?: string;
+	};
 };
 
 /**
@@ -197,10 +203,10 @@ export type AnyParamMeta = {
  * @template HEADERS - Zod schema for the request headers
  */
 export type Context<
-	PATH extends string,
-	BODY extends ZodObject | undefined,
-	QUERY extends ZodObject | undefined,
-	HEADERS extends ZodObject | undefined,
+	PATH extends string = any,
+	BODY extends ZodObject | undefined = any,
+	QUERY extends ZodObject | undefined = any,
+	HEADERS extends ZodObject | undefined = any,
 > = RootContext & {
 	/** Validated request body (or `any` if no schema provided) */
 	body: InferOrAny<BODY>;
@@ -230,7 +236,7 @@ export type RouteConfig<
 > = {
 	body?: BODY;
 	query?: QUERY;
-	params?: ParamMeta<PATH>;
+	params?: PathParams<PATH>;
 	headers?: HEADERS;
 	use?: Middleware | Middleware[];
 	type?: ContentType;
@@ -240,32 +246,30 @@ export type RouteConfig<
 	 * @example spec.response(200, schema, 'text/plain')
 	 */
 	responses?: ResponseConfig[];
-	openapi?: Partial<{
-		/**
-		 * Exclude from openapi doc if true
-		 * @default false
-		 */
-		hide: boolean;
-		/**
-		 * Will create the tag/s on openapi spec and asign to the route
-		 * you may want to add some tag description use 'openapi' helper (wich avoids duplication)
-		 * @example ['your-tag']
-		 * @example
-		 * // outside the route definition
-		 * import { openapi } from '@crumbjs/core';
-		 * openapi.addTag('your-tag', 'your-description')
-		 * @default 'Uncategorized'
-		 */
-		tags: string[];
-		/** openapi endpoint description */
-		description: string;
-		/** openapi endpoint summary */
-		summary: string;
-		/** openapi endpoint security component */
-		authorization: 'bearer' | 'basic';
-		/** if is not set will be inferred based on final path */
-		operationId: string;
-	}>;
+	/**
+	 * Exclude from openapi doc if true
+	 * @default false
+	 */
+	hide?: boolean;
+	/**
+	 * Will create the tag/s on openapi spec and asign to the route
+	 * you may want to add some tag description use 'openapi' helper (wich avoids duplication)
+	 * @example ['your-tag']
+	 * @example
+	 * // outside the route definition
+	 * import { openapi } from '@crumbjs/core';
+	 * openapi.addTag('your-tag', 'your-description')
+	 * @default 'Uncategorized'
+	 */
+	tags?: string[];
+	/** openapi endpoint description */
+	description?: string;
+	/** openapi endpoint summary */
+	summary?: string;
+	/** openapi endpoint security component */
+	authorization?: 'bearer' | 'basic';
+	/** if is not set will be inferred based on final path */
+	operationId?: string;
 };
 
 export type ResponseConfig = {
@@ -375,8 +379,8 @@ export type APIConfig = {
 export type Route = {
 	pathParts: string[];
 	method: Method;
-	handler: Handler<any, any, any, any>;
-	config: RouteConfig<any, any, any>;
+	handler: Handler;
+	config: RouteConfig;
 };
 
 export type StaticRoute = {
@@ -394,8 +398,8 @@ export type OARoute = {
 	mediaType?: string;
 	body?: ZodObject;
 	query?: ZodObject;
-	params?: AnyParamMeta;
-	headers?: ZodObject;
+	params?: AnyPathParams;
+	header?: ZodObject;
 	responses?: ResponseConfig[];
 	tags?: string[];
 	description?: string;

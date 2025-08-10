@@ -94,7 +94,7 @@ class ExceptionObjectParser {
 		return this.pick<string>('response', 'string') || this.pick<string>('message', 'string') || '¡Opps! Ocurrió un error';
 	}
 
-	private resolveCode(): number {
+	private resolveStatus(): number {
 		return this.pick<number>('status', 'number') || this.pick<number>('code', 'number') || 500;
 	}
 
@@ -103,6 +103,9 @@ class ExceptionObjectParser {
 	}
 
 	parse(): Exception {
-		return new Exception(this.resolveMessage(), this.resolveCode(), this.resolveInvalidFields(), this.err);
+		let status = this.resolveStatus();
+		if (status <= 100 || status > 599) status = 500;
+
+		return new Exception(this.resolveMessage(), status, this.resolveInvalidFields(), this.err);
 	}
 }
