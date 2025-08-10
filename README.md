@@ -30,16 +30,73 @@ Alternatively, add the framework to an existing Bun project:
 bun add @crumbjs/core
 ```
 
-## Quick start
+## Quick start (conceptual examples)
 
 ```ts
 import { App, spec } from '@crumbjs/core';
+import { IndexModel } from './index.model';
 import { z } from 'zod';
 
-const app = new App('api').get('/hello/:name', ({ params: { name } }) => ({ name }), {
-	params: z.object({ name: z.string() }),
-	responses: [spec.response(200, z.object({ name: z.string() }))],
-});
+const app = new App();
+
+app.get(
+	'/hello/:name',
+	({ params }) => ({
+		hello: params.name, // <-- typed params
+	}),
+	{
+		// Optional way to document path params
+		params: {
+			name: {
+				example: 'CrumbJS',
+				description: 'The name we will greet',
+			},
+		},
+		responses: [spec.response(200, z.object({ hello: z.string().meta({ example: 'CrumbJS' }) }))],
+	},
+);
+
+// POST /posts — create a blog post
+app.post(
+	'/posts',
+	async ({ body, setStatus, setHeader }) => {
+		// Auto-slug if missing
+		const slug = body.slug ?? slugify(body.title);
+
+		const [created] = await db
+			.insert(posts)
+			.values({ ...body, slug })
+			.returning();
+
+		// Set 201 Status code
+		setStatus(201);
+
+		return created; // your framework will JSON-serialize it
+	},
+	// Route Config (all the parameters are optionals)
+	{
+		// Content-Type definition throws if is not the same from the request (also document openapi media type)
+		type: 'application/json',
+		// Validate + document the body (Zod drives both)
+		body: z.object({
+			title: z.string().min(10).max(50).meta({ example: 'My new post' }),
+			slug: z
+				.string()
+				.regex(/^[a-z0-9-]+$/i, 'Use letters, numbers, and dashes only')
+				.optional()
+				.meta({ example: 'my-new-post' }),
+			content: z.string().min(150).meta({ example: 'Write at least 150 chars of useful content...' }),
+		}),
+		// headers: z.object(...) // Same as body: Validate + Document
+		// query: z.object(...) // Same as body: Validate + Document
+		// extra OpenAPI metadata
+		summary: 'Create a post',
+		description: 'Creates a blog post. If `slug` is omitted, it is generated from `title`.',
+		tags: ['Posts'],
+		operationId: 'createPost',
+		// hide: true, // to dont show the route in openapi
+	},
+);
 
 app.serve();
 ```
@@ -77,12 +134,10 @@ OPENAPI=false
 
 ## Programmatic configuration
 
-You can also override settings in code using the exported `config` helper:
+You can also override settings in code using `serve` options:
 
 ```ts
-import { config } from '@crumbjs/core';
-
-config.merge({ port: 3000, withOpenapi: false });
+app.serve({ port: 3000, withOpenapi: false });
 ```
 
 ## Philosophy
