@@ -11,8 +11,8 @@ import {
 	SchemaObject,
 	TagObject,
 } from 'openapi3-ts/oas31';
-import { OARoute } from '../types';
-import { capitalize, getStatusText } from '../utils';
+import { AnyParamMeta, OARoute } from '../types';
+import { capitalize, getStatusText, objectCleanUndefined } from '../utils';
 import { ZodInspector } from './zod-inspector';
 
 /**
@@ -96,16 +96,48 @@ export class OpenapiOperationBuilder {
 
 	/** Combine params, query and headers into one flat array. */
 	private buildParameters(): ParameterObject[] {
-		return [...this.buildParameterList('params'), ...this.buildParameterList('query'), ...this.buildParameterList('headers')];
+		return [...this.buildPathParameterList(), ...this.buildParameterList('query'), ...this.buildParameterList('headers')];
+	}
+
+	private defaultParamMeta(): AnyParamMeta {
+		const matches = [...this.route.path.matchAll(/:([^/]+)/g)];
+		const meta: AnyParamMeta = {};
+
+		for (const [, paramName] of matches) {
+			meta[paramName] = {
+				example: `${paramName}-example`,
+			};
+		}
+
+		return meta;
+	}
+
+	private buildPathParameterList() {
+		const routeParams = {
+			...this.defaultParamMeta(), // all params must exists, so we create a default meta-structure for each params
+			...objectCleanUndefined(this.route.params), // user defined params meta, overwrites the defaults
+		};
+
+		const params: ParameterObject[] = [];
+		for (const key in routeParams) {
+			params.push({
+				name: key,
+				in: 'path',
+				required: true,
+				schema: { type: 'string' },
+				example: routeParams[key].example,
+				description: routeParams[key].description,
+			});
+		}
+		return params;
 	}
 
 	/** Convert a ZodObject into an array of ParameterObjects. */
-	private buildParameterList(part: 'params' | 'query' | 'headers'): ParameterObject[] {
+	private buildParameterList(part: 'query' | 'headers'): ParameterObject[] {
 		const schema = this.route[part];
 		if (!schema) return [];
 
 		const locationMap: Record<typeof part, ParameterLocation> = {
-			params: 'path',
 			query: 'query',
 			headers: 'header',
 		};
@@ -115,7 +147,7 @@ export class OpenapiOperationBuilder {
 		return ZodInspector.fields(schema).map(({ key, schema, required, metadata }) => ({
 			name: key,
 			in: loc,
-			required: required || loc === 'path',
+			required: required,
 			schema: ZodInspector.convert(schema),
 			...metadata,
 		})) as ParameterObject[];

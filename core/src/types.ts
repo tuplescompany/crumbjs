@@ -168,6 +168,20 @@ export type RootContext = {
 
 export type ErrorContext = RootContext & { exception: Exception };
 
+export type ExtractPathParams<S extends string> = S extends `${string}:${infer Param}/${infer Rest}`
+	? { [K in Param | keyof ExtractPathParams<`/${Rest}`>]: string }
+	: S extends `${string}:${infer Param}`
+		? { [K in Param]: string }
+		: {};
+
+export type ParamMeta<S extends string> = {
+	[K in keyof ExtractPathParams<S>]?: { example: string; description?: string };
+};
+
+export type AnyParamMeta = {
+	[key: string]: { example: string; description?: string };
+};
+
 /**
  * Extended request context that includes validated request data and core request utilities.
  *
@@ -183,9 +197,9 @@ export type ErrorContext = RootContext & { exception: Exception };
  * @template HEADERS - Zod schema for the request headers
  */
 export type Context<
+	PATH extends string,
 	BODY extends ZodObject | undefined,
 	QUERY extends ZodObject | undefined,
-	PARAMS extends ZodObject | undefined,
 	HEADERS extends ZodObject | undefined,
 > = RootContext & {
 	/** Validated request body (or `any` if no schema provided) */
@@ -195,28 +209,28 @@ export type Context<
 	query: InferOrAny<QUERY>;
 
 	/** Validated route/path parameters (or `any` if no schema provided) */
-	params: InferOrAny<PARAMS>;
+	params: ExtractPathParams<PATH>;
 
 	/** Validated request headers (or `any` if no schema provided) */
 	headers: InferOrAny<HEADERS>;
 };
 
 export type Handler<
-	BODY extends ZodObject | undefined,
-	QUERY extends ZodObject | undefined,
-	PARAMS extends ZodObject | undefined,
-	HEADERS extends ZodObject | undefined,
-> = (ctx: Context<BODY, QUERY, PARAMS, HEADERS>) => Result;
+	PATH extends string = '/',
+	BODY extends ZodObject | undefined = any,
+	QUERY extends ZodObject | undefined = any,
+	HEADERS extends ZodObject | undefined = any,
+> = (ctx: Context<PATH, BODY, QUERY, HEADERS>) => Result;
 
 export type RouteConfig<
+	PATH extends string = '/',
 	BODY extends ZodObject | undefined = undefined,
 	QUERY extends ZodObject | undefined = undefined,
-	PARAMS extends ZodObject | undefined = undefined,
 	HEADERS extends ZodObject | undefined = undefined,
 > = {
 	body?: BODY;
 	query?: QUERY;
-	params?: PARAMS;
+	params?: ParamMeta<PATH>;
 	headers?: HEADERS;
 	use?: Middleware | Middleware[];
 	type?: ContentType;
@@ -362,7 +376,7 @@ export type Route = {
 	pathParts: string[];
 	method: Method;
 	handler: Handler<any, any, any, any>;
-	config: RouteConfig<any, any, any, any>;
+	config: RouteConfig<any, any, any>;
 };
 
 export type StaticRoute = {
@@ -380,7 +394,7 @@ export type OARoute = {
 	mediaType?: string;
 	body?: ZodObject;
 	query?: ZodObject;
-	params?: ZodObject;
+	params?: AnyParamMeta;
 	headers?: ZodObject;
 	responses?: ResponseConfig[];
 	tags?: string[];
@@ -401,13 +415,3 @@ export type AppConfig = {
 	 */
 	prefix: string;
 };
-
-export type ExtractPathParams<S extends string> = S extends `${string}:${infer Param}/${infer Rest}`
-	? { [K in Param | keyof ExtractPathParams<`/${Rest}`>]: string }
-	: S extends `${string}:${infer Param}`
-		? { [K in Param]: string }
-		: {};
-
-function a<P extends string>(params: ExtractPathParams<P>) {
-	return params;
-}

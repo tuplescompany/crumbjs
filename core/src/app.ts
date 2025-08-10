@@ -119,71 +119,70 @@ export class App {
 		return this;
 	}
 
-	get<
-		QUERY extends ZodObject | undefined = undefined,
-		PARAMS extends ZodObject | undefined = undefined,
-		HEADERS extends ZodObject | undefined = undefined,
-		PATH extends string = '/',
-	>(path: PATH, handler: Handler<undefined, QUERY, PARAMS, HEADERS>, config?: RouteConfig<undefined, QUERY, PARAMS, HEADERS>) {
+	get<PATH extends string = '/', QUERY extends ZodObject | undefined = undefined, HEADERS extends ZodObject | undefined = undefined>(
+		path: PATH,
+		handler: Handler<PATH, undefined, QUERY, HEADERS>,
+		config?: RouteConfig<PATH, undefined, QUERY, HEADERS>,
+	) {
 		this.add('GET', path, handler, config);
 		return this;
 	}
 
 	post<
+		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
 		QUERY extends ZodObject | undefined = undefined,
-		PARAMS extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
-	>(path: string, handler: Handler<BODY, QUERY, PARAMS, HEADERS>, config?: RouteConfig<BODY, QUERY, PARAMS, HEADERS>) {
+	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
 		this.add('POST', path, handler, config);
 		return this;
 	}
 
 	put<
+		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
 		QUERY extends ZodObject | undefined = undefined,
-		PARAMS extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
-	>(path: string, handler: Handler<BODY, QUERY, PARAMS, HEADERS>, config?: RouteConfig<BODY, QUERY, PARAMS, HEADERS>) {
+	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
 		this.add('PUT', path, handler, config);
 		return this;
 	}
 
 	patch<
+		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
 		QUERY extends ZodObject | undefined = undefined,
-		PARAMS extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
-	>(path: string, handler: Handler<BODY, QUERY, PARAMS, HEADERS>, config?: RouteConfig<BODY, QUERY, PARAMS, HEADERS>) {
+	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
 		this.add('PATCH', path, handler, config);
 		return this;
 	}
 
 	delete<
+		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
 		QUERY extends ZodObject | undefined = undefined,
-		PARAMS extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
-	>(path: string, handler: Handler<BODY, QUERY, PARAMS, HEADERS>, config?: RouteConfig<BODY, QUERY, PARAMS, HEADERS>) {
+	>(path: string, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
 		this.add('DELETE', path, handler, config);
 		return this;
 	}
 
 	options<
+		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
 		QUERY extends ZodObject | undefined = undefined,
-		PARAMS extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
-	>(path: string, handler: Handler<BODY, QUERY, PARAMS, HEADERS>, config?: RouteConfig<BODY, QUERY, PARAMS, HEADERS>) {
+	>(path: string, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
 		this.add('OPTIONS', path, handler, config);
 		return this;
 	}
 
-	head<
-		QUERY extends ZodObject | undefined = undefined,
-		PARAMS extends ZodObject | undefined = undefined,
-		HEADERS extends ZodObject | undefined = undefined,
-	>(path: string, handler: Handler<undefined, QUERY, PARAMS, HEADERS>, config?: RouteConfig<undefined, QUERY, PARAMS, HEADERS>) {
+	head<PATH extends string = '/', QUERY extends ZodObject | undefined = undefined, HEADERS extends ZodObject | undefined = undefined>(
+		path: string,
+		handler: Handler<PATH, undefined, QUERY, HEADERS>,
+		config?: RouteConfig<PATH, undefined, QUERY, HEADERS>,
+	) {
 		this.add('HEAD', path, handler, config);
 		return this;
 	}

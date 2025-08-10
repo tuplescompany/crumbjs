@@ -3,6 +3,7 @@
 import { z, type ZodType, ZodObject, ZodOptional, ZodDefault, type ZodRawShape } from 'zod';
 import type { JSONSchema } from 'zod/v4/core';
 import type { SchemaObject } from 'openapi3-ts/oas31';
+import { objectCleanUndefined } from '../utils';
 
 type DraftSchema = JSONSchema.BaseSchema;
 
@@ -113,7 +114,7 @@ function jsonSchemaToOpenApi(src: DraftSchema): SchemaObject {
 		propertyNames,
 	} = src as DraftSchema & { [k: string]: unknown };
 
-	const out: SchemaObject = stripUndef({
+	const out: SchemaObject = objectCleanUndefined({
 		$ref,
 		readOnly,
 		writeOnly,
@@ -212,9 +213,6 @@ function objectMetadata<T extends ZodRawShape>(obj: ZodObject<T>): FieldMeta {
 /* ----------------------------- util one-liners --------------------------- */
 
 const num = (v: unknown): number | undefined => (typeof v === 'number' ? v : undefined);
-
-const stripUndef = <T extends Record<string, unknown>>(o: T): T =>
-	Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
 
 /** Map an object's values, preserving its keys – skips boolean literals. */
 const mapVals = <T, R>(obj: Record<string, T | boolean>, fn: (v: T) => R): Record<string, R> => {

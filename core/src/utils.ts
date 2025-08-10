@@ -1,5 +1,5 @@
 import { z, type ZodType } from 'zod';
-import type { AppMode, ContentType, ResponseConfig } from './types';
+import type { AnyParamMeta, AppMode, ContentType, ResponseConfig } from './types';
 import { STATUS_CODES } from 'node:http';
 import { logger, LogLevel } from './logger';
 import { BunRequest, CookieMap } from 'bun';
@@ -124,4 +124,26 @@ export function toBunRequest(req: Request): BunRequest {
 		cookies: new CookieMap(),
 		clone: () => toBunRequest(req.clone()),
 	}) as BunRequest;
+}
+
+/**
+ * Generates an AnyParamMeta from a path string like `/path/to/:param/foo/:param2`
+ */
+export function generateDefaultParamMeta(path: string): AnyParamMeta {
+	const matches = [...path.matchAll(/:([^/]+)/g)]; // captura todo después de ":" hasta la próxima "/"
+	const meta: AnyParamMeta = {};
+
+	for (const [, paramName] of matches) {
+		meta[paramName] = {
+			example: `<${paramName}-example>`,
+			description: `Value for ${paramName}`,
+		};
+	}
+
+	return meta;
+}
+
+export function objectCleanUndefined<T extends Record<string, unknown>>(obj?: T): T {
+	if (!obj) return {} as T;
+	return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
 }

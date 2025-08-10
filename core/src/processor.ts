@@ -14,7 +14,7 @@ import { AuthorizationParser } from './context/authorization-parser';
 /** Handy method to create a BunHandler for the specified application route parameters */
 export const createHandler =
 	(
-		routeConfig: RouteConfig<any, any, any, any>,
+		routeConfig: RouteConfig<any, any, any>,
 		middlewares: Middleware[], // initial global middlewares array
 		routeHandler: Handler<any, any, any, any>,
 		errorHandler: ErrorHandler,
@@ -45,7 +45,7 @@ export class Processor {
 	constructor(
 		private readonly req: BunRequest,
 		server: Bun.Server,
-		private readonly routeConfig: RouteConfig<any, any, any, any>,
+		private readonly routeConfig: RouteConfig<any, any, any>,
 		private readonly middlewares: Middleware[], // initial global middlewares array
 		private readonly routeHandler: Handler<any, any, any, any>,
 		private readonly errorHandler: ErrorHandler,
@@ -116,6 +116,7 @@ export class Processor {
 
 	private validateContentType() {
 		const configType = this.routeConfig.type;
+
 		const contentType = this.req.headers.get('content-type') ?? '';
 		if (configType && !contentType.includes(configType)) {
 			throw new BadRequest({

@@ -1,6 +1,7 @@
 import { defaultApiConfig, locales, modes, openapiUis, pathRegex } from './constants';
 import { logger } from './logger';
 import { APIConfig, AppLocale, AppMode, OpenApiUi } from './types';
+import { objectCleanUndefined } from './utils';
 
 class Config {
 	private static instance: Config;
@@ -60,9 +61,7 @@ class Config {
 	}
 
 	merge(settings: Partial<APIConfig>) {
-		const filtered = Object.fromEntries(Object.entries(settings).filter(([_, v]) => v !== undefined));
-
-		Object.assign(this.settings, filtered);
+		Object.assign(this.settings, objectCleanUndefined(settings));
 
 		return this;
 	}
