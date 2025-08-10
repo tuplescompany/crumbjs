@@ -50,7 +50,8 @@ export type Cors = {
 	/**
 	 * Allowed origin(s). Can be:
 	 * - a string (exact match)
-	 * - a function that receives the request context and returns a boolean
+	 * - an string array (any item exact match)
+	 * - a function that receives the request context and returns a valid origin
 	 */
 	origin: Origin;
 
@@ -99,7 +100,6 @@ export type Cors = {
  * CORS Middleware options.
  * - `Origin`: a string or function that receives the request context and returns true on valid origin. @see {Origin}
  * - `Cors`: a full configuration object defining allowed origins, methods, headers, etc. @see {Cors}
- * @default false
  */
 export const cors = (opts: Cors | string | ((ctx: MiddlewareContext) => string)): Middleware => {
 	const corsOpts: Cors = typeof opts === 'object' && opts !== null && 'origin' in opts ? opts : { origin: opts };

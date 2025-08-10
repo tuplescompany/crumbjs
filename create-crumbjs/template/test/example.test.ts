@@ -7,15 +7,12 @@ const httpPort = config.get('port');
 
 describe('🧪 /hello endpoints', () => {
 	it("POST /hello → 'world'", async () => {
-		const res = await fetch(`http://localhost:${httpPort}/api/hello`, {
-			method: 'POST',
+		const res = await fetch(`http://localhost:${httpPort}/api/hello/crumbjs`, {
+			method: 'GET',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				name: 'world',
-			}),
 		});
 		expect(res.status).toBe(200);
 		const json = await res.json();
-		expect(json).toEqual({ hello: 'world' });
+		expect(json).toEqual({ hello: 'crumbjs' });
 	});
 });
