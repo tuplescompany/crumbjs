@@ -1,6 +1,6 @@
 # crumbjs | The tasty way to build fast apps.
 
-<img src="./logo/crumbjs.png" alt="CrumbJS Logo" width="200"/>
+<img src="https://raw.githubusercontent.com/tuplescompany/crumbjs/refs/heads/main/logo/crumbjs.png" alt="CrumbJS Logo" width="200"/>
 
 - ...Documentation page in progress
 
