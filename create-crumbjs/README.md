@@ -1,4 +1,10 @@
-# @crumbjs
+# crumbjs | The tasty way to build fast apps.
+
+<p align="center">
+  <img src="../logo/crumbjs.png" alt="CrumbJS Logo" width="200"/>
+</p>
+
+- ...Documentation page in progress
 
 CrumbJS is a lightweight API framework for [Bun](https://bun.com/) focused on backend development. It layers configuration, validation and documentation on top of Bun's built-in router while keeping a familiar Express-like developer experience. Validation is powered by [Zod](https://github.com/colinhacks/zod) and every route can be automatically documented through OpenAPI.
 
