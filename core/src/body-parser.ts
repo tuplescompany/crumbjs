@@ -2,13 +2,12 @@ import { BunRequest } from 'bun';
 
 export type ParsedContentType = 'json' | 'form-urlencoded' | 'form-data' | (string & {});
 
-export const parseBody = (req: BunRequest) => new BodyParser(req).parse();
-
 export class BodyParser {
 	private readonly request: BunRequest;
 
 	constructor(request: BunRequest) {
-		this.request = request;
+		// use a cloned request, to keep a free instance of request for the user
+		this.request = request.clone();
 	}
 
 	/**
@@ -113,6 +112,8 @@ export class BodyParser {
 	 * @returns A promise that resolves to the parsed body data.
 	 */
 	public async parse(): Promise<Record<string, any>> {
+		if (['GET', 'HEAD', 'OPTIONS'].includes(this.request.method)) return {};
+
 		const contentType = this.parseContentType();
 
 		// Check if empty content to avoid parsing

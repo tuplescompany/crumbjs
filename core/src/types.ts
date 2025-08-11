@@ -5,6 +5,8 @@ import { Exception } from './exception';
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
+export type MethodOpts = Method | Method[] | '*';
+
 export type ContentType =
 	| 'application/json'
 	| 'application/x-www-form-urlencoded'
@@ -228,47 +230,110 @@ export type Handler<
 	HEADERS extends ZodObject | undefined = any,
 > = (ctx: Context<PATH, BODY, QUERY, HEADERS>) => Result;
 
+/**
+ * Route-level configuration: validation, docs, and behavior.
+ *
+ * Use this to declare how a single route accepts input (body, query, params, headers),
+ * how it is documented (OpenAPI), and which middlewares apply only to this route.
+ *
+ * @template PATH    Path pattern for the route (e.g. "/users/:id").
+ * @template BODY    Zod schema for the request body (or undefined if not validated).
+ * @template QUERY   Zod schema for the query string (or undefined if not validated).
+ * @template HEADERS Zod schema for the headers (or undefined if not validated).
+ */
 export type RouteConfig<
 	PATH extends string = '/',
 	BODY extends ZodObject | undefined = undefined,
 	QUERY extends ZodObject | undefined = undefined,
 	HEADERS extends ZodObject | undefined = undefined,
 > = {
-	body?: BODY;
-	query?: QUERY;
-	params?: PathParams<PATH>;
-	headers?: HEADERS;
-	use?: Middleware | Middleware[];
-	type?: ContentType;
 	/**
-	 * Response documentation (openapi)
-	 * you may use the 'spec' helper
-	 * @example spec.response(200, schema, 'text/plain')
+	 * Request body validation & typing (Zod).
+	 * If omitted, the body is not validated and is treated as `any`.
+	 *
+	 * @example z.object({ name: z.string(), age: z.number().int().optional() })
+	 */
+	body?: BODY;
+
+	/**
+	 * Query string validation & typing (Zod).
+	 * If omitted, the query is not validated and is treated as `any`.
+	 *
+	 * @example z.object({ page: z.coerce.number().min(1).default(1) })
+	 */
+	query?: QUERY;
+
+	/**
+	 * Path params documentation.
+	 * If omitted, params are inferred from `PATH` (e.g. "/users/:id") and documented automatically.
+	 *
+	 * @example { id: { description: "User identifier", example: "123" } }
+	 */
+	params?: PathParams<PATH>;
+
+	/**
+	 * Request headers validation & typing (Zod).
+	 * If omitted, headers are not validated.
+	 * Tip: use lowercase header names to align with the Fetch `Headers` behavior.
+	 *
+	 * @example z.object({ 'x-request-id': z.string().uuid().optional() })
+	 */
+	headers?: HEADERS;
+
+	/**
+	 * Route-specific middleware(s). Runs before the handler.
+	 * Accepts a single middleware or an array.
+	 */
+	use?: Middleware | Middleware[];
+
+	/**
+	 * Required request Content-Type. If set, non-matching requests may be rejected.
+	 * Typical values: "application/json", "application/x-www-form-urlencoded", "multipart/form-data".
+	 */
+	type?: ContentType;
+
+	/**
+	 * OpenAPI responses for this route.
+	 * Use the `spec.response` helper to keep definitions DRY.
+	 *
+	 * @example spec.response(200, UserSchema, 'application/json')
 	 */
 	responses?: ResponseConfig[];
+
 	/**
-	 * Exclude from openapi doc if true
+	 * Exclude this route from the generated OpenAPI spec.
 	 * @default false
 	 */
 	hide?: boolean;
+
 	/**
-	 * Will create the tag/s on openapi spec and asign to the route
-	 * you may want to add some tag description use 'openapi' helper (wich avoids duplication)
-	 * @example ['your-tag']
+	 * OpenAPI tags for grouping.
+	 * You can pre-declare tags with descriptions via the `openapi` helper to avoid duplication.
+	 *
+	 * @example ['Users']
 	 * @example
-	 * // outside the route definition
-	 * import { openapi } from '@crumbjs/core';
-	 * openapi.addTag('your-tag', 'your-description')
-	 * @default 'Uncategorized'
+	 *   import { openapi } from '@crumbjs/core';
+	 *   openapi.addTag('Users', 'Operations related to user management');
+	 * @default ['Uncategorized']
 	 */
 	tags?: string[];
-	/** openapi endpoint description */
+
+	/** OpenAPI: route description (supports Markdown). */
 	description?: string;
-	/** openapi endpoint summary */
+
+	/** OpenAPI: short summary shown in UIs. */
 	summary?: string;
-	/** openapi endpoint security component */
+
+	/**
+	 * OpenAPI security requirement for this route.
+	 * Make sure the corresponding security scheme exists in your OpenAPI components.
+	 */
 	authorization?: 'bearer' | 'basic';
-	/** if is not set will be inferred based on final path */
+
+	/**
+	 * Explicit operationId for OpenAPI.
+	 * If omitted, it is inferred from the final resolved path (and method).
+	 */
 	operationId?: string;
 };
 
@@ -381,6 +446,7 @@ export type Route = {
 	method: Method;
 	handler: Handler;
 	config: RouteConfig;
+	isProxy: boolean;
 };
 
 export type StaticRoute = {
@@ -390,10 +456,8 @@ export type StaticRoute = {
 	contentType?: ContentType;
 };
 
-export type OAMethod = 'get' | 'post' | 'put' | 'delete' | 'patch' | 'head' | 'options' | 'trace';
-
 export type OARoute = {
-	method: OAMethod;
+	method: Lowercase<Method>;
 	path: string;
 	mediaType?: string;
 	body?: ZodObject;
@@ -419,3 +483,5 @@ export type AppConfig = {
 	 */
 	prefix: string;
 };
+
+export type HttpUrlString = `${'http' | 'https'}://${string}`;

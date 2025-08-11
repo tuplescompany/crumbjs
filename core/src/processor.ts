@@ -4,7 +4,7 @@ import { HeaderBuilder } from './context/header-builder';
 import { StatusBuilder } from './context/status-builder';
 import { Context, ErrorHandler, Handler, Result, Middleware, RootContext, RouteConfig } from './types';
 import { getStatusText, signal } from './utils';
-import { parseBody } from './body-parser';
+import { BodyParser } from './body-parser';
 import { flattenError, ZodObject } from 'zod';
 import { BadRequest, InternalServerError } from './exception/http.exception';
 import { Exception } from './exception';
@@ -33,7 +33,7 @@ export class Processor {
 	constructor(
 		private readonly req: BunRequest,
 		server: Bun.Server,
-		private readonly routeConfig: RouteConfig,
+		private readonly routeConfig: RouteConfig<any, any, any, any>,
 		private readonly middlewares: Middleware[], // initial global middlewares array
 		private readonly routeHandler: Handler,
 		private readonly errorHandler: ErrorHandler,
@@ -90,16 +90,27 @@ export class Processor {
 	}
 
 	/**
-	 * Safe-parse body according his content-type
+	 * Safely parse the request body based on its Content-Type.
+	 *
+	 * - Skips parsing for `GET`, `HEAD`, and `OPTIONS` (these methods don’t carry a body).
+	 * - If `Content-Length` is present and `0`, parsing is skipped.
+	 * - `application/json`, `multipart/form-data`, and `application/x-www-form-urlencoded`
+	 *   are parsed accordingly by `BodyParser`.
+	 * - Any other supported type is parsed as text and wrapped as `{ content: string }`.
+	 *
+	 * The raw (unparsed) body is stored in `rootContext.rawBody` when available.
+	 *
+	 * Parsing is performed on a cloned (`clone()`) instance of the request,
+	 * so the original request stream remains readable and can be used afterward.
+	 *
+	 * @see BodyParser
+	 * @remarks This method is defensive: unexpected parser errors are logged and swallowed.
 	 */
 	private async parseBody() {
 		try {
-			if (this.req.method !== 'GET' && this.req.method !== 'HEAD') {
-				this.rootContext.rawBody = await parseBody(this.req);
-			}
+			this.rootContext.rawBody = await new BodyParser(this.req).parse();
 		} catch (error) {
-			// border, this should never happen
-			logger.error('parseBody() fails', error);
+			logger.error('parseBody() fails', error); // border, this should never happen
 		}
 	}
 

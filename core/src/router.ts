@@ -1,5 +1,5 @@
 import { App } from './app';
-import type { APIConfig, BunHandler, BunRoutes, ErrorHandler, Handler, Middleware, OAMethod, RouteConfig } from './types';
+import type { APIConfig, BunHandler, BunRoutes, ErrorHandler, Handler, Method, Middleware, RouteConfig } from './types';
 import { buildPath, getModeLogLevel } from './utils';
 import { config as ZodConfig } from 'zod';
 import { openapi } from './openapi/openapi';
@@ -34,18 +34,6 @@ export class Router {
 
 			const fullPath = buildPath(...pathParts);
 
-			/**
-			 * @see {Processor}
-			 * Processing steps:
-			 * - Initializes per-request context: path params, store, headers, status, unvalidated body and orther tools @see {Context}
-			 * - Parses request body (skipped for GET/HEAD).
-			 * - Validates `body`, `query` and `headers` using Zod schemas from the route config (if provided)
-			 * - Executes middleware chain (app-level + route-specific) via a responsibility chain.
-			 * - Executes the final route handler with merged context.
-			 * - Catches and delegates errors to the provided `errorHandler`.
-			 *
-			 * The returned handler ensures type-safe validation, composable middleware, and structured error handling.
-			 */
 			routes[fullPath] = {
 				...routes[fullPath],
 				[method]: this.createHandler(config, globalMiddlewares, handler, errorHandler),
@@ -54,7 +42,7 @@ export class Router {
 			// Register openapi route if is enabled and not specifically hide on the route
 			if (withOpenapi && !config.hide) {
 				openapi.addRoute({
-					method: method.toLowerCase() as OAMethod,
+					method: method.toLowerCase() as Lowercase<Method>,
 					path: fullPath,
 					mediaType: config.type ?? 'application/json',
 					body: 'body' in config ? config.body : undefined,
@@ -70,9 +58,9 @@ export class Router {
 				});
 			}
 
-			const typeStr = config.type ? ` (${config.type})` : '';
+			const isProxyStr = route.isProxy ? ` ::proxy::` : '';
 
-			logger.debug(`🌐 ${method} ${fullPath}${typeStr} Registered`);
+			logger.debug(`🌐 ${method} ${fullPath}${isProxyStr} Registered`);
 		}
 
 		for (const staticRoute of this.app.getStaticRoutes()) {
@@ -116,6 +104,18 @@ export class Router {
 		return { routes, statics };
 	}
 
+	/**
+	 * Processing steps:
+	 * - Initializes per-request context: path params, store, headers, status, unvalidated body and other tools @see {Context}
+	 * - Parses request body (skipped for GET/HEAD).
+	 * - Validates `body`, `query` and `headers` using Zod schemas from the route config (if provided)
+	 * - Executes middleware chain (app-level + route-specific) via a responsibility chain.
+	 * - Executes the final route handler with merged context.
+	 * - Catches and delegates errors to the provided `errorHandler`.
+	 *
+	 * The returned handler ensures type-safe validation, composable middleware, and structured error handling.
+	 * @see {Processor}
+	 */
 	private createHandler(
 		routeConfig: RouteConfig,
 		middlewares: Middleware[], // initial global middlewares array

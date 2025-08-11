@@ -69,16 +69,6 @@ export const spec = {
 	},
 } as const;
 
-export function headersToRecord(headers: Headers) {
-	const record: Record<string, string> = {};
-
-	headers.forEach((value, key) => {
-		record[key] = value;
-	});
-
-	return record;
-}
-
 export function getModeLogLevel(mode: AppMode) {
 	if (mode === 'production') return LogLevel.ERROR; // only errors
 	if (mode === 'test' || mode === 'staging') return LogLevel.INFO; // excludes DEBUG

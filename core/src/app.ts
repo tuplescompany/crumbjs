@@ -1,6 +1,19 @@
-import type { APIConfig, AppConfig, ContentType, Handler, Method, Middleware, OnStart, Route, RouteConfig, StaticRoute } from './types';
+import type {
+	APIConfig,
+	AppConfig,
+	ContentType,
+	Handler,
+	HttpUrlString,
+	Method,
+	Middleware,
+	MethodOpts,
+	OnStart,
+	Route,
+	RouteConfig,
+	StaticRoute,
+} from './types';
 import { Router } from './router';
-import { ZodObject } from 'zod';
+import z, { ZodObject } from 'zod';
 import { defaultAppConfig } from './constants';
 
 export class App {
@@ -82,6 +95,7 @@ export class App {
 					method: child.method,
 					handler: child.handler,
 					config: child.config,
+					isProxy: child.isProxy,
 				})),
 			);
 
@@ -124,20 +138,151 @@ export class App {
 		return root;
 	}
 
-	private add(method: Method, path: string, handler: Handler<string>, config?: RouteConfig<any, any, any, any>) {
-		this.routes.push({
-			pathParts: [this.getPrefix(), path],
-			method,
-			handler,
-			config: config ?? {},
-		});
+	private add(
+		method: MethodOpts,
+		path: string,
+		handler: Handler<string>,
+		config?: RouteConfig<any, any, any, any>,
+		isProxy: boolean = false,
+	) {
+		const methods = Array.isArray(method)
+			? method
+			: method === '*'
+				? (['POST', 'GET', 'DELETE', 'PATCH', 'PUT', 'OPTIONS', 'HEAD'] as Method[])
+				: [method];
+
+		for (const m of methods) {
+			this.routes.push({
+				pathParts: [this.getPrefix(), path],
+				method: m,
+				handler,
+				config: config ?? {},
+				isProxy,
+			});
+
+			// if the path includes Bun.serve routes wildcard, add withouth the slash to
+			const withWildcard = path.endsWith('/*');
+			if (withWildcard) {
+				const pathWithouthWildcard = path.replace('/*', '');
+				this.routes.push({
+					pathParts: [this.getPrefix(), pathWithouthWildcard],
+					method: m,
+					handler,
+					config: config ?? {},
+					isProxy,
+				});
+			}
+		}
+
+		return this;
+	}
+
+	private createProxyHandler(localPath: string, dest: HttpUrlString): Handler<string> {
+		if (!z.url().safeParse(dest).success) throw Error(`Invalid proxy foward URL: '${dest}'`);
+
+		return async ({ request, url }) => {
+			// Remove local path from fowardPath
+			if (localPath.endsWith('/*')) {
+				localPath = localPath.replace('/*', '');
+			}
+
+			const fowardPath = url.pathname.replace(localPath, '');
+			const targetUrl = new URL(fowardPath + url.search, dest);
+
+			// Remove hop-by-hop problematic (to foward) headers
+			const fowardHeaders = new Headers(request.headers);
+			for (const h of [
+				'host',
+				'connection',
+				'keep-alive',
+				'proxy-connection',
+				'transfer-encoding',
+				'upgrade',
+				'te',
+				'trailers',
+				'proxy-authenticate',
+				'proxy-authorization',
+				'content-length',
+				'accept-encoding',
+			]) {
+				fowardHeaders.delete(h);
+			}
+			// dont auto-encode
+			fowardHeaders.set('accept-encoding', 'identity');
+
+			const hasBody = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
+			const fowardBody = hasBody ? request.body : undefined;
+
+			// Forward request to target
+			const upstream = await fetch(targetUrl, { method: request.method, headers: fowardHeaders, body: fowardBody });
+
+			const respHeaders = new Headers(upstream.headers);
+			for (const h of ['content-encoding', 'content-length', 'transfer-encoding']) respHeaders.delete(h);
+
+			return new Response(upstream.body, {
+				status: upstream.status,
+				statusText: upstream.statusText,
+				headers: respHeaders,
+			});
+		};
+	}
+
+	/**
+	 * Fowards all the trafic from the localPath to dest url.
+	 * OpenAPI + validation are **disabled** for these routes. But you still can use middleware(s)
+	 *
+	 * Behavior:
+	 * - Same forwarding rules as `proxy` (prefix handling, headers/body streaming).
+	 * - Registers the route as openapi-hidden (`{ hide: true }`).
+	 *
+	 * @param methods   HTTP method(s) or `'*'` for all.
+	 * @param localPath Local mount point with all subtrees.
+	 * @param dest      Upstream base URL.
+	 *
+	 * @example
+	 * proxyAll('/v1', 'https://api.example.com'); // eg. '/v1/auth' will be fowarded to
+	 * proxyAll('/v2', 'https://new-api.example.com'); // eg. '/v2/orders' will be fowarded to
+	 */
+	proxyAll(localPath: string, dest: HttpUrlString, use?: Middleware | Middleware[]) {
+		// ensure wildcard path
+		if (!localPath.endsWith('/*')) localPath = localPath.concat('/*');
+
+		return this.add('*', localPath, this.createProxyHandler(localPath, dest), { use, hide: true }, true);
+	}
+
+	/**
+	 * Mount a transparent route-2-route proxy, keeping route config (with optional validation + OpenAPI) intact.
+	 *
+	 * Behavior:
+	 * - If `localPath` ends with `/*`, will thrown an error (route-2-route cannot use /* wildcard)
+	 * - Forwards method, path, query, headers, and body.
+	 * - Strips hop-by-hop headers; forces `Accept-Encoding: identity`.
+	 * - Streams request/response; recalculates length/encoding headers.
+	 *
+	 * @param method    One HTTP method (e.g. 'GET').
+	 * @param localPath Local mount point (`/*` proxies a subtree).
+	 * @param dest      Upstream base URL (e.g. https://api.example.com).
+	 * @param config    Route config (middlewares, validation, OpenAPI).
+	 *
+	 * @example
+	 * proxy('POST', '/auth', 'https://auth-ms.example.com/v1/auth', { body: authSchema });
+	 */
+	proxy(method: Method, localPath: string, dest: HttpUrlString, config?: RouteConfig<any, any, any, any>) {
+		if (localPath.endsWith('/*')) {
+			const suggestPath = localPath.replace('/*', '');
+			const proxyAllExample = `app.proxyAll('${suggestPath}', '${dest}', middlewares)`;
+			throw new Error(
+				`Invalid path '${localPath}': single-method proxy cannot use '/*'. Use '${suggestPath}' for exact match, or use '${proxyAllExample}' for prefix forwarding.`,
+			);
+		}
+		return this.add(method, localPath, this.createProxyHandler(localPath, dest), config, true);
 	}
 
 	/**
 	 * Registers a static file to be served at a specific route path.
 	 *
 	 * ⚡ Performance: Bun caches static paths at server start and serves them via a
-	 * zero-overhead fast path (ref {@link https://bun.com/docs/api/http#static-responses}). Middleware or route handlers are **not**
+	 * zero-overhead fast path (ref {@link https://bun.com/docs/api/http#static-responses}). Middlewares are **not**
 	 * invoked for these requests.
 	 *
 	 * @param path - The request path where the file will be served (relative to the current prefix, if any).
@@ -157,7 +302,7 @@ export class App {
 	 * Registers static string content to be served at a specific route path.
 	 *
 	 * ⚡ Performance: Bun caches static paths at server start and serves them via a
-	 * zero-overhead fast path (ref {@link https://bun.com/docs/api/http#static-responses}). Middleware or route handlers are **not**
+	 * zero-overhead fast path (ref {@link https://bun.com/docs/api/http#static-responses}). Middlewares are **not**
 	 * invoked for these requests.
 	 *
 	 * @param path - The request path where the content will be served (relative to the current prefix, if any).
@@ -175,14 +320,23 @@ export class App {
 		return this;
 	}
 
+	/** Register route on multiple or all methods (with *) */
+	on<
+		PATH extends string = '/',
+		BODY extends ZodObject | undefined = undefined,
+		QUERY extends ZodObject | undefined = undefined,
+		HEADERS extends ZodObject | undefined = undefined,
+	>(methods: MethodOpts, path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
+		return this.add(methods, path, handler, config);
+	}
+
 	/** Register a GET route */
 	get<PATH extends string = '/', QUERY extends ZodObject | undefined = undefined, HEADERS extends ZodObject | undefined = undefined>(
 		path: PATH,
 		handler: Handler<PATH, undefined, QUERY, HEADERS>,
 		config?: RouteConfig<PATH, undefined, QUERY, HEADERS>,
 	) {
-		this.add('GET', path, handler, config);
-		return this;
+		return this.add('GET', path, handler, config);
 	}
 
 	/** Register a POST route */
@@ -192,8 +346,7 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
 	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
-		this.add('POST', path, handler, config);
-		return this;
+		return this.add('POST', path, handler, config);
 	}
 
 	/** Register a PUT route */
@@ -203,8 +356,7 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
 	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
-		this.add('PUT', path, handler, config);
-		return this;
+		return this.add('PUT', path, handler, config);
 	}
 
 	/** Register a PATCH route */
@@ -214,8 +366,7 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
 	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
-		this.add('PATCH', path, handler, config);
-		return this;
+		return this.add('PATCH', path, handler, config);
 	}
 
 	/** Register a DELETE route */
@@ -225,19 +376,16 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
 	>(path: string, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
-		this.add('DELETE', path, handler, config);
-		return this;
+		return this.add('DELETE', path, handler, config);
 	}
 
 	/** Register a OPTIONS route */
-	options<
-		PATH extends string = '/',
-		BODY extends ZodObject | undefined = undefined,
-		QUERY extends ZodObject | undefined = undefined,
-		HEADERS extends ZodObject | undefined = undefined,
-	>(path: string, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
-		this.add('OPTIONS', path, handler, config);
-		return this;
+	options<PATH extends string = '/', QUERY extends ZodObject | undefined = undefined, HEADERS extends ZodObject | undefined = undefined>(
+		path: string,
+		handler: Handler<PATH, undefined, QUERY, HEADERS>,
+		config?: RouteConfig<PATH, undefined, QUERY, HEADERS>,
+	) {
+		return this.add('OPTIONS', path, handler, config);
 	}
 
 	/** Register a HEAD route */
@@ -246,8 +394,7 @@ export class App {
 		handler: Handler<PATH, undefined, QUERY, HEADERS>,
 		config?: RouteConfig<PATH, undefined, QUERY, HEADERS>,
 	) {
-		this.add('HEAD', path, handler, config);
-		return this;
+		return this.add('HEAD', path, handler, config);
 	}
 
 	/**
