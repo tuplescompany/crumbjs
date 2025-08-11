@@ -132,7 +132,7 @@ export class Router {
 		return Object.assign(req, {
 			params: {},
 			cookies: new CookieMap(),
-			clone: () => this.toBunRequest(req.clone()),
+			clone: () => this.toBunRequest(req), // fake clone raw Request.clone() doenst work in bun 1.2
 		}) as BunRequest;
 	}
 

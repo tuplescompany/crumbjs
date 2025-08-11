@@ -18,7 +18,7 @@ export function IsQueueable() {
  */
 export function buildEvent(name: string, payload: any): Queueable<any> {
 	const EventClass = queueableRegistry.get(name);
-	if (!EventClass) throw new Error(`Event ${name} not registered. Did you forget @IsEvent() decorator?`);
+	if (!EventClass) throw new Error(`Event ${name} not registered. Did you forget @IsQueueable() decorator?`);
 	return new EventClass(payload);
 }
 
