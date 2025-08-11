@@ -1,0 +1,33 @@
+{
+	"name": "@crumbjs/bullmq",
+	"type": "module",
+	"version": "0.0.5",
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist"
+	],
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"module": "src/index.ts",
+	"devDependencies": {
+		"@types/bun": "latest"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/tuplescompany/crumbjs"
+	},
+	"license": "MIT",
+	"peerDependencies": {
+		"typescript": "^5.9.2"
+	},
+	"scripts": {
+		"build": "tsc"
+	},
+	"dependencies": {
+		"@crumbjs/core": "^0.3.1",
+		"bullmq": "^5.56.10",
+		"ioredis": "^5.7.0"
+	}
+}

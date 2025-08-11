@@ -15,6 +15,7 @@ export {
 // Utilities and Helpers
 export { config } from './config';
 export { openapi } from './openapi/openapi';
+export { logger } from './logger';
 export { spec } from './utils';
 export { JWT, JWTExpired, JWTInvalidSignature } from './jwt';
 // Core middlewares
