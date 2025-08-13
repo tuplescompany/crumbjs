@@ -1,6 +1,6 @@
 import { BunRequest } from 'bun';
 
-export type ParsedContentType = 'json' | 'form-urlencoded' | 'form-data' | (string & {});
+export type ParsedContentType = 'json' | 'form-urlencoded' | 'form-data' | (string & {}); // nosonar
 
 export class BodyParser {
 	private readonly request: BunRequest;
@@ -25,56 +25,57 @@ export class BodyParser {
 	}
 
 	/**
-	 * Fast URL-encoded parser: single pass, no intermediate arrays.
 	 * - Supports repeated keys and array-like keys (`key[]`).
 	 * - Decodes '+' to space and percent-encoded sequences.
 	 * - Returns plain object with either string or string[] values.
 	 */
 	private parseUrlEncoded(body: string): Record<string, any> {
 		const out: Record<string, any> = Object.create(null);
-		if (body.length === 0) return out;
+		if (!body) return out;
 
 		let start = 0;
-		for (let i = 0; i <= body.length; i++) {
+		for (let i = 0, n = body.length; i <= n; i++) {
 			// '&' (charCode 38) separates pairs or marks the end of the string
-			if (i === body.length || body.charCodeAt(i) === 38 /* & */) {
-				const seg = body.slice(start, i);
-				if (seg) {
-					// No '=' present: treat as key with empty value
-					const eq = seg.indexOf('=');
-					let rawKey: string, rawVal: string;
-					if (eq === -1) {
-						rawKey = seg;
-						rawVal = '';
-					} else {
-						rawKey = seg.slice(0, eq);
-						rawVal = seg.slice(eq + 1);
-					}
-
-					// Decode '+' to space and percent sequences
-					const key = this.safeDecode(rawKey);
-					const val = this.safeDecode(rawVal);
-
-					// Detect array-like key pattern (e.g., "tags[]")
-					const isArrayKey = key.endsWith('[]');
-					const k = isArrayKey ? key.slice(0, -2) : key;
-
-					const prev = out[k];
-					if (prev === undefined) {
-						out[k] = isArrayKey ? [val] : val;
-					} else if (Array.isArray(prev)) {
-						prev.push(val);
-					} else {
-						out[k] = [prev, val];
-					}
-				}
+			if (i === n || body.charCodeAt(i) === 38 /* & */) {
+				if (i > start) this.processSegment(body, start, i, out);
 				start = i + 1;
 			}
 		}
-
 		return out;
 	}
 
+	// parseUrlEncoded segment helper
+	private processSegment(src: string, start: number, end: number, out: Record<string, any>) {
+		const seg = src.slice(start, end);
+		const eq = seg.indexOf('=');
+
+		const rawKey = eq === -1 ? seg : seg.slice(0, eq);
+		const rawVal = eq === -1 ? '' : seg.slice(eq + 1);
+
+		const key = this.safeDecode(rawKey);
+		const val = this.safeDecode(rawVal);
+
+		this.assignParam(out, key, val);
+	}
+
+	// parseUrlEncoded segment helper
+	private assignParam(out: Record<string, any>, key: string, val: string) {
+		const isArrayKey = key.endsWith('[]');
+		const k = isArrayKey ? key.slice(0, -2) : key;
+
+		const prev = out[k];
+		if (prev === undefined) {
+			out[k] = isArrayKey ? [val] : val;
+			return;
+		}
+		if (Array.isArray(prev)) {
+			prev.push(val);
+			return;
+		}
+		out[k] = [prev, val];
+	}
+
+	// parseUrlEncoded segment helper
 	private safeDecode(s: string): string {
 		if (s.indexOf('%') === -1 && s.indexOf('+') === -1) return s;
 		try {

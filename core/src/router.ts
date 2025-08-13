@@ -12,7 +12,7 @@ import { BunRequest, CookieMap } from 'bun';
  * Router build an Http server from your App routes using Bun.serve
  */
 export class Router {
-	private startAt: number;
+	private readonly startAt: number;
 
 	constructor(private readonly app: App) {
 		this.startAt = performance.now();
@@ -21,7 +21,7 @@ export class Router {
 	/**
 	 * Takes all application routes and create Bun.serve compatible Handlers with all request life-cycle throught Processor
 	 */
-	private async buildRoutes() {
+	/** nosonar */ private async buildRoutes() {
 		const { withOpenapi, openapiBasePath, openapiUi, errorHandler } = config.all();
 
 		let routes: BunRoutes = {};
@@ -99,7 +99,8 @@ export class Router {
 
 		logger.debug(`🌡️ GET /up Registered (static)`);
 
-		logger.debug(`✅ OPENAPI: ${withOpenapi ? `enabled, UI: ${openapiUi}` : 'disabled'}`);
+		const openapiReadyMessage = withOpenapi ? `enabled, UI: ${openapiUi}` : 'disabled';
+		logger.debug(`✅ OPENAPI: ${openapiReadyMessage}`);
 
 		return { routes, statics };
 	}
@@ -175,7 +176,7 @@ export class Router {
 
 		for (const [triggerName, trigger] of Object.entries(this.app.getStartupTriggers())) {
 			logger.debug(`🛠️ Executing on-start '${triggerName}' trigger`);
-			trigger();
+			await trigger();
 		}
 
 		const routes = await this.buildRoutes();

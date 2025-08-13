@@ -151,7 +151,7 @@ function jsonSchemaToOpenApi(src: DraftSchema): SchemaObject {
 	if (typeof additionalProperties === 'boolean') {
 		out.additionalProperties = additionalProperties;
 	} else if (additionalProperties) {
-		out.additionalProperties = jsonSchemaToOpenApi(additionalProperties as DraftSchema);
+		out.additionalProperties = jsonSchemaToOpenApi(additionalProperties);
 	}
 
 	/* array props */
@@ -220,7 +220,7 @@ const mapVals = <T, R>(obj: Record<string, T | boolean>, fn: (v: T) => R): Recor
 
 	for (const [k, v] of Object.entries(obj)) {
 		if (typeof v !== 'boolean') {
-			out[k] = fn(v as T);
+			out[k] = fn(v);
 		}
 	}
 	return out;

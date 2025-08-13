@@ -12,7 +12,7 @@ import { BadRequest } from '../exception/http.exception';
  * Throws {@link BadRequest} when the header is missing, malformed, or fails validation.
  */
 export class AuthorizationParser {
-	private authorization: string;
+	private readonly authorization: string;
 
 	/**
 	 * Creates a new parser instance for the provided request.

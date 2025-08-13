@@ -17,7 +17,7 @@ import z, { ZodObject } from 'zod';
 import { defaultAppConfig } from './constants';
 
 export class App {
-	private config: AppConfig;
+	private readonly config: AppConfig;
 
 	private routes: Route[] = [];
 
@@ -126,18 +126,6 @@ export class App {
 		return this.globalMiddlewares;
 	}
 
-	getRouteMiddlewares(routeConfig: RouteConfig): Middleware[] {
-		let root = this.globalMiddlewares;
-
-		if (routeConfig.use) {
-			const routeMiddleware = Array.isArray(routeConfig.use) ? routeConfig.use : [routeConfig.use];
-
-			return root.concat(routeMiddleware);
-		}
-
-		return root;
-	}
-
 	private add(
 		method: MethodOpts,
 		path: string,
@@ -145,11 +133,15 @@ export class App {
 		config?: RouteConfig<any, any, any, any>,
 		isProxy: boolean = false,
 	) {
-		const methods = Array.isArray(method)
-			? method
-			: method === '*'
-				? (['POST', 'GET', 'DELETE', 'PATCH', 'PUT', 'OPTIONS', 'HEAD'] as Method[])
-				: [method];
+		let methods: Method[];
+
+		if (Array.isArray(method)) {
+			methods = method;
+		} else if (method === '*') {
+			methods = ['POST', 'GET', 'DELETE', 'PATCH', 'PUT', 'OPTIONS', 'HEAD'] as Method[];
+		} else {
+			methods = [method];
+		}
 
 		for (const m of methods) {
 			this.routes.push({

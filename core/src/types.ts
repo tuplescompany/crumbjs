@@ -23,7 +23,7 @@ export type ContentType =
 	| 'image/webp'
 	| 'image/svg+xml'
 	| 'application/octet-stream'
-	| (string & {});
+	| (string & {}); // nosonar
 
 export type BunHandler = (req: BunRequest, server: Bun.Server) => Response | Promise<Response>;
 

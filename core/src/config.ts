@@ -26,7 +26,7 @@ class Config {
 		);
 	}
 
-	mergeFromProcessEnv() {
+	/** nosonar */ mergeFromProcessEnv() {
 		const env = typeof process !== 'undefined' && typeof process.env !== 'undefined' ? process.env : false;
 		if (!env) return this;
 

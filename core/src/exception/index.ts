@@ -58,18 +58,18 @@ export class Exception extends Error {
 	/**
 	 * Convert any unknown error type to an Exception instance
 	 */
-	static parse(error: unknown, statusCode: number = 500): Exception {
+	static parse(error: unknown, statusCode?: number): Exception {
 		if (error instanceof Exception) return error;
 
-		const defaultMessage = '¡Opps! Ocurrió un error';
-		const defaultCode = statusCode;
+		const defaultMessage = 'Oops! Something went wrong';
+		const defaultCode = statusCode ?? 500;
 
 		if (typeof error === 'string') {
 			return new Exception(error, defaultCode, undefined, error);
 		}
 
 		if (error && typeof error === 'object') {
-			return new ExceptionObjectParser(error).parse();
+			return new ExceptionObjectParser(error).parse(statusCode);
 		}
 
 		return new Exception(defaultMessage, defaultCode);
@@ -102,8 +102,8 @@ class ExceptionObjectParser {
 		return this.pick<object>('fields', 'object') ?? {};
 	}
 
-	parse(): Exception {
-		let status = this.resolveStatus();
+	parse(forceStatus?: number): Exception {
+		let status = forceStatus ?? this.resolveStatus();
 		if (status <= 100 || status > 599) status = 500;
 
 		return new Exception(this.resolveMessage(), status, this.resolveInvalidFields(), this.err);

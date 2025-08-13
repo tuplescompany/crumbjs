@@ -1,4 +1,5 @@
 import { OpenApiBuilder } from 'openapi3-ts/oas31';
+
 import type { ZodType } from 'zod';
 import type { OARoute } from '../types';
 
@@ -94,9 +95,20 @@ export const openapi = (() => {
 		if (!info.version) b.addVersion(config.get('version'));
 	};
 
-	const getSpec = () => (ensureInfo(), builder().getSpec());
-	const getJson = () => (ensureInfo(), builder().getSpecAsJson());
-	const getYaml = () => (ensureInfo(), builder().getSpecAsYaml());
+	const getSpec = () => {
+		ensureInfo();
+		return builder().getSpec();
+	};
+
+	const getJson = () => {
+		ensureInfo();
+		return builder().getSpecAsJson();
+	};
+
+	const getYaml = () => {
+		ensureInfo();
+		return builder().getSpecAsYaml();
+	};
 
 	/* ----------------------------------------------------------------------- */
 	/*                                    UI                                  */

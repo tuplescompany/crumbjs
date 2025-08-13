@@ -122,7 +122,7 @@ export const cors = (opts: Cors | string | ((ctx: MiddlewareContext) => string))
 		if (allowedHeaders) ctx.setHeader('Access-Control-Allow-Headers', allowedHeaders.join(','));
 		else ctx.setHeader('Access-Control-Allow-Headers', ['Content-Type', 'Authorization'].join(',')); // Default basic headers allowed
 
-		if (exposedHeaders && exposedHeaders.length) ctx.setHeader('Access-Control-Expose-Headers', exposedHeaders.join(','));
+		if (exposedHeaders?.length) ctx.setHeader('Access-Control-Expose-Headers', exposedHeaders.join(','));
 
 		if (maxAge) ctx.setHeader('Access-Control-Max-Age', String(maxAge));
 

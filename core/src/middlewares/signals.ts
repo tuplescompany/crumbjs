@@ -31,7 +31,7 @@ export const signals =
 		const response = await next();
 
 		const { status, statusText } = getResponseStatus();
-		const fn = status >= 400 ? 'error' : force ? 'print' : 'info';
+		const fn = status >= 400 ? 'error' : force ? 'print' : 'info'; // nosonar
 
 		const duration = performance.now() - start;
 

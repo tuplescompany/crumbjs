@@ -7,7 +7,7 @@ export class StatusBuilder {
 		public code: number,
 		text?: string,
 	) {
-		this.text = text ? text : getStatusText(code);
+		this.text = text ?? getStatusText(code);
 	}
 
 	set(code: number, customText?: string) {

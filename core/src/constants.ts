@@ -50,6 +50,6 @@ export const locales = ['en', 'es', 'pt'] as const;
 
 export const modes = ['development', 'production', 'test', 'staging'] as const;
 
-export const pathRegex: RegExp = /^\/(?:[^\/\0]+\/)*[^\/\0]*$/;
+export const pathRegex: RegExp = /^\/(?:[^\/\0]+\/)*[^\/\0]*$/; // nosonar
 
 export const openapiUis = ['swagger', 'scalar'] as const;

@@ -1,5 +1,5 @@
 import { z, type ZodType } from 'zod';
-import type { AnyPathParams, AppMode, ContentType, ResponseConfig } from './types';
+import type { AppMode, ContentType, ResponseConfig } from './types';
 import { STATUS_CODES } from 'node:http';
 import { logger, LogLevel } from './logger';
 
@@ -105,23 +105,6 @@ export function signal(
 	ip: string,
 ) {
 	logger[type](method, path, `${status}::${statusText}`, `${duration.toFixed(2)} ms`, `-- ${ip}`);
-}
-
-/**
- * Generates an AnyPathParams from a path string like `/path/to/:param/foo/:param2`
- */
-export function generateDefaultPathParams(path: string): AnyPathParams {
-	const matches = [...path.matchAll(/:([^/]+)/g)]; // captura todo después de ":" hasta la próxima "/"
-	const meta: AnyPathParams = {};
-
-	for (const [, paramName] of matches) {
-		meta[paramName] = {
-			example: `<${paramName}-example>`,
-			description: `Value for ${paramName}`,
-		};
-	}
-
-	return meta;
 }
 
 export function objectCleanUndefined<T extends Record<string, unknown>>(obj?: T): T {

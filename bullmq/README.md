@@ -94,12 +94,6 @@ type PluginOptions = {
 	/** Redis PASSWORD @default undefined */
 	pass?: string;
 	/**
-	 * If true, only log errors
-	 * If false, logs when a job is queued or completed
-	 * @default false
-	 */
-	silent: boolean;
-	/**
 	 * Amount of jobs that a single worker is allowed to work on in parallel.
 	 * @default 10
 	 */

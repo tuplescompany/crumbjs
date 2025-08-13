@@ -222,11 +222,11 @@ export class Processor {
 			// 4- Parse and return Response
 			return this.createResponse(await run());
 		} catch (error) {
-			console.error(error); // Log raw Error
-
 			const ex = Exception.parse(error);
 
 			const duration = performance.now() - this.rootContext.start;
+
+			console.error(error); // Log raw Error
 			signal('error', this.req.method, this.reqUrl.pathname, ex.status, getStatusText(ex.status), duration, this.rootContext.ip);
 
 			return this.createErrorResponse(ex);
