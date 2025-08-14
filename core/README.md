@@ -59,7 +59,6 @@ const httpClient = new HttpClient('http://127.0.0.1:8080');
 
 const { data, error } = await httpClient
 	.path('/v1/auth')
-	.basicAuth('user', 'pass')
 	.prevalidate(loginRequestSchema) // prevalidate with zod before execute request
 	.data({
 		domain: 'grave-brief',
