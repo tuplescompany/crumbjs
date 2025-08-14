@@ -2,9 +2,11 @@
 
 <img src="https://raw.githubusercontent.com/tuplescompany/crumbjs/refs/heads/main/logo/crumbjs.png" alt="CrumbJS Logo" width="200"/>
 
-- ...Documentation page in progress
+- ...FULL documentation in progress
 
 CrumbJS is a lightweight API framework for [Bun](https://bun.com/) focused on backend development. It layers configuration, validation and documentation on top of Bun's built-in router while keeping a familiar Express-like developer experience. Validation is powered by [Zod](https://github.com/colinhacks/zod) and every route can be automatically documented through OpenAPI.
+
+Core system has only about 3,700 lines of code and just two dependencies (zod and openapi3-ts).
 
 ## Features
 
@@ -16,25 +18,17 @@ CrumbJS is a lightweight API framework for [Bun](https://bun.com/) focused on ba
 
 ## Installation
 
-You can scaffold a new project with the official template:
-
-```bash
-bun create crumbjs myapp
-```
-
-This runs the [`create-crumbjs`](../create-crumbjs) script which copies a template, installs dependencies with Bun and prints common commands.
-
-Alternatively, add the framework to an existing Bun project:
-
 ```bash
 bun add @crumbjs/core
 ```
 
-## Quick start (conceptual examples)
+## Quick start
+
+- This is a "large" conceptual example
+- We suggest keeping schemas and other configuration in separate files.
 
 ```ts
 import { App, spec } from '@crumbjs/core';
-import { IndexModel } from './index.model';
 import { z } from 'zod';
 
 const app = new App();
@@ -52,7 +46,9 @@ app.get(
 				description: 'The name we will greet',
 			},
 		},
-		responses: [spec.response(200, z.object({ hello: z.string().meta({ example: 'CrumbJS' }) }))],
+		responses: [
+			spec.response(200, z.object({ hello: z.string().meta({ example: 'CrumbJS' }) })), // <-- Document 200 response with spec helper
+		],
 	},
 );
 
