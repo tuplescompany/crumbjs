@@ -163,9 +163,12 @@ export class Router {
 		if (options) config.merge(options);
 
 		// set level to the global Logger instance on server starts
-		logger.setLevel(getModeLogLevel(config.get('mode')));
+		const logLevel = getModeLogLevel(config.get('mode'));
+		logger.setLevel(logLevel);
 
-		if (config.get('locale') != 'en') {
+		logger.debug(`🈯 Locale set to: ${config.get('locale')}`);
+
+		if (config.get('locale') !== 'en') {
 			const { es, en, pt } = await import('zod/locales');
 			const langs = { es, en, pt };
 			const appLocale = config.get('locale');

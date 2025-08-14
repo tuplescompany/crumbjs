@@ -14,7 +14,47 @@ The core system has only about 3,700 lines of code and just two dependencies (zo
 - Zod-based validation for bodies, params, queries and headers
 - Automatic OpenAPI 3.1 document generation and UI (Swagger or Scalar)
 - Simple middleware system and optional global middlewares
+- Simple proxy helpers to forward requests and (optionally) document them — use app.proxy() for a single route, or app.proxyAll() to forward all routes under a given path.
 - Zero lock-in: use as little or as much as you need
+
+## Included utilities
+
+- Logger — level-based logging via the default logger utility, configurable through APP_MODE and/or the mode setting.
+
+```ts
+import { logger } from '@crumbjs/core';
+logger.debug(a, b, c, d); // shows on mode:  'development'
+logger.info(a, b, c, d); // shows on modes:  'development', 'test', 'staging'
+logger.warn(a, b, c, d); // shows on modes: 'development', 'test', 'staging'
+logger.error(a, b, c, d); // shows on modes: 'development', 'test', 'staging', 'production'
+```
+
+- OpenAPI — additional documentation support through the openapi utility, using provided helpers or by directly accessing the openapi3-ts builder instance.
+
+```ts
+import { openapi } from '@crumbjs/core';
+// Use this before app.serve()
+openapi.addSchema('myschema', myZodObject);
+openapi.addTag('tagName', 'tagDescription');
+openapi.addServer('http://prod.example.com', 'Production Server description');
+openapi.builder().addExternalDocs(extDoc); // or any openapi3-ts methods
+```
+
+- JWT — minimal utility to sign, verify, and decode JSON Web Tokens.
+
+```ts
+import { JWT } from '@crumbjs/core';
+
+const token = await JWT.sign<AuthPayload>(myPayload, 'super-secret', 60 * 15); // 15min JWT token
+const payload = await JWT.verify<AuthPayload>(token, 'super-secret');
+const decoded = JWT.decode<AuthPayload>(token); // decode no-verify
+```
+
+## Included middlewares
+
+- cors
+- signals (log incomming request)
+- secureHeaders (ported from Hono)
 
 ## Installation
 
