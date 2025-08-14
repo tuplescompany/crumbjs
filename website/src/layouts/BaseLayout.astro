@@ -1,0 +1,38 @@
+---
+const { title } = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title ? `${title} - CrumbJS` : 'CrumbJS'}</title>
+    <style>
+      :root { --orange: #f97316; --orange-light: #fdba74; }
+      body { font-family: system-ui, sans-serif; margin: 0; line-height: 1.6; background: #fff7ed; color: #1f2937; }
+      header { background: var(--orange); color: white; padding: 0.5rem 1rem; display: flex; align-items: center; flex-wrap: wrap; }
+      nav a { color: white; margin-right: 1rem; text-decoration: none; font-weight: 600; }
+      nav a:hover { text-decoration: underline; }
+      main { max-width: 960px; margin: auto; padding: 2rem; }
+      pre { background: #1f2937; color: #f8fafc; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
+      code { background: #f1f5f9; padding: 0.2rem 0.4rem; border-radius: 0.25rem; }
+      footer { text-align: center; padding: 2rem 0; color: #4b5563; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Overview</a>
+        <a href="/quick-start">Quick Start</a>
+        <a href="/routing">Routing</a>
+        <a href="/middleware">Middleware</a>
+        <a href="/lifecycle">Life Cycle</a>
+        <a href="/plugins">Plugins</a>
+      </nav>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer>© {new Date().getFullYear()} CrumbJS</footer>
+  </body>
+</html>
