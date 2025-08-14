@@ -6,6 +6,8 @@
 
 CrumbJS is a lightweight API framework for [Bun](https://bun.com/) focused on backend development. It layers configuration, validation and documentation on top of Bun's built-in router while keeping a familiar Express-like developer experience. Validation is powered by [Zod](https://github.com/colinhacks/zod) and every route can be automatically documented through OpenAPI.
 
+The core system has only about 3,700 lines of code and just two dependencies (zod and openapi3-ts).
+
 ## Features
 
 - Built for Bun.serve and only targets backend APIs
