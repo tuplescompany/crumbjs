@@ -18,6 +18,7 @@ export { openapi } from './openapi/openapi';
 export { logger } from './logger';
 export { spec } from './utils';
 export { JWT, JWTExpired, JWTInvalidSignature } from './jwt';
+export { HttpClient } from './http-client';
 // Core middlewares
 export { cors } from './middlewares/cors';
 export { signals } from './middlewares/signals';

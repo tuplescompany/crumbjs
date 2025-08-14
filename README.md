@@ -50,6 +50,31 @@ const payload = await JWT.verify<AuthPayload>(token, 'super-secret');
 const decoded = JWT.decode<AuthPayload>(token); // decode no-verify
 ```
 
+- HTTP Client — Fluent Fetch API wrapper with Zod prevalidation and unified error handling via the Exception system, for effortless HTTP integration between crumbjs services.
+
+```ts
+import { HttpClient } from '@crumbjs/core';
+
+const httpClient = new HttpClient('http://127.0.0.1:8080');
+
+const { data, error } = await httpClient
+	.path('/v1/auth')
+	.basicAuth('user', 'pass')
+	.prevalidate(loginRequestSchema) // prevalidate with zod before execute request
+	.data({
+		domain: 'grave-brief',
+		email: 'adela17@gmail.com',
+		password: 'MyPassword2025!',
+	})
+	.post<{ refreshToken: string }>();
+
+console.log('login result:', data);
+
+const refresh = await httpClient.path('/v1/auth').bearer(res.refreshToken).patch();
+
+console.log('refresh result:', refresh);
+```
+
 ## Included middlewares
 
 - cors
