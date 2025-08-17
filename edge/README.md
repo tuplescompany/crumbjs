@@ -10,7 +10,7 @@ The core system has only about 3,700 lines of code and just two dependencies (zo
 
 ## Features
 
-- Built for Bun.serve and only targets backend APIs
+- Build on top of battle tested and fast H3/Nitro radix trie baed router: rue3
 - Zod-based validation for bodies, params, queries and headers
 - Automatic OpenAPI 3.1 document generation and UI (Swagger or Scalar)
 - Simple middleware system and optional global middlewares
@@ -22,7 +22,7 @@ The core system has only about 3,700 lines of code and just two dependencies (zo
 - Logger — level-based logging via the default logger utility, configurable through APP_MODE and/or the mode setting.
 
 ```ts
-import { logger } from '@crumbjs/core';
+import { logger } from '@crumbjs/edge';
 logger.debug(a, b, c, d); // shows on mode:  'development'
 logger.info(a, b, c, d); // shows on modes:  'development', 'test', 'staging'
 logger.warn(a, b, c, d); // shows on modes: 'development', 'test', 'staging'
@@ -32,7 +32,7 @@ logger.error(a, b, c, d); // shows on modes: 'development', 'test', 'staging', '
 - OpenAPI — additional documentation support through the openapi utility, using provided helpers or by directly accessing the openapi3-ts builder instance.
 
 ```ts
-import { openapi } from '@crumbjs/core';
+import { openapi } from '@crumbjs/edge';
 // Use this before app.serve()
 openapi.addSchema('myschema', myZodObject);
 openapi.addTag('tagName', 'tagDescription');
@@ -43,7 +43,7 @@ openapi.builder().addExternalDocs(extDoc); // or any openapi3-ts methods
 - JWT — minimal utility to sign, verify, and decode JSON Web Tokens.
 
 ```ts
-import { JWT } from '@crumbjs/core';
+import { JWT } from '@crumbjs/edge';
 
 const token = await JWT.sign<AuthPayload>(myPayload, 'super-secret', 60 * 15); // 15min JWT token
 const payload = await JWT.verify<AuthPayload>(token, 'super-secret');
@@ -53,7 +53,7 @@ const decoded = JWT.decode<AuthPayload>(token); // decode no-verify
 - HTTP Client — Fluent Fetch API wrapper with Zod prevalidation and unified error handling via the Exception system, for effortless HTTP integration between crumbjs services.
 
 ```ts
-import { HttpClient } from '@crumbjs/core';
+import { HttpClient } from '@crumbjs/edge';
 
 const httpClient = new HttpClient('http://127.0.0.1:8080');
 
@@ -77,7 +77,6 @@ console.log('refresh result:', refresh);
 ## Included middlewares
 
 - cors
-- signals (log incomming request)
 - secureHeaders (ported from Hono)
 
 ## Installation
@@ -85,24 +84,29 @@ console.log('refresh result:', refresh);
 You can scaffold a new project with the official template:
 
 ```bash
-bun create crumbjs myapp
+bun create crumbjs-worker myapp
 ```
-
-This runs the [`create-crumbjs`](../create-crumbjs) script which copies a template, installs dependencies with Bun and prints common commands.
 
 Alternatively, add the framework to an existing Bun project:
 
 ```bash
-bun add @crumbjs/core
+bun add @crumbjs/edge
 ```
 
 ## Quick start (conceptual examples)
 
 ```ts
-import { App, spec } from '@crumbjs/core';
+import { App, spec } from '@crumbjs/edge';
 import { z } from 'zod';
 
-const app = new App();
+type Vars = {
+	user: {
+		id: string;
+		email: string;
+	};
+};
+
+const app = new App<Env, Vars>();
 
 app.get(
 	'/hello/:name',
@@ -170,20 +174,20 @@ app.serve();
 ## The Handler Context
 
 ```ts
-type Context<
-	PATH extends string = any,
-	BODY extends ZodObject | undefined = any,
-	QUERY extends ZodObject | undefined = any,
-	HEADERS extends ZodObject | undefined = any,
-> = {
-	/** start time context resolution: performance.now() */
-	start: DOMHighResTimeStamp;
-
+/**
+ * Core context passed to all route handlers and middleware.
+ * Provides access to the request, parsed body, response controls,
+ * and a per-request key–value store.
+ */
+export type RootContext<ENV extends Rec = any, VARS extends Rec = any> = {
 	/** The original Fetch API Request object */
 	request: Request;
 
-	/** The bun server instance */
-	server: Bun.Server;
+	/** Environment object */
+	env: ENV;
+
+	/** Cloudflare ExecutionContext */
+	executionContext: IExecutionContext;
 
 	/** extracted request Origin */
 	origin: string;
@@ -195,12 +199,8 @@ type Context<
 	bearer: () => string;
 
 	/**
-	 * parse the basic authorization returning user and password object
-	 * @throws {BadRequest} on inexistent or invalid)
+	 * Extracted request client ip address
 	 */
-	basicCredentials: () => { user: string; password: string };
-
-	/** extracted request client ip address */
 	ip: string;
 
 	/** request URL instance */
@@ -234,21 +234,10 @@ type Context<
 	deleteHeader: (key: string) => void;
 
 	/**
-	 * Gets the current response headers
-	 */
-	getResponseHeaders: () => Headers;
-
-	/**
 	 * Sets the HTTP status code and optional status text for the response.
 	 * @param code - HTTP status code (e.g., 200, 404)
-	 * @param text - Optional status message (e.g., "OK", "Not Found")
 	 */
-	setStatus: (code: number, text?: string) => void;
-
-	/**
-	 * Gets the current status values
-	 */
-	getResponseStatus: () => { status: number; statusText: string };
+	setStatus: (code: number) => void;
 
 	/**
 	 * Adds or updates a cookie in the map.
@@ -275,21 +264,46 @@ type Context<
 	deleteCookie: (name: string) => void;
 
 	/**
-	 * RequestStores a value in the per-request context.
+	 * Stores a value in the per-request context.
 	 * Useful for passing data between middlewares and handlers.
-	 * @param key - Unique key
-	 * @param value - Any value to store
 	 */
-	set: (key: string, value: any) => void;
+	set: <K extends KeyOf<VARS>>(key: K, value: VARS[K]) => void;
 
 	/**
 	 * Retrieves a stored value from the per-request context.
-	 * @param key - Key to retrieve
-	 * @returns The stored value
-	 * @throws {InternalServerError} if the key not exists
 	 */
-	get: <T = any>(key: string) => T;
+	get: <K extends KeyOf<VARS>>(key: K) => VARS[K] | null;
 
+	/**
+	 * Retrieves a stored value from the per-request context.
+	 * If the key doesnt exists in store (or empty) wil return the fallback value
+	 * If the fallback value is an Exception instance, will throw it
+	 */
+	getOr: <K extends KeyOf<VARS>>(key: K, fallback: VARS[K] | Exception) => VARS[K];
+};
+
+/**
+ * Extended request context that includes validated request data and core request utilities.
+ *
+ * All fields (`body`, `query`, `headers`) are inferred from their corresponding
+ * Zod schemas. If a schema is not provided (`undefined`), the field defaults to `any`.
+ *
+ * This type also extends {@link RootContext}, which provides access to the raw request,
+ * response utilities, and a per-request key–value store.
+ *
+ * @template BODY - Zod schema for the request body
+ * @template QUERY - Zod schema for the query parameters
+ * @template PARAMS - Zod schema for the path parameters
+ * @template HEADERS - Zod schema for the request headers
+ */
+export type Context<
+	ENV extends Rec = any,
+	VARS extends Rec = any,
+	PATH extends string = any,
+	BODY extends ZodObject | undefined = any,
+	QUERY extends ZodObject | undefined = any,
+	HEADERS extends ZodObject | undefined = any,
+> = RootContext<ENV, VARS> & {
 	/** Validated request body (or `any` if no schema provided) */
 	body: InferOrAny<BODY>;
 
@@ -307,10 +321,10 @@ type Context<
 Run your server with Bun:
 
 ```bash
-bun run src/index.ts
+npx wranger dev
 ```
 
-OpenAPI documentation is served automatically at `http://localhost:8080/openapi` by default.
+OpenAPI documentation is served automatically at `http://localhost:8787/openapi` by default.
 
 ## Environment variables
 
@@ -320,7 +334,6 @@ Configuration can be supplied via environment variables or programmatically. The
 | --------------------- | ----------------------------------------------------------------- | ------------------- |
 | `APP_MODE`/`NODE_ENV` | Application mode (`development`, `production`, `test`, `staging`) | `development`       |
 | `APP_VERSION`         | API/app version                                                   | `1.0.0`             |
-| `PORT`                | HTTP port                                                         | `8080`              |
 | `OPENAPI`             | Enable/disable OpenAPI generation (`true`/`false`)                | `true`              |
 | `LOCALE`              | Zod error locale (`en`, `es`, `pt`)                               | `en`                |
 | `OPENAPI_TITLE`       | Global OpenAPI title                                              | `API`               |
@@ -328,24 +341,28 @@ Configuration can be supplied via environment variables or programmatically. The
 | `OPENAPI_PATH`        | Base path for OpenAPI routes                                      | `openapi`           |
 | `OPENAPI_UI`          | UI for docs (`swagger` or `scalar`)                               | `scalar`            |
 
-Example `.env`:
-
-```env
-PORT=3000
-OPENAPI=false
-```
+Check the included example wrangler.jsonc
 
 ## Programmatic configuration
 
 You can also override settings in code using `serve` options:
 
 ```ts
-app.serve({ port: 3000, withOpenapi: false });
+app.overrideConfig({ withOpenapi: false, mode: 'staging' });
 ```
 
-## Philosophy
+## Framework Philosophy
 
-CrumbJS is inspired by modern frameworks like Hono and Elysia but has a distinct goal: a clean, Bun-only backend layer with first-class validation and automatic documentation. It does not implement an HTTP router—instead it relies on Bun's own routing and adds typed validation, middleware chaining and OpenAPI generation on top.
+While inspired by the simplicity and performance of Hono and Elysia, this framework takes a very different approach:
+it is built 100% for backends that operate as part of a multi-service ecosystem, where data validation and automatic documentation are first-class citizens.
+
+Rather than being just a minimal library to “spin up endpoints,” it’s an integrated package that:
+Validates inputs and outputs declaratively at the route level, reducing errors and increasing trust between services.
+Documents your API automatically (OpenAPI/Swagger) from the same validation definitions, avoiding code duplication and drift.
+Facilitates integration across microservices, internal APIs, and external clients with clear, consistent contracts.
+Keeps it lightweight and fast, without sacrificing production-grade robustness.
+
+The goal is not to compete with general-purpose web frameworks, but to be the best tool for distributed backend architectures where validation + documentation are part of the natural development flow.
 
 ## License
 

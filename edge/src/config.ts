@@ -1,20 +1,16 @@
 import { defaultApiConfig, locales, modes, openapiUis, pathRegex } from './constants';
-import { logger } from './logger';
+import { logger } from './helpers/logger';
 import { APIConfig, AppLocale, AppMode, OpenApiUi } from './types';
-import { objectCleanUndefined } from './utils';
+import { objectCleanUndefined } from './helpers/utils';
 
-class Config {
-	private static instance: Config;
-
+/**
+ * ApiConfig wrapper to set defaults, merge with custom config and handfull getters and setters
+ */
+export class Config {
 	private settings: APIConfig;
 
-	private constructor() {
+	constructor() {
 		this.settings = defaultApiConfig;
-	}
-
-	static getInstance(): Config {
-		this.instance ??= new Config();
-		return this.instance;
 	}
 
 	private warnInvalidEnv(envIndex: string, invalidValue: any) {
@@ -29,10 +25,6 @@ class Config {
 		else if (appModeValue) this.set('mode', appModeValue as AppMode);
 
 		if (env.APP_VERSION) this.set('version', env.APP_VERSION);
-
-		const portValue = env.PORT;
-		if (portValue && isNaN(Number(portValue))) this.warnInvalidEnv('PORT', portValue);
-		else if (portValue) this.set('port', Number(portValue));
 
 		if (env.OPENAPI) this.set('withOpenapi', env.OPENAPI === 'true' || env.OPENAPI === '1');
 
@@ -73,5 +65,3 @@ class Config {
 		return this.settings;
 	}
 }
-
-export const config = Config.getInstance();

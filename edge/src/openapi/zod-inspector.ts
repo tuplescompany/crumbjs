@@ -3,7 +3,7 @@
 import { z, type ZodType, ZodObject, ZodOptional, ZodDefault, type ZodRawShape } from 'zod';
 import type { JSONSchema } from 'zod/v4/core';
 import type { SchemaObject } from 'openapi3-ts/oas31';
-import { objectCleanUndefined } from '../utils';
+import { objectCleanUndefined } from '../helpers/utils';
 
 type DraftSchema = JSONSchema.BaseSchema;
 

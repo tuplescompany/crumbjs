@@ -1,7 +1,8 @@
 import type { ZodObject, infer as ZodInfer, ZodType } from 'zod';
 import { locales, modes, openapiUis } from './constants';
-import { Exception } from './exception';
-import { IExecutionContext } from './cloudflare';
+import { Exception, ExceptionType } from './exception';
+import { IFetcher } from './cloudflare/types';
+import { CookieInit } from './processor/cookies';
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -27,9 +28,11 @@ export type ContentType =
 
 export type Result = Promise<string | object | null | Response> | (string | object | null | Response);
 
-export type NotFoundHandler = (ctx: RootContext) => Result | Promise<Result>;
+export type OnClose<ENV extends Rec = any, VARS extends Rec = any> = (ctx: ResolvedContext<ENV, VARS>) => Promise<any>;
 
-export type ErrorHandler = (ctx: ErrorContext) => Result | Promise<Result>;
+export type NotFoundHandler<ENV extends Rec = any, VARS extends Rec = any> = (ctx: RootContext<ENV, VARS>) => Result | Promise<Result>;
+
+export type ErrorHandler<ENV extends Rec = any, VARS extends Rec = any> = (ctx: ErrorContext<ENV, VARS>) => Result | Promise<Result>;
 
 export type InferOrAny<T extends ZodObject | undefined> = T extends ZodObject ? ZodInfer<T> : any;
 
@@ -41,7 +44,18 @@ export type MiddlewareContext<ENV extends Rec = any, VARS extends Rec = any> = R
 
 export type Rec = Record<string, any>;
 
-type KeyOf<T> = Extract<keyof T, string>; // sólo keys string (las únicas válidas en runtime)
+// 1. Extract the keys where the value type is Fetcher or IFetcher
+type FetcherKeys<T> = Extract<
+	{
+		[K in keyof T]-?: NonNullable<T[K]> extends IFetcher ? K : never;
+	}[keyof T],
+	string
+>;
+
+// 2. Union those with `string` to allow arbitrary strings
+export type Destination<T> = FetcherKeys<T> | (string & {}); /** nosonar */
+
+type KeyOf<T> = Extract<keyof T, string>;
 
 /**
  * Core context passed to all route handlers and middleware.
@@ -55,8 +69,8 @@ export type RootContext<ENV extends Rec = any, VARS extends Rec = any> = {
 	/** Environment object */
 	env: ENV;
 
-	/** Cloudflare ExecutionContext */
-	executionContext: IExecutionContext;
+	/** Stacked Promises to execute after response is sent */
+	stack: (name: string, promise: Promise<any>) => void;
 
 	/** extracted request Origin */
 	origin: string;
@@ -74,6 +88,12 @@ export type RootContext<ENV extends Rec = any, VARS extends Rec = any> = {
 
 	/** request URL instance */
 	url: URL;
+
+	/**
+	 * Get from context the builded response headers at the moment of the call
+	 * usefull for some middlewares that on certain cases return Responses
+	 */
+	getResponseHeaders: () => Headers;
 
 	/**
 	 * rawBody, is the unvalidated request body parsed into a plain object.
@@ -140,37 +160,21 @@ export type RootContext<ENV extends Rec = any, VARS extends Rec = any> = {
 
 	/**
 	 * Retrieves a stored value from the per-request context.
-	 * @throws {InternalServerError} if the key does not exist
 	 */
-	get: <K extends KeyOf<VARS>>(key: K) => VARS[K];
-};
+	get: <K extends KeyOf<VARS>>(key: K) => VARS[K] | null;
 
-export type ErrorContext = RootContext & { exception: Exception };
-
-// Extracts param names from `{param}` occurrences anywhere in S.
-// Example: "/users/{id}/posts/{slug}" -> { id: string; slug: string }
-export type ExtractPathParams<S extends string> = S extends `${string}{${infer Param}}${infer Rest}`
-	? { [K in Param]: string } & ExtractPathParams<Rest>
-	: {};
-
-export type PathParams<S extends string> = {
-	[K in keyof ExtractPathParams<S>]?: {
-		example: string;
-		description?: string;
-	};
-};
-
-export type AnyPathParams = {
-	[key: string]: {
-		example: string;
-		description?: string;
-	};
+	/**
+	 * Retrieves a stored value from the per-request context.
+	 * If the key doesnt exists in store (or empty) wil return the fallback value
+	 * If the fallback value is an Exception instance, will throw it
+	 */
+	getOr: <K extends KeyOf<VARS>>(key: K, fallback: VARS[K] | Exception) => VARS[K];
 };
 
 /**
  * Extended request context that includes validated request data and core request utilities.
  *
- * All fields (`body`, `query`, `params`, `headers`) are inferred from their corresponding
+ * All fields (`body`, `query`, `headers`) are inferred from their corresponding
  * Zod schemas. If a schema is not provided (`undefined`), the field defaults to `any`.
  *
  * This type also extends {@link RootContext}, which provides access to the raw request,
@@ -200,6 +204,34 @@ export type Context<
 
 	/** Validated request headers (or `any` if no schema provided) */
 	headers: InferOrAny<HEADERS>;
+};
+
+export type ErrorContext<ENV extends Rec = any, VARS extends Rec = any> = RootContext<ENV, VARS> & { exception: Exception };
+
+export type ResolvedContext<ENV extends Rec = any, VARS extends Rec = any> = RootContext<ENV, VARS> &
+	Context<ENV, VARS> & {
+		result: Result | ExceptionType;
+		response: Response;
+	};
+
+export type ExtractPathParams<S extends string> = S extends `${string}:${infer Param}/${infer Rest}`
+	? { [K in Param | keyof ExtractPathParams<`/${Rest}`>]: string }
+	: S extends `${string}:${infer Param}`
+		? { [K in Param]: string }
+		: {};
+
+export type PathParams<S extends string> = {
+	[K in keyof ExtractPathParams<S>]?: {
+		example: string;
+		description?: string;
+	};
+};
+
+export type AnyPathParams = {
+	[key: string]: {
+		example: string;
+		description?: string;
+	};
 };
 
 export type Handler<
@@ -347,13 +379,6 @@ export type APIConfig = {
 	version: string;
 
 	/**
-	 * Http Port
-	 * @env inferance: 'PORT'
-	 * @default 8080
-	 */
-	port: number;
-
-	/**
 	 * Enable or disable openapi
 	 * @env inferance: 'OPENAPI'
 	 * @default true
@@ -395,33 +420,6 @@ export type APIConfig = {
 	 * @default 'scalar'
 	 */
 	openapiUi: OpenApiUi;
-
-	/**
-	 * Handler for unmatched routes (404).
-	 *
-	 * Default:
-	 * ```ts
-	 * ({ setStatus, setHeader }) => {
-	 *		setStatus(404);
-	 *		setHeader('Content-Type', 'text/plain');
-	 *		return '';
-	 * }
-	 * ```
-	 */
-	notFoundHandler: NotFoundHandler;
-
-	/**
-	 * Router exception handler.
-	 *
-	 * Default:
-	 * ```ts
-	 * ({ setStatus, exception }) => {
-	 *  setStatus(exception.status);
-	 *  return exception.toObject();
-	 * },
-	 * ```
-	 */
-	errorHandler: ErrorHandler;
 };
 
 export type Route = {
@@ -429,7 +427,6 @@ export type Route = {
 	method: Method;
 	handler: Handler;
 	config: RouteConfig;
-	isProxy: boolean;
 };
 
 export type Routes = Partial<Record<Method, Record<string, Route>>>;
@@ -449,17 +446,3 @@ export type OARoute = {
 	authorization?: 'bearer' | 'basic';
 	operationId?: string;
 };
-
-/**
- * Application-level configuration object.
- */
-export type AppConfig = {
-	/**
-	 * Global prefix for all routes (e.g., `/api`, `/v1`).
-	 * This is typically used to namespace endpoints.
-	 * @default ''
-	 */
-	prefix: string;
-};
-
-export type HttpUrlString = `${'http' | 'https'}://${string}`;

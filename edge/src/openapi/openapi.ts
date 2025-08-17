@@ -2,7 +2,6 @@ import { OpenApiBuilder } from 'openapi3-ts/oas31';
 import type { ZodType } from 'zod';
 import type { OARoute } from '../types';
 
-import { config } from '../config';
 import { swaggerPage, scalarPage } from './ui';
 import { OpenapiOperationBuilder } from './operation.builder';
 import { ZodInspector } from './zod-inspector';
@@ -41,6 +40,10 @@ export class OpenApiRegistry {
 	static getInstance(): OpenApiRegistry {
 		this.instance ??= new OpenApiRegistry();
 		return this.instance;
+	}
+
+	static getBuilder(): OpenApiBuilder {
+		return OpenApiRegistry.getInstance().builder();
 	}
 
 	/**
@@ -90,36 +93,35 @@ export class OpenApiRegistry {
 		this.builder().addPath(path, item);
 	}
 
+	title(title: string) {
+		this.builder().addTitle(title);
+	}
+
+	description(description: string) {
+		this.builder().addDescription(description);
+	}
+
+	version(version: string) {
+		this.builder().addVersion(version);
+	}
+
 	/** Append a server entry (useful for tooling and UIs). */
 	addServer(url: string, description?: string): void {
 		this.builder().addServer({ url, description });
 	}
 
-	/** Ensure title/description/version are present (config-backed defaults). */
-	private ensureInfo(): void {
-		const b = this.builder();
-		const info = (b.getSpec().info ??= { title: '', version: '' });
-
-		if (!info.title) b.addTitle(config.get('openapiTitle'));
-		if (!info.description) b.addDescription(config.get('openapiDescription'));
-		if (!info.version) b.addVersion(config.get('version'));
-	}
-
 	/** Return the full OpenAPI document object. */
 	getSpec() {
-		this.ensureInfo();
 		return this.builder().getSpec();
 	}
 
 	/** Return the spec as JSON (string). */
 	getJson() {
-		this.ensureInfo();
 		return this.builder().getSpecAsJson();
 	}
 
 	/** Return the spec as YAML (string). */
 	getYaml() {
-		this.ensureInfo();
 		return this.builder().getSpecAsYaml();
 	}
 
@@ -141,13 +143,3 @@ export class OpenApiRegistry {
 		this.builderInstance = undefined;
 	}
 }
-
-/* -------------------------------------------
- * Convenience default export (optional)
- * Usage parity with your previous IIFE:
- *
- *   import { openapi } from './openapi/registry';
- *   openapi.addRoute(...);
- *   return openapi.getJson();
- * ------------------------------------------*/
-export const openapi = OpenApiRegistry.getInstance();

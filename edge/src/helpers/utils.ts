@@ -1,6 +1,6 @@
 import { z, type ZodType } from 'zod';
-import type { AppMode, ContentType, ResponseConfig } from './types';
-import { logger, LogLevel } from './logger';
+import type { AppMode, ContentType, ResponseConfig } from '../types';
+import { LogLevel } from './logger';
 
 export function capitalize(str: string) {
 	return str.charAt(0).toUpperCase() + str.slice(1);
@@ -40,7 +40,7 @@ export const spec = {
 
 export function getModeLogLevel(mode: AppMode) {
 	if (mode === 'production') return LogLevel.ERROR; // only errors
-	if (mode === 'test' || mode === 'staging') return LogLevel.INFO; // excludes DEBUG
+	if (mode === 'qa' || mode === 'staging') return LogLevel.INFO; // excludes DEBUG
 
 	return LogLevel.DEBUG; // all levels
 }
@@ -48,4 +48,30 @@ export function getModeLogLevel(mode: AppMode) {
 export function objectCleanUndefined<T extends Record<string, unknown>>(obj?: T): T {
 	if (!obj) return {} as T;
 	return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
+}
+
+export function buildPath(...parts: string[]): string {
+	let result: string[] = [];
+
+	// Split each part by '/' and clean each segment
+	for (const part of parts) {
+		const cleanedSegments = part
+			.split('/')
+			.map((segment) => segment.trim()) // Trim each segment
+			.filter(Boolean); // Remove any empty segments
+		result.push(...cleanedSegments); // Add cleaned segments to the result
+	}
+
+	// Join back with single slashes and ensure no leading/trailing slashes
+	return `/${result.join('/')}`;
+}
+
+export function isUrl(str: string) {
+	return z.url().safeParse(str).success;
+}
+
+export function asArray<T>(value: T | T[] | null | undefined): T[] {
+	if (value == null) return [];
+	if (Array.isArray(value)) return value;
+	return [value];
 }

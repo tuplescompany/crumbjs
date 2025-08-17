@@ -1,10 +1,10 @@
 export type ParsedContentType = 'json' | 'form-urlencoded' | 'form-data' | (string & {}); // nosonar
 
 export class BodyParser {
-	private readonly request: Request<any, any>;
+	private readonly request: Request;
 
 	constructor(request: Request) {
-		// use a cloned request, to keep a free instance of request for the user
+		// use a cloned request, to keep a free instance of request for the dev
 		this.request = request.clone();
 	}
 

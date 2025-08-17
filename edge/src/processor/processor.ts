@@ -1,36 +1,37 @@
-import type { Context, ErrorHandler, Result, Middleware, RootContext, Handler, RouteConfig } from './types';
+import type { Context, ErrorHandler, Result, Middleware, RootContext, Handler, RouteConfig } from '../types';
 import { BodyParser } from './body-parser';
 import { flattenError, ZodObject } from 'zod';
-import { BadRequest, InternalServerError } from './exception/http.exception';
-import { Exception } from './exception';
-import { logger } from './logger';
-import { IExecutionContext } from './cloudflare';
+import { BadRequest, InternalServerError } from '../exception/http.exception';
+import { Exception, ExceptionType } from '../exception';
+import { logger } from '../helpers/logger';
+import { CookieJar } from './cookies';
+import { Stack } from '../stack';
 
 export class Processor {
 	private readonly rootContext: RootContext;
 
-	private readonly reqStore: Record<string, any> = {};
+	private readonly handlerContext: Context;
 
-	private readonly reqHeaders: Record<string, string> = {};
+	private readonly requestStore: Record<string, any> = {};
 
-	private readonly reqQuery: Record<string, string> = {};
+	private readonly requestHeaders: Record<string, string> = {};
 
-	private readonly cookies = {
-		set: (name: string, value: string, options?: CookieInit) => {},
-		get: (name: string) => null,
-		delete: (name: string) => {},
-	};
+	private readonly requestQuery: Record<string, string> = {};
 
-	private resStatus: number = 200;
+	private readonly cookieJar: CookieJar;
 
-	private readonly resHeaders: Record<string, string> = {
+	private responseStatus: number = 200;
+
+	private result: Result | ExceptionType = {};
+
+	private readonly responseHeaders: Record<string, string> = {
 		'Content-Type': 'application/json',
 	};
 
 	constructor(
 		private readonly req: Request,
 		private readonly env: any,
-		private readonly executionContext: IExecutionContext,
+		private readonly stack: Stack,
 		private readonly url: URL, // inherit to avoid parsing twice, only once at app.handle()
 		private readonly params: Record<string, string>,
 		private readonly config: RouteConfig,
@@ -38,13 +39,14 @@ export class Processor {
 		private readonly middlewares: Middleware[], // initial global middlewares array
 		private readonly errorHandler: ErrorHandler,
 	) {
-		this.reqQuery = this.queryToObject(this.url.searchParams);
-		this.reqHeaders = this.headersToObject(this.req.headers);
+		this.requestQuery = this.queryToObject(this.url.searchParams);
+		this.requestHeaders = this.headersToObject(this.req.headers);
+		this.cookieJar = new CookieJar(this.req);
 
 		this.rootContext = {
 			request: this.req,
 			env: this.env,
-			executionContext: this.executionContext,
+			stack: this.stack.add.bind(this.stack),
 			url: this.url,
 			ip: this.req.headers.get('cf-connecting-ip') ?? 'unknown-ip',
 			origin: this.req.headers.get('origin') ?? '',
@@ -55,25 +57,49 @@ export class Processor {
 				return authorization.slice(7);
 			},
 			setHeader: (key: string, value: string) => {
-				this.resHeaders[key] = value;
+				this.responseHeaders[key] = value;
 			},
 			deleteHeader: (key: string) => {
-				delete this.resHeaders[key];
+				delete this.responseHeaders[key];
 			},
-			setCookie: this.cookies.set.bind(this.cookies),
-			getCookie: this.cookies.get.bind(this.cookies),
-			deleteCookie: this.cookies.delete.bind(this.cookies),
+			setCookie: this.cookieJar.set.bind(this.cookieJar),
+			getCookie: this.cookieJar.get.bind(this.cookieJar),
+			deleteCookie: this.cookieJar.delete.bind(this.cookieJar),
 			setStatus: (status: number) => {
-				this.resStatus = status;
+				this.responseStatus = status;
 			},
 			set: (key: any, value: any) => {
-				this.reqStore[key] = value;
+				this.requestStore[key] = value;
 			},
 			get: (key: any): any => {
-				return this.reqStore[key];
+				if (!this.requestStore[key]) return null;
+				return this.requestStore[key];
 			},
+			getOr: (key: any, fallback: any): any => {
+				if (!this.requestStore[key]) {
+					if (fallback instanceof Exception) throw fallback;
+					return fallback;
+				}
+				return this.requestStore[key];
+			},
+			getResponseHeaders: this.buildResponseHeaders.bind(this),
 			rawBody: {}, // unparsed yet
 		};
+
+		this.handlerContext = {
+			...this.rootContext,
+			body: {},
+			headers: this.requestHeaders,
+			params: this.params,
+			query: this.requestQuery,
+		};
+	}
+
+	private buildResponseHeaders(): Headers {
+		const h = new Headers();
+		for (const [k, v] of Object.entries(this.responseHeaders)) h.set(k, v);
+		this.cookieJar.apply(h);
+		return h;
 	}
 
 	// Headers -> Record<string, string> (último valor gana; keys en lowercase)
@@ -150,17 +176,16 @@ export class Processor {
 	private async getHandlerContext(): Promise<Context> {
 		const [body, query, headers] = await Promise.all([
 			this.validate(this.config.body, this.rootContext.rawBody, 'body'),
-			this.validate(this.config.query, this.reqQuery, 'query'),
-			this.validate(this.config.headers, this.reqHeaders, 'headers'),
+			this.validate(this.config.query, this.requestQuery, 'query'),
+			this.validate(this.config.headers, this.requestHeaders, 'headers'),
 		]);
 
-		return {
-			...this.rootContext,
-			body,
-			query,
-			params: this.params,
-			headers,
-		};
+		// Override handler context with validated data
+		this.handlerContext.body = body;
+		this.handlerContext.query = query;
+		this.handlerContext.headers = headers;
+
+		return this.handlerContext;
 	}
 
 	/**
@@ -185,8 +210,8 @@ export class Processor {
 
 		if (typeof responseBody === 'string' || responseBody === null) {
 			return new Response(responseBody, {
-				headers: this.resHeaders,
-				status: this.resStatus,
+				headers: this.buildResponseHeaders(),
+				status: this.responseStatus,
 			});
 		}
 
@@ -218,7 +243,7 @@ export class Processor {
 		}
 	}
 
-	async execute() {
+	private async getResponse() {
 		try {
 			// 1- safe body parse, on fail will log and rawBody will still "{}"
 			await this.parseBody();
@@ -241,13 +266,29 @@ export class Processor {
 			};
 
 			// 4- Parse and return Response
-			return this.createResponse(await run());
-		} catch (error) {
-			const ex = Exception.parse(error);
+			this.result = await run();
 
+			return this.createResponse(this.result);
+		} catch (error) {
 			console.error(error); // Log raw Error
+
+			const ex = Exception.parse(error);
+			this.result = ex.toObject();
 
 			return this.createErrorResponse(ex);
 		}
+	}
+
+	async execute() {
+		const response = await this.getResponse();
+
+		const resolvedContext = {
+			...this.handlerContext,
+			response,
+			result: this.result,
+		};
+
+		this.stack.execute(resolvedContext);
+		return response;
 	}
 }

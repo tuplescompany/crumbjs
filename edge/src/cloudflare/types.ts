@@ -5,6 +5,30 @@ export interface IExecutionContext {
 	props: any;
 }
 
+// Execution Context implementation eg. For testing runtimes
+export class DefaultExecutionContext implements IExecutionContext {
+	readonly #waitUntil: Promise<any>[] = [];
+	#passThrough = false;
+	props: Record<string, any> = {};
+
+	waitUntil(promise: Promise<any>): void {
+		this.#waitUntil.push(promise);
+	}
+
+	passThroughOnException(): void {
+		this.#passThrough = true;
+	}
+
+	async run(): Promise<void> {
+		// Wait for all registered async tasks
+		await Promise.allSettled(this.#waitUntil);
+	}
+
+	get passThroughEnabled(): boolean {
+		return this.#passThrough;
+	}
+}
+
 // CF type: Fetcher
 export interface IFetcher {
 	fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;

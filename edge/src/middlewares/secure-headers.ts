@@ -127,7 +127,7 @@ interface ReportingEndpointOptions {
 	url: string;
 }
 
-type PermissionsPolicyValue = '*' | 'self' | 'src' | 'none' | string;
+type PermissionsPolicyValue = '*' | 'self' | 'src' | 'none' | (string & {}); // nosonar
 
 type PermissionsPolicyOptions = Partial<Record<PermissionsPolicyDirective, PermissionsPolicyValue[] | boolean>>;
 
@@ -193,10 +193,8 @@ const DEFAULT_OPTIONS: SecureHeadersOptions = {
 type SecureHeadersCallback = (ctx: MiddlewareContext, headersToSet: [string, string | string[]][]) => [string, string][];
 
 const generateNonce = () => {
-	const arrayBuffer = new Uint8Array(16);
-	crypto.getRandomValues(arrayBuffer);
-
-	return Buffer.from(arrayBuffer.buffer).toString('base64'); // rewrite for more performance
+	const bytes = crypto.getRandomValues(new Uint8Array(16));
+	return btoa(String.fromCharCode(...bytes));
 };
 
 export const NONCE: ContentSecurityPolicyOptionHandler = (ctx) => {
