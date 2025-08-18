@@ -35,7 +35,7 @@ export class ZodInspector {
 
 	/** Draft JSON Schema, as produced by `z.toJSONSchema()`. */
 	toJsonSchema(): DraftSchema {
-		return z.toJSONSchema(this.schema);
+		return z.toJSONSchema(this.schema, { unrepresentable: 'any' });
 	}
 
 	/** OpenAPI 3.1 SchemaObject (recursive conversion). */

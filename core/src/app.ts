@@ -123,7 +123,7 @@ export class App {
 
 		for (const m of methods) {
 			// shallow-clone config to avoid repeating middlewares on app mounting on multi method cases
-			const cfg = config ? { ...config, use: asArray(config.use) } : {};
+			const cfg: RouteConfig<string, any, any, any> = config ? { ...config, use: asArray(config.use) } : {};
 
 			this.routes.push({
 				pathParts: [this.getPrefix(), path],
