@@ -2,7 +2,12 @@
 
 <img src="https://raw.githubusercontent.com/tuplescompany/crumbjs/refs/heads/main/logo/crumbjs.png" alt="CrumbJS Logo" width="200"/>
 
-- ...Documentation page in progress
+[![Under Development](https://img.shields.io/badge/under%20development-red.svg)](https://github.com/tuplescompany/crumbjs)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Bun](https://img.shields.io/badge/Bun-1.2.20-black?logo=bun)](https://bun.sh)
+[![Version](https://img.shields.io/badge/version-0.4.1-green.svg)](https://www.npmjs.com/package/@crumbjs/core)
+
+- We are working on a dedicated documentation page
 
 CrumbJS is a lightweight API framework for [Bun](https://bun.com/) focused on backend development. It layers configuration, validation and documentation on top of Bun's built-in router while keeping a familiar Express-like developer experience. Validation is powered by [Zod](https://github.com/colinhacks/zod) and every route can be automatically documented through OpenAPI.
 
