@@ -1,7 +1,10 @@
 // proxy-ts utilities for proxy routes
+import z from 'zod';
 import { Handler } from '../types';
 
 export function createProxyHandler(localPath: string, dest: string): Handler {
+	if (!z.url().safeParse(dest).success) throw Error(`Invalid proxy foward URL: '${dest}'`);
+
 	return async ({ request, url }) => {
 		// Remove local path from fowardPath
 		const fowardPath = url.pathname.replace(localPath, '');

@@ -100,11 +100,15 @@ export type Cors = {
  * CORS Middleware options.
  * - `Origin`: a string or function that receives the request context and returns true on valid origin. @see {Origin}
  * - `Cors`: a full configuration object defining allowed origins, methods, headers, etc. @see {Cors}
+ * @example
+ * ```ts
+ * app.use(cors({ origin: "https://app.example.com" }))
+ * ```
  */
 export const cors = (opts: Cors | string | ((ctx: MiddlewareContext) => string)): Middleware => {
 	const corsOpts: Cors = typeof opts === 'object' && opts !== null && 'origin' in opts ? opts : { origin: opts };
 
-	return async function (ctx: MiddlewareContext) {
+	return async function corsMiddleware(ctx: MiddlewareContext) {
 		const { credentials, methods, allowedHeaders, exposedHeaders, maxAge, handleOptionsRequest } = corsOpts;
 
 		// Convert allways to a functional origin validator and execute it passing MiddlewareContext

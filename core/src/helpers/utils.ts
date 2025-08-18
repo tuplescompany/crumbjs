@@ -98,10 +98,6 @@ export function objectCleanUndefined<T extends Record<string, unknown>>(obj?: T)
 	return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
 }
 
-export function isUrl(str: string) {
-	return z.url().safeParse(str).success;
-}
-
 export function asArray<T>(value: T | T[] | null | undefined): T[] {
 	if (!value) return [];
 	if (Array.isArray(value)) return value;

@@ -20,11 +20,11 @@ import { ZodInspector } from './zod-inspector';
  *
  * Usage:
  * ```ts
- * const adapter = new OpenapiOperationBuilder(route);
+ * const adapter = new OperationBuilder(route);
  * const { path, item } = adapter.buildPathItem();
  * ```
  */
-export class OpenapiOperationBuilder {
+export class OperationBuilder {
 	constructor(private readonly route: OARoute) {}
 
 	/** Convert `:id` style params to `{id}` style – OpenAPI friendly. */

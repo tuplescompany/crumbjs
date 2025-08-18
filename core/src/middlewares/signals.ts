@@ -16,9 +16,8 @@ import { signal } from '../helpers/utils';
  * @example
  * app.use(signals(true)); // Always log requests signals
  */
-export const signals =
-	(force: boolean = false): Middleware =>
-	async (ctx: MiddlewareContext) => {
+export const signals = (force: boolean = false): Middleware => {
+	return async function signalsMiddleware(ctx: MiddlewareContext) {
 		const {
 			start,
 			request: { method },
@@ -39,3 +38,4 @@ export const signals =
 
 		return response;
 	};
+};

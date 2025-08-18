@@ -37,9 +37,31 @@ type Next = () => Promise<Result>;
 
 export type Middleware = (ctx: MiddlewareContext) => Promise<Result>;
 
-export type MiddlewareContext = RootContext & { next: Next };
-
 export type OnStart = () => void | Promise<void>;
+
+type ExtractPathParams<S extends string> = S extends `${string}:${infer Param}/${infer Rest}`
+	? { [K in Param | keyof ExtractPathParams<`/${Rest}`>]: string }
+	: S extends `${string}:${infer Param}`
+		? { [K in Param]: string }
+		: {};
+
+type PathParams<S extends string> = {
+	[K in keyof ExtractPathParams<S>]?: {
+		example: string;
+		description?: string;
+	};
+};
+
+export type AnyPathParams = {
+	[key: string]: {
+		example: string;
+		description?: string;
+	};
+};
+
+export type ZodQueryObject = ZodObject<Record<string, ZodString | ZodOptional<ZodString> | ZodNullable<ZodString>>>;
+
+export type ZodHeaderObject = ZodObject<Record<string, ZodString | ZodOptional<ZodString> | ZodNullable<ZodString>>>;
 
 /**
  * Core context passed to all route handlers and middleware.
@@ -162,31 +184,19 @@ export type RootContext = {
 	get: <T = any>(key: string) => T;
 };
 
+/**
+ * Context available to middlewares.
+ * Extends {@link RootContext} with:
+ * - `next`: callback to pass control to the next middleware in the chain
+ */
+export type MiddlewareContext = RootContext & { next: Next };
+
+/**
+ * Context available when an error is caught during request handling.
+ * Extends {@link RootContext} with:
+ * - `exception`: the thrown {@link Exception} object containing error details
+ */
 export type ErrorContext = RootContext & { exception: Exception };
-
-type ExtractPathParams<S extends string> = S extends `${string}:${infer Param}/${infer Rest}`
-	? { [K in Param | keyof ExtractPathParams<`/${Rest}`>]: string }
-	: S extends `${string}:${infer Param}`
-		? { [K in Param]: string }
-		: {};
-
-type PathParams<S extends string> = {
-	[K in keyof ExtractPathParams<S>]?: {
-		example: string;
-		description?: string;
-	};
-};
-
-export type AnyPathParams = {
-	[key: string]: {
-		example: string;
-		description?: string;
-	};
-};
-
-export type ZodQueryObject = ZodObject<Record<string, ZodString | ZodOptional<ZodString> | ZodNullable<ZodString>>>;
-
-export type ZodHeaderObject = ZodObject<Record<string, ZodString | ZodOptional<ZodString> | ZodNullable<ZodString>>>;
 
 /**
  * Extended request context that includes validated request data and core request utilities.

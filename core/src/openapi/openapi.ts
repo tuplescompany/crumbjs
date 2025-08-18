@@ -2,7 +2,7 @@ import { OpenApiBuilder } from 'openapi3-ts/oas31';
 import type { ZodType } from 'zod';
 import type { Method, OARoute, BuildedRoute } from '../types';
 import { swaggerPage, scalarPage } from './ui';
-import { OpenapiOperationBuilder } from './operation.builder';
+import { OperationBuilder } from './operation.builder';
 import { ZodInspector } from './zod-inspector';
 
 /**
@@ -69,7 +69,7 @@ export const openapi = (() => {
 
 	/** Add an application route and any new tags it introduces. */
 	const addRoute = (route: OARoute): void => {
-		const { path, item, tags } = new OpenapiOperationBuilder(route).buildPathItem();
+		const { path, item, tags } = new OperationBuilder(route).buildPathItem();
 
 		tags.forEach((t) => upsertTag(t.name, t.description));
 		builder().addPath(path, item);

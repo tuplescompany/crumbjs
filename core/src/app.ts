@@ -15,7 +15,7 @@ import type {
 import { Router } from './router';
 import type { ZodObject } from 'zod';
 import { createProxyHandler } from './helpers/proxy';
-import { asArray, isUrl } from './helpers/utils';
+import { asArray } from './helpers/utils';
 
 export class App {
 	#prefix: string = '';
@@ -96,8 +96,8 @@ export class App {
 
 			// Avoid duplication with name index
 			this.onStartTriggers = {
-				...this.onStartTriggers,
 				...usable.getStartupTriggers(),
+				...this.onStartTriggers, // father wins
 			};
 		} else {
 			this.middlewares.push(usable);
@@ -122,24 +122,15 @@ export class App {
 		}
 
 		for (const m of methods) {
+			// shallow-clone config to avoid repeating middlewares on app mounting on multi method cases
+			const cfg = config ? { ...config, use: asArray(config.use) } : {};
+
 			this.routes.push({
 				pathParts: [this.getPrefix(), path],
 				method: m,
 				handler,
-				config: config ?? {},
+				config: cfg,
 			});
-
-			// if the path includes Bun.serve routes wildcard, add withouth the slash to
-			const withWildcard = path.endsWith('/*');
-			if (withWildcard) {
-				const pathWithouthWildcard = path.replace('/*', '');
-				this.routes.push({
-					pathParts: [this.getPrefix(), pathWithouthWildcard],
-					method: m,
-					handler,
-					config: config ?? {},
-				});
-			}
 		}
 
 		return this;
@@ -162,10 +153,9 @@ export class App {
 	 * proxyAll('/v2', 'https://new-api.example.com'); // eg. '/v2/orders' will be fowarded to
 	 */
 	proxyAll(localPath: string, dest: HttpUrlString, use?: Middleware | Middleware[]) {
-		if (!isUrl(dest)) throw Error(`Invalid proxy foward URL: '${dest}'`);
-		if (!localPath.endsWith('/*')) localPath = localPath.concat('/*'); // ensure wildcard path
+		const ensureWildcard = !localPath.endsWith('/*') ? localPath.concat('/*') : localPath;
 
-		return this.add('*', localPath, createProxyHandler(localPath, dest), { use, hide: true });
+		return this.add('*', ensureWildcard, createProxyHandler(localPath, dest), { use, hide: true });
 	}
 
 	/**
@@ -186,8 +176,6 @@ export class App {
 	 * proxy('POST', '/auth', 'https://auth-ms.example.com/v1/auth', { body: authSchema });
 	 */
 	proxy(method: Method, localPath: string, dest: HttpUrlString, config?: RouteConfig<any, any, any, any>) {
-		if (!isUrl(dest)) throw Error(`Invalid proxy foward URL: '${dest}'`);
-
 		if (localPath.endsWith('/*')) {
 			const suggestPath = localPath.replace('/*', '');
 			const proxyAllExample = `app.proxyAll('${suggestPath}', '${dest}', middlewares)`;
