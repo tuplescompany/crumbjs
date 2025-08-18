@@ -55,6 +55,12 @@ async function importKey(secret: string) {
 	return crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
 }
 
+export class JWTInvalidFormat extends Exception {
+	constructor() {
+		super('JWT Error: Invalid format.', 422);
+	}
+}
+
 export class JWTInvalidSignature extends Exception {
 	constructor() {
 		super('JWT Error: Invalid signature.', 422);
@@ -77,7 +83,7 @@ export class JWT {
 			iat: payload.iat ?? now,
 			exp: payload.exp ?? now + expiresInSeconds,
 			...payload,
-		} as any;
+		};
 
 		const header: JWTHeader = { alg: 'HS256', typ: 'JWT' };
 
@@ -95,20 +101,20 @@ export class JWT {
 	/**
 	 * Verify and return a typed payload if valid, otherwise null
 	 */
-	static async verify<T extends Record<string, any>>(token: string, secret: string): Promise<(T & JWTBaseClaims) | null> {
+	static async verify<T extends Record<string, any>>(token: string, secret: string): Promise<T & JWTBaseClaims> {
 		const [headerB64, payloadB64, sigB64] = token.split('.');
-		if (!headerB64 || !payloadB64 || !sigB64) return null;
+		if (!headerB64 || !payloadB64 || !sigB64) throw new JWTInvalidFormat();
 
 		const data = `${headerB64}.${payloadB64}`;
 		const key = await importKey(secret);
 
 		const sigBytes = base64UrlToUint8Array(sigB64);
 		const valid = await crypto.subtle.verify('HMAC', key, sigBytes, enc.encode(data));
-		if (!valid) throw JWTInvalidSignature;
+		if (!valid) throw new JWTInvalidSignature();
 
 		const payload: T & JWTBaseClaims = JSON.parse(base64UrlDecode(payloadB64));
 		const now = Math.floor(Date.now() / 1000);
-		if (payload.exp && now >= payload.exp) throw JWTExpired;
+		if (payload.exp && now >= payload.exp) throw new JWTExpired();
 
 		return payload;
 	}

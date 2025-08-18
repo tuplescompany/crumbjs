@@ -14,7 +14,7 @@ export { config } from './config';
 export { openapi } from './openapi/openapi';
 export { Logger, LogLevel, logger, createLogger } from './helpers/logger';
 export { spec } from './helpers/utils';
-export { JWT, JWTExpired, JWTInvalidSignature } from './helpers/jwt';
+export { JWT, JWTExpired, JWTInvalidSignature, JWTInvalidFormat } from './helpers/jwt';
 export { HttpClient } from './helpers/http-client';
 export { cors } from './middlewares/cors';
 export { signals } from './middlewares/signals';
