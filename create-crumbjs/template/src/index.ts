@@ -5,6 +5,5 @@ const app = new App({ prefix: 'api' })
 	.use(cors({ origin: '*' }))
 	.use(signals(true))
 	.use(secureHeaders())
-	.use(indexController);
-
-app.serve();
+	.use(indexController)
+	.serve();

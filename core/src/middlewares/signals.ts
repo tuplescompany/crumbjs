@@ -1,5 +1,5 @@
 import { Middleware, MiddlewareContext } from '../types';
-import { signal } from '../utils';
+import { signal } from '../helpers/utils';
 
 /**
  * Middleware that logs request signals such as method, path, status, duration, and IP.
@@ -16,9 +16,8 @@ import { signal } from '../utils';
  * @example
  * app.use(signals(true)); // Always log requests signals
  */
-export const signals =
-	(force: boolean = false): Middleware =>
-	async (ctx: MiddlewareContext) => {
+export const signals = (force: boolean = false): Middleware => {
+	return async function signalsMiddleware(ctx: MiddlewareContext) {
 		const {
 			start,
 			request: { method },
@@ -30,12 +29,13 @@ export const signals =
 
 		const response = await next();
 
-		const { status, statusText } = getResponseStatus();
+		const status = getResponseStatus();
 		const fn = status >= 400 ? 'error' : force ? 'print' : 'info'; // nosonar
 
 		const duration = performance.now() - start;
 
-		signal(fn, method, url.pathname, status, statusText, duration, ip);
+		signal(fn, method, url.pathname, status, duration, ip);
 
 		return response;
 	};
+};

@@ -1,6 +1,6 @@
 import { BunRequest } from 'bun';
 
-export type ParsedContentType = 'json' | 'form-urlencoded' | 'form-data' | (string & {}); // nosonar
+type ParsedContentType = 'json' | 'form-urlencoded' | 'form-data' | (string & {}); // nosonar
 
 export class BodyParser {
 	private readonly request: BunRequest;

@@ -11,7 +11,7 @@ import {
 	TagObject,
 } from 'openapi3-ts/oas31';
 import { AnyPathParams, OARoute } from '../types';
-import { capitalize, getStatusText, objectCleanUndefined } from '../utils';
+import { capitalize, objectCleanUndefined } from '../helpers/utils';
 import { ZodInspector } from './zod-inspector';
 
 /**
@@ -20,11 +20,11 @@ import { ZodInspector } from './zod-inspector';
  *
  * Usage:
  * ```ts
- * const adapter = new OpenapiOperationBuilder(route);
+ * const adapter = new OperationBuilder(route);
  * const { path, item } = adapter.buildPathItem();
  * ```
  */
-export class OpenapiOperationBuilder {
+export class OperationBuilder {
 	constructor(private readonly route: OARoute) {}
 
 	/** Convert `:id` style params to `{id}` style – OpenAPI friendly. */
@@ -155,7 +155,7 @@ export class OpenapiOperationBuilder {
 			this.route.responses.map(({ status, type, schema }) => {
 				const meta = ZodInspector.metadata(schema);
 				const code = String(status);
-				const description = meta.description ?? `${code} ${getStatusText(code) ?? 'Unknown'}`;
+				const description = meta.description ?? `${code} Response`;
 
 				return [
 					code,

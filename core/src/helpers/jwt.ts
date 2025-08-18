@@ -1,5 +1,5 @@
 // jwt.ts
-import { Exception } from './exception';
+import { Exception } from '../exception';
 import { logger } from './logger';
 
 type JWTHeader = {

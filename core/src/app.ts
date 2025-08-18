@@ -1,6 +1,5 @@
 import type {
 	APIConfig,
-	AppConfig,
 	ContentType,
 	Handler,
 	HttpUrlString,
@@ -10,37 +9,34 @@ import type {
 	OnStart,
 	Route,
 	RouteConfig,
-	StaticRoute,
+	ZodQueryObject,
+	ZodHeaderObject,
 } from './types';
 import { Router } from './router';
-import z, { ZodObject } from 'zod';
-import { defaultAppConfig } from './constants';
+import type { ZodObject } from 'zod';
+import { createProxyHandler } from './helpers/proxy';
+import { asArray } from './helpers/utils';
 
 export class App {
-	private readonly config: AppConfig;
+	#prefix: string = '';
 
-	private routes: Route[] = [];
+	private readonly routes: Route[] = [];
 
-	private statics: StaticRoute[] = [];
-
-	private globalMiddlewares: Middleware[] = [];
+	private readonly middlewares: Middleware[] = [];
 
 	private onStartTriggers: Record<string, OnStart> = {};
 
-	constructor(opts: Partial<AppConfig> = {}) {
-		this.config = { ...defaultAppConfig, ...opts };
+	prefix(prefix: string) {
+		this.#prefix = prefix;
+		return this;
 	}
 
 	getPrefix() {
-		return this.config.prefix;
+		return this.#prefix;
 	}
 
 	getRoutes() {
 		return this.routes;
-	}
-
-	getStaticRoutes() {
-		return this.statics;
 	}
 
 	onStart(fn: OnStart, name = 'default') {
@@ -56,15 +52,14 @@ export class App {
 	 * Mounts a middleware function or another {@link App} instance onto the current application.
 	 *
 	 * - If a **Middleware** is provided:
-	 *   The function is added to the list of global middlewares. These run for
+	 *   The function is added to the list of app middlewares. These run for
 	 *   every request before route-specific middlewares and handlers.
 	 *
 	 * - If another **App** instance is provided:
 	 *   - All of its routes are merged into the current app, with this app's prefix
 	 *     automatically prepended to the child app's route paths.
 	 *   - All of its static routes are also merged, with prefixes applied.
-	 *   - All of its global middlewares are appended to the current app's
-	 *     global middleware chain.
+	 *   - All of its middlewares are appended to the each child app routes
 	 *   - Its `onStart` triggers are merged into the current app's triggers
 	 *     (overwriting by name to avoid duplication).
 	 *
@@ -89,50 +84,33 @@ export class App {
 	 */
 	use(usable: Middleware | App) {
 		if (usable instanceof App) {
-			this.routes = this.routes.concat(
-				usable.getRoutes().map((child) => ({
-					pathParts: [this.getPrefix(), ...child.pathParts],
-					method: child.method,
-					handler: child.handler,
-					config: child.config,
-					isProxy: child.isProxy,
-				})),
-			);
+			for (const child of usable.getRoutes()) {
+				// RouteDynamic - add child App scoped middleware to route
+				if ('config' in child) {
+					child.config.use = [...usable.getMiddlewares(), ...asArray(child.config.use)];
+				}
 
-			this.statics = this.statics.concat(
-				usable.getStaticRoutes().map((child) => ({
-					pathParts: [this.getPrefix(), ...child.pathParts],
-					contentOrPath: child.contentOrPath,
-					isFile: child.isFile,
-					contentType: child.contentType,
-				})),
-			);
-
-			this.globalMiddlewares = this.globalMiddlewares.concat(usable.globalMiddlewares);
+				child.pathParts = [this.getPrefix(), ...child.pathParts];
+				this.routes.push(child);
+			}
 
 			// Avoid duplication with name index
 			this.onStartTriggers = {
-				...this.onStartTriggers,
 				...usable.getStartupTriggers(),
+				...this.onStartTriggers, // father wins
 			};
 		} else {
-			this.globalMiddlewares.push(usable);
+			this.middlewares.push(usable);
 		}
 
 		return this;
 	}
 
-	getGlobalMiddlewares() {
-		return this.globalMiddlewares;
+	getMiddlewares() {
+		return this.middlewares;
 	}
 
-	private add(
-		method: MethodOpts,
-		path: string,
-		handler: Handler<string>,
-		config?: RouteConfig<any, any, any, any>,
-		isProxy: boolean = false,
-	) {
+	private add(method: MethodOpts, path: string, handler: Handler<string>, config?: RouteConfig<any, any, any, any>) {
 		let methods: Method[];
 
 		if (Array.isArray(method)) {
@@ -144,79 +122,18 @@ export class App {
 		}
 
 		for (const m of methods) {
+			// shallow-clone config to avoid repeating middlewares on app mounting on multi method cases
+			const cfg = config ? { ...config, use: asArray(config.use) } : {};
+
 			this.routes.push({
 				pathParts: [this.getPrefix(), path],
 				method: m,
 				handler,
-				config: config ?? {},
-				isProxy,
+				config: cfg,
 			});
-
-			// if the path includes Bun.serve routes wildcard, add withouth the slash to
-			const withWildcard = path.endsWith('/*');
-			if (withWildcard) {
-				const pathWithouthWildcard = path.replace('/*', '');
-				this.routes.push({
-					pathParts: [this.getPrefix(), pathWithouthWildcard],
-					method: m,
-					handler,
-					config: config ?? {},
-					isProxy,
-				});
-			}
 		}
 
 		return this;
-	}
-
-	private createProxyHandler(localPath: string, dest: HttpUrlString): Handler<string> {
-		if (!z.url().safeParse(dest).success) throw Error(`Invalid proxy foward URL: '${dest}'`);
-
-		return async ({ request, url }) => {
-			// Remove local path from fowardPath
-			if (localPath.endsWith('/*')) {
-				localPath = localPath.replace('/*', '');
-			}
-
-			const fowardPath = url.pathname.replace(localPath, '');
-			const targetUrl = new URL(fowardPath + url.search, dest);
-
-			// Remove hop-by-hop problematic (to foward) headers
-			const fowardHeaders = new Headers(request.headers);
-			for (const h of [
-				'host',
-				'connection',
-				'keep-alive',
-				'proxy-connection',
-				'transfer-encoding',
-				'upgrade',
-				'te',
-				'trailers',
-				'proxy-authenticate',
-				'proxy-authorization',
-				'content-length',
-				'accept-encoding',
-			]) {
-				fowardHeaders.delete(h);
-			}
-			// dont auto-encode
-			fowardHeaders.set('accept-encoding', 'identity');
-
-			const hasBody = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
-			const fowardBody = hasBody ? request.body : undefined;
-
-			// Forward request to target
-			const upstream = await fetch(targetUrl, { method: request.method, headers: fowardHeaders, body: fowardBody });
-
-			const respHeaders = new Headers(upstream.headers);
-			for (const h of ['content-encoding', 'content-length', 'transfer-encoding']) respHeaders.delete(h);
-
-			return new Response(upstream.body, {
-				status: upstream.status,
-				statusText: upstream.statusText,
-				headers: respHeaders,
-			});
-		};
 	}
 
 	/**
@@ -236,10 +153,9 @@ export class App {
 	 * proxyAll('/v2', 'https://new-api.example.com'); // eg. '/v2/orders' will be fowarded to
 	 */
 	proxyAll(localPath: string, dest: HttpUrlString, use?: Middleware | Middleware[]) {
-		// ensure wildcard path
-		if (!localPath.endsWith('/*')) localPath = localPath.concat('/*');
+		const ensureWildcard = !localPath.endsWith('/*') ? localPath.concat('/*') : localPath;
 
-		return this.add('*', localPath, this.createProxyHandler(localPath, dest), { use, hide: true }, true);
+		return this.add('*', ensureWildcard, createProxyHandler(localPath, dest), { use, hide: true });
 	}
 
 	/**
@@ -267,31 +183,12 @@ export class App {
 				`Invalid path '${localPath}': single-method proxy cannot use '/*'. Use '${suggestPath}' for exact match, or use '${proxyAllExample}' for prefix forwarding.`,
 			);
 		}
-		return this.add(method, localPath, this.createProxyHandler(localPath, dest), config, true);
+
+		return this.add(method, localPath, createProxyHandler(localPath, dest), config);
 	}
 
 	/**
-	 * Registers a static file to be served at a specific route path.
-	 *
-	 * ⚡ Performance: Bun caches static paths at server start and serves them via a
-	 * zero-overhead fast path (ref {@link https://bun.com/docs/api/http#static-responses}). Middlewares are **not**
-	 * invoked for these requests.
-	 *
-	 * @param path - The request path where the file will be served (relative to the current prefix, if any).
-	 * @param filePath - The absolute or relative file system path to the file to serve.
-	 * @returns The current instance (for chaining).
-	 */
-	file(path: string, filePath: string) {
-		this.statics.push({
-			pathParts: [this.getPrefix(), path],
-			contentOrPath: filePath,
-			isFile: true,
-		});
-		return this;
-	}
-
-	/**
-	 * Registers static string content to be served at a specific route path.
+	 * Registers static string or blob (Bun.file) content to be served at a specific route path.
 	 *
 	 * ⚡ Performance: Bun caches static paths at server start and serves them via a
 	 * zero-overhead fast path (ref {@link https://bun.com/docs/api/http#static-responses}). Middlewares are **not**
@@ -299,15 +196,16 @@ export class App {
 	 *
 	 * @param path - The request path where the content will be served (relative to the current prefix, if any).
 	 * @param content - The string content to serve.
-	 * @param type - The Content-Type to send with the response.
+	 * @param type - The Content-Type to send with the response
 	 * @returns The current instance (for chaining).
 	 */
-	static(path: string, content: string, type: ContentType) {
-		this.statics.push({
+	static(path: string, content: string | Blob, type?: ContentType) {
+		const contentType = type ?? (typeof content === 'string' ? 'text/plain' : 'application/octet-stream');
+		// Allways GET
+		this.routes.push({
 			pathParts: [this.getPrefix(), path],
-			contentOrPath: content,
-			isFile: false,
-			contentType: type,
+			content,
+			contentType,
 		});
 		return this;
 	}
@@ -316,18 +214,18 @@ export class App {
 	on<
 		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
-		QUERY extends ZodObject | undefined = undefined,
-		HEADERS extends ZodObject | undefined = undefined,
+		QUERY extends ZodQueryObject | undefined = undefined,
+		HEADERS extends ZodHeaderObject | undefined = undefined,
 	>(methods: MethodOpts, path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
 		return this.add(methods, path, handler, config);
 	}
 
 	/** Register a GET route */
-	get<PATH extends string = '/', QUERY extends ZodObject | undefined = undefined, HEADERS extends ZodObject | undefined = undefined>(
-		path: PATH,
-		handler: Handler<PATH, undefined, QUERY, HEADERS>,
-		config?: RouteConfig<PATH, undefined, QUERY, HEADERS>,
-	) {
+	get<
+		PATH extends string = '/',
+		QUERY extends ZodQueryObject | undefined = undefined,
+		HEADERS extends ZodHeaderObject | undefined = undefined,
+	>(path: PATH, handler: Handler<PATH, undefined, QUERY, HEADERS>, config?: RouteConfig<PATH, undefined, QUERY, HEADERS>) {
 		return this.add('GET', path, handler, config);
 	}
 
@@ -335,8 +233,8 @@ export class App {
 	post<
 		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
-		QUERY extends ZodObject | undefined = undefined,
-		HEADERS extends ZodObject | undefined = undefined,
+		QUERY extends ZodQueryObject | undefined = undefined,
+		HEADERS extends ZodHeaderObject | undefined = undefined,
 	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
 		return this.add('POST', path, handler, config);
 	}
@@ -345,8 +243,8 @@ export class App {
 	put<
 		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
-		QUERY extends ZodObject | undefined = undefined,
-		HEADERS extends ZodObject | undefined = undefined,
+		QUERY extends ZodQueryObject | undefined = undefined,
+		HEADERS extends ZodHeaderObject | undefined = undefined,
 	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
 		return this.add('PUT', path, handler, config);
 	}
@@ -355,8 +253,8 @@ export class App {
 	patch<
 		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
-		QUERY extends ZodObject | undefined = undefined,
-		HEADERS extends ZodObject | undefined = undefined,
+		QUERY extends ZodQueryObject | undefined = undefined,
+		HEADERS extends ZodHeaderObject | undefined = undefined,
 	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
 		return this.add('PATCH', path, handler, config);
 	}
@@ -365,32 +263,32 @@ export class App {
 	delete<
 		PATH extends string = '/',
 		BODY extends ZodObject | undefined = undefined,
-		QUERY extends ZodObject | undefined = undefined,
-		HEADERS extends ZodObject | undefined = undefined,
+		QUERY extends ZodQueryObject | undefined = undefined,
+		HEADERS extends ZodHeaderObject | undefined = undefined,
 	>(path: string, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
 		return this.add('DELETE', path, handler, config);
 	}
 
 	/** Register a OPTIONS route */
-	options<PATH extends string = '/', QUERY extends ZodObject | undefined = undefined, HEADERS extends ZodObject | undefined = undefined>(
-		path: string,
-		handler: Handler<PATH, undefined, QUERY, HEADERS>,
-		config?: RouteConfig<PATH, undefined, QUERY, HEADERS>,
-	) {
+	options<
+		PATH extends string = '/',
+		QUERY extends ZodQueryObject | undefined = undefined,
+		HEADERS extends ZodHeaderObject | undefined = undefined,
+	>(path: string, handler: Handler<PATH, undefined, QUERY, HEADERS>, config?: RouteConfig<PATH, undefined, QUERY, HEADERS>) {
 		return this.add('OPTIONS', path, handler, config);
 	}
 
 	/** Register a HEAD route */
-	head<PATH extends string = '/', QUERY extends ZodObject | undefined = undefined, HEADERS extends ZodObject | undefined = undefined>(
-		path: string,
-		handler: Handler<PATH, undefined, QUERY, HEADERS>,
-		config?: RouteConfig<PATH, undefined, QUERY, HEADERS>,
-	) {
+	head<
+		PATH extends string = '/',
+		QUERY extends ZodQueryObject | undefined = undefined,
+		HEADERS extends ZodHeaderObject | undefined = undefined,
+	>(path: string, handler: Handler<PATH, undefined, QUERY, HEADERS>, config?: RouteConfig<PATH, undefined, QUERY, HEADERS>) {
 		return this.add('HEAD', path, handler, config);
 	}
 
 	/**
-	 * Builds the Bun.Server and export it
+	 * Builds the Bun.Server
 	 */
 	serve(config?: Partial<APIConfig>) {
 		const router = new Router(this);
