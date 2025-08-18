@@ -1,7 +1,7 @@
 {
 	"name": "@crumbjs/bullmq",
 	"type": "module",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"publishConfig": {
 		"access": "public"
 	},
@@ -26,7 +26,7 @@
 		"build": "tsc"
 	},
 	"dependencies": {
-		"@crumbjs/core": "^0.4.4",
+		"@crumbjs/core": "^0.4.6",
 		"bullmq": "^5.58.0",
 		"ioredis": "^5.7.0"
 	}

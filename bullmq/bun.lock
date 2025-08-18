@@ -4,7 +4,7 @@
     "": {
       "name": "@crumbjs/bullmq",
       "dependencies": {
-        "@crumbjs/core": "^0.4.4",
+        "@crumbjs/core": "^0.4.6",
         "bullmq": "^5.58.0",
         "ioredis": "^5.7.0",
       },
@@ -17,7 +17,7 @@
     },
   },
   "packages": {
-    "@crumbjs/core": ["@crumbjs/core@0.4.4", "", { "dependencies": { "openapi3-ts": "^4.5.0", "zod": "^4.0.14" } }, "sha512-EXVT8A9ix03g02QRxYnqFWhh+lFjVEDoPItszamKf85DkEqtNY6VEDwRZ7xcIcviwHSqIq47gFxvPhez1LM0Bw=="],
+    "@crumbjs/core": ["@crumbjs/core@0.4.6", "", { "dependencies": { "openapi3-ts": "^4.5.0", "zod": "^4.0.14" } }, "sha512-yvtgYvEeRadNkiEox/DA0IKXTq+zue87dBD5INZuYH/0VG/0tydlnkyVveHtO4zwS5bhSgpvRn7iBi62OpLXrA=="],
 
     "@ioredis/commands": ["@ioredis/commands@1.3.0", "", {}, "sha512-M/T6Zewn7sDaBQEqIZ8Rb+i9y8qfGmq+5SDFSf9sA2lUZTmdDLVdOiQaeDp+Q4wElZ9HG1GAX5KhDaidp6LQsQ=="],
 
