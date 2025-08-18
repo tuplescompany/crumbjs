@@ -5,7 +5,7 @@
 [![Under Development](https://img.shields.io/badge/under%20development-red.svg)](https://github.com/tuplescompany/crumbjs)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Bun](https://img.shields.io/badge/Bun-1.2.20-black?logo=bun)](https://bun.sh)
-[![Version](https://img.shields.io/badge/version-0.4.1-green.svg)](https://www.npmjs.com/package/@crumbjs/core)
+[![Version](https://img.shields.io/badge/version-0.4.4-green.svg)](https://www.npmjs.com/package/@crumbjs/core)
 
 - We are working on a dedicated documentation page
 

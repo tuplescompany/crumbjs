@@ -1,26 +1,11 @@
 import Redis from 'ioredis';
 import type { Queueable } from './queueable';
+import { PluginOptions } from './plugin';
 
 /** Global map to store registered event classes keyed by their name. */
 export const queueableRegistry = new Map<string, new (payload: any) => Queueable<any>>();
 
-export type PluginOptions = {
-	/** Redis HOST @default '127.0.0.1' */
-	host: string;
-	/** Redis PORT @default 6379 */
-	port: number;
-	/** Redis USERNAME @default undefined */
-	user?: string;
-	/** Redis PASSWORD @default undefined */
-	pass?: string;
-	/**
-	 * Amount of jobs that a single worker is allowed to work on in parallel.
-	 * @default 10
-	 */
-	concurrency: number;
-};
-
-export const bullMqConfig = (() => {
+export const bullmqConfig = (() => {
 	// default options
 	let opts: PluginOptions = {
 		host: '127.0.0.1',
@@ -48,16 +33,16 @@ export const bullMqConfig = (() => {
 })();
 
 /**
- * Singleton that holds the Redis connection used by the queue and workers.
+ * Singleton that holds the Redis connection used by the queue and worker.
  */
-export const bullMqConnection = (() => {
+export const bullmqConnection = (() => {
 	let connection: Redis | null = null;
 
 	return {
 		/** Initializes the Redis connection if it hasn't been set yet or Returns the active Redis connection. */
 		get(): Redis {
 			if (!connection) {
-				const { host, port, user, pass } = bullMqConfig.get();
+				const { host, port, user, pass } = bullmqConfig.get();
 				return new Redis({ host, port, username: user, password: pass, maxRetriesPerRequest: null });
 			}
 			return connection;

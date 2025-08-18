@@ -12,7 +12,7 @@ export {
 } from './exception/http.exception';
 export { config } from './config';
 export { openapi } from './openapi/openapi';
-export { logger } from './helpers/logger';
+export { Logger, LogLevel, logger, createLogger } from './helpers/logger';
 export { spec } from './helpers/utils';
 export { JWT, JWTExpired, JWTInvalidSignature } from './helpers/jwt';
 export { HttpClient } from './helpers/http-client';

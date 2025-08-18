@@ -1,5 +1,5 @@
-import { logger } from '@crumbjs/core';
 import { queueableRegistry } from './instances';
+import { bullmqLogger } from './plugin';
 
 /**
  * Registers an event class in the global registry so it can be resolved later.
@@ -7,7 +7,7 @@ import { queueableRegistry } from './instances';
 export function IsQueueable() {
 	return function <T extends new (...args: any[]) => any>(constructor: T) {
 		queueableRegistry.set(constructor.name, constructor as any);
-		logger.info(`[crumbjs/bullmq] ⚡️ ${constructor.name} registered`);
+		bullmqLogger.info(`⚡️ ${constructor.name} registered`);
 	};
 }
 

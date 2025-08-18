@@ -1,3 +1,6 @@
+import { config } from '../config';
+import { getModeLogLevel } from './utils';
+
 export enum LogLevel {
 	DEBUG = 10,
 	INFO = 20,
@@ -14,6 +17,9 @@ const LogColors: Record<keyof typeof LogLevel, string> = {
 
 const ResetColor = '\x1b[0m';
 
+/**
+ * Logger utilify with LEVELs
+ */
 export class Logger {
 	private logContext: string;
 	private logLevel: LogLevel;
@@ -69,7 +75,25 @@ export class Logger {
 	}
 }
 
-// a global helper for simplify logger usage
+/**
+ * Creates a new `Logger` instance bound to the given context.
+ *
+ * If a log level is explicitly provided, it will be used.
+ * Otherwise, the level is resolved from the current `ApiConfig` mode
+ * via `getModeLogLevel()`.
+ *
+ * @param context - Name of the log context (e.g. module or subsystem).
+ * @param level   - Optional log level to override the default resolved level.
+ * @returns A configured `Logger` instance.
+ */
+export const createLogger = (context: string, level?: LogLevel) => {
+	const logLevel = level ?? getModeLogLevel(config.get('mode'));
+	return new Logger(logLevel).context(context);
+};
+
+/**
+ * Global Logger instance within 'default' context
+ */
 export const logger = (() => {
 	let instance = new Logger(LogLevel.DEBUG);
 

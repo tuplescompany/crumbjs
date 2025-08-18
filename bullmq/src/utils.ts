@@ -1,6 +1,5 @@
 import type { Queueable } from './queueable';
-import { useQueue } from './plugin';
-import { logger } from '@crumbjs/core';
+import { bullmqLogger, useQueue } from './plugin';
 
 /**
  * Queues an event using the default queue.
@@ -17,9 +16,9 @@ export const dispatch = <T extends Record<string, any> = any>(event: Queueable<T
 			},
 		})
 		.then((added) => {
-			logger.debug(`[crumbjs/bullmq] ${event.constructor.name} queued, Payload:`, added.data);
+			bullmqLogger.debug(`${event.constructor.name} queued, Payload:`, added.data);
 		})
 		.catch((err) => {
-			logger.error('[crumbjs/bullmq] Error adding job to queue', err);
+			bullmqLogger.error('Error adding job to queue', err);
 		});
 };
