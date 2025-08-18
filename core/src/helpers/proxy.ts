@@ -1,21 +1,7 @@
 // proxy-ts utilities for proxy routes
-import { IFetcher } from '../cloudflare/types';
-import { InternalServerError } from '../exception/http.exception';
 import { Handler } from '../types';
 
-export function createBindingProxyHandler(dest: string): Handler {
-	return ({ request, env }) => {
-		// Check if dest index is a Fetcher instance in env
-		if ('fetch' in env.dest) {
-			const fetcher = env.dest as IFetcher;
-			return fetcher.fetch(request);
-		}
-
-		throw new InternalServerError(`'${dest}' is not an available Fetcher instance in env`);
-	};
-}
-
-export function createRemoteProxyHandler(localPath: string, dest: string): Handler {
+export function createProxyHandler(localPath: string, dest: string): Handler {
 	return async ({ request, url }) => {
 		// Remove local path from fowardPath
 		const fowardPath = url.pathname.replace(localPath, '');

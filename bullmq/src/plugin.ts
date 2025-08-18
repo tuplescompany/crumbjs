@@ -9,6 +9,7 @@ export const useQueue = () => {
 	return new Queue('bullmq-queue', { connection: bullMqConnection.get() });
 };
 
+
 /**
  * Crumbjs plugin that starts a BullMQ worker and exposes a `queue` utility.
  */

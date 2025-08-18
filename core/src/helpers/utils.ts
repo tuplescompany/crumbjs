@@ -1,6 +1,5 @@
 import { z, type ZodType } from 'zod';
-import type { AppMode, ContentType, ResponseConfig } from './types';
-import { STATUS_CODES } from 'node:http';
+import type { AppMode, ContentType, ResponseConfig } from '../types';
 import { logger, LogLevel } from './logger';
 
 /**
@@ -26,11 +25,6 @@ export function buildPath(...parts: string[]): string {
 
 	// Join back with single slashes and ensure no leading/trailing slashes
 	return `/${result.join('/')}`;
-}
-
-export function getStatusText(status: number | string, def: string = 'Unknown') {
-	if (STATUS_CODES[status]) return STATUS_CODES[status];
-	return def;
 }
 
 export function capitalize(str: string) {
@@ -71,7 +65,7 @@ export const spec = {
 
 export function getModeLogLevel(mode: AppMode) {
 	if (mode === 'production') return LogLevel.ERROR; // only errors
-	if (mode === 'test' || mode === 'staging') return LogLevel.INFO; // excludes DEBUG
+	if (mode === 'qa' || mode === 'staging') return LogLevel.INFO; // excludes DEBUG
 
 	return LogLevel.DEBUG; // all levels
 }
@@ -95,19 +89,21 @@ export function getModeLogLevel(mode: AppMode) {
  * // Logs:
  * // 2025-08-08T17:22:00.000Z INFO [default] GET /api/users 200::OK 123.45 ms -- 127.0.0.1
  */
-export function signal(
-	type: 'info' | 'print' | 'error',
-	method: string,
-	path: string,
-	status: number,
-	statusText: string,
-	duration: number,
-	ip: string,
-) {
-	logger[type](method, path, `${status}::${statusText}`, `${duration.toFixed(2)} ms`, `-- ${ip}`);
+export function signal(type: 'info' | 'print' | 'error', method: string, path: string, status: number, duration: number, ip: string) {
+	logger[type](method, path, `STATUS::${status}`, `${duration.toFixed(2)} ms`, `-- ${ip}`);
 }
 
 export function objectCleanUndefined<T extends Record<string, unknown>>(obj?: T): T {
 	if (!obj) return {} as T;
 	return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
+}
+
+export function isUrl(str: string) {
+	return z.url().safeParse(str).success;
+}
+
+export function asArray<T>(value: T | T[] | null | undefined): T[] {
+	if (!value) return [];
+	if (Array.isArray(value)) return value;
+	return [value];
 }

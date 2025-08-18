@@ -1,8 +1,8 @@
 import { Method, Middleware, MiddlewareContext } from '../types';
 
-export type OriginFn = (ctx: MiddlewareContext) => string;
+type OriginFn = (ctx: MiddlewareContext) => string;
 
-export type Origin = string | string[] | OriginFn;
+type Origin = string | string[] | OriginFn;
 
 const stringOriginFn = (origin: string): OriginFn => {
 	return (ctx: MiddlewareContext) => {

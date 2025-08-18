@@ -1,83 +1,66 @@
-import { defaultApiConfig, locales, modes, openapiUis, pathRegex } from './constants';
-import { logger } from './logger';
-import { APIConfig, AppLocale, AppMode, OpenApiUi } from './types';
-import { objectCleanUndefined } from './utils';
+import z, { type ZodType, type infer as ZodInfer } from 'zod';
+import { defaultErrorHandler, defaultNotFoundHandler, locales, modes, openapiUis } from './constants';
+import { logger } from './helpers/logger';
+import { APIConfig } from './types';
+import { objectCleanUndefined } from './helpers/utils';
 
-class Config {
-	private static instance: Config;
+const parse = <S extends ZodType>(index: string, rule: S, def: ZodInfer<S>): ZodInfer<S> => {
+	const value = process.env[index];
+	if (!value) return def;
 
-	private settings: APIConfig;
+	const res = rule.safeParse(value);
+	if (res.success) return res.data;
 
-	private constructor() {
-		this.settings = defaultApiConfig;
-		this.mergeFromProcessEnv();
-	}
+	// Bad value, print a warn
+	logger.warn(`'${index}' contains an invalid value (${value}). Falling back to the configured fallback value.`);
+	return def;
+};
 
-	static getInstance(): Config {
-		if (!Config.instance) {
-			Config.instance = new Config();
-		}
-		return Config.instance;
-	}
+/**
+ * Build **ServerConfig** from environment variables.
+ * Environment keys and defaults:
+ * - `APP_MODE`            → one of `modes`                         (default: `"development"`)
+ * - `APP_VERSION`         → string                                 (default: `"1.0.0"`)
+ * - `PORT`                → number                                 (default: `8080`)
+ * - `LOCALE`              → one of `locales`                       (default: `"en"`)
+ * - `OPENAPI`             → boolean                                (default: `true`)
+ * - `OPENAPI_TITLE`       → string                                 (default: `"Api"`)
+ * - `OPENAPI_DESCRIPTION` → string                                 (default: `"API Documentation"`)
+ * - `OPENAPI_PATH`        → absolute path `/seg/seg`               (default: `"/reference"`)
+ * - `OPENAPI_UI`          → one of `openapiUis`                    (default: `"scalar"`)
+ *
+ * @returns {ServerConfig} A fully validated configuration object.
+ * @see parse
+ */
+const extract = (): APIConfig => ({
+	mode: parse('APP_MODE', z.enum(modes), 'development'),
+	version: parse('APP_VERSION', z.string(), '1.0.0'),
+	port: parse('PORT', z.coerce.number(), 8080),
+	locale: parse('LOCALE', z.enum(locales), 'en'),
+	withOpenapi: parse('OPENAPI', z.coerce.boolean(), true),
+	openapiTitle: parse('OPENAPI_TITLE', z.string(), 'Api'),
+	openapiDescription: parse('OPENAPI_DESCRIPTION', z.string(), 'API Documentation'),
+	openapiBasePath: parse('OPENAPI_PATH', z.string().regex(/^\/(?:[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*)$/), '/reference'),
+	openapiUi: parse('OPENAPI_UI', z.enum(openapiUis), 'scalar'),
+	errorHandler: defaultErrorHandler,
+	notFoundHandler: defaultNotFoundHandler,
+});
 
-	private warnInvalidEnv(envIndex: string, invalidValue: any) {
-		logger.warn(
-			`${new Date().toISOString()} ⚠️  '${envIndex}' contains an invalid value (${invalidValue}). Falling back to the configured fallback value.`,
-		);
-	}
+const configData = extract();
 
-	/** nosonar */ mergeFromProcessEnv() {
-		const env = typeof process !== 'undefined' && typeof process.env !== 'undefined' ? process.env : false;
-		if (!env) return this;
+const get = <K extends keyof APIConfig>(key: K): APIConfig[K] => configData[key];
 
-		const appModeValue = env.NODE_ENV ?? env.APP_MODE;
-		if (appModeValue && !modes.includes(appModeValue as AppMode)) this.warnInvalidEnv('APP_MODE', appModeValue);
-		else if (appModeValue) this.set('mode', appModeValue as AppMode);
+const set = <K extends keyof APIConfig>(key: K, value: APIConfig[K]) => {
+	configData[key] = value;
+};
 
-		if (env.APP_VERSION) this.set('version', env.APP_VERSION);
+const merge = (data: Partial<APIConfig>) => {
+	Object.assign(configData, objectCleanUndefined(data));
+};
 
-		const portValue = env.PORT;
-		if (portValue && isNaN(Number(portValue))) this.warnInvalidEnv('PORT', portValue);
-		else if (portValue) this.set('port', Number(portValue));
-
-		if (env.OPENAPI) this.set('withOpenapi', env.OPENAPI === 'true' || env.OPENAPI === '1');
-
-		const localeValue = env.LOCALE;
-		if (localeValue && !locales.includes(localeValue as AppLocale)) this.warnInvalidEnv('LOCALE', localeValue);
-		else if (localeValue) this.set('locale', localeValue as AppLocale);
-
-		if (env.OPENAPI_TITLE) this.set('openapiTitle', env.OPENAPI_TITLE);
-		if (env.OPENAPI_DESCRIPTION) this.set('openapiDescription', env.OPENAPI_DESCRIPTION);
-
-		const openapiPathValue = env.OPENAPI_PATH;
-		if (openapiPathValue && !pathRegex.test(openapiPathValue)) this.warnInvalidEnv('OPENAPI_PATH', openapiPathValue);
-		else if (openapiPathValue) this.set('openapiBasePath', openapiPathValue);
-
-		const openapiUiValue = env.OPENAPI_UI;
-		if (openapiUiValue && !openapiUis.includes(openapiUiValue as OpenApiUi)) this.warnInvalidEnv('OPENAPI_UI', openapiUiValue);
-		else if (openapiUiValue) this.set('openapiUi', openapiUiValue as OpenApiUi);
-
-		return this;
-	}
-
-	merge(settings: Partial<APIConfig>) {
-		Object.assign(this.settings, objectCleanUndefined(settings));
-
-		return this;
-	}
-
-	set<K extends keyof APIConfig>(key: K, value: APIConfig[K]) {
-		this.settings[key] = value;
-		return this;
-	}
-
-	get<K extends keyof APIConfig>(key: K): APIConfig[K] {
-		return this.settings[key];
-	}
-
-	all() {
-		return this.settings;
-	}
-}
-
-export const config = Config.getInstance();
+export const config = {
+	all: configData,
+	get,
+	set,
+	merge,
+};

@@ -1,4 +1,4 @@
-import type { ZodObject, infer as ZodInfer, ZodType } from 'zod';
+import { type ZodObject, type infer as ZodInfer, type ZodType, type ZodString, ZodOptional, ZodNullable } from 'zod';
 import type { BunRequest, CookieInit } from 'bun';
 import { locales, modes, openapiUis } from './constants';
 import { Exception } from './exception';
@@ -25,21 +25,15 @@ export type ContentType =
 	| 'application/octet-stream'
 	| (string & {}); // nosonar
 
-export type BunHandler = (req: BunRequest, server: Bun.Server) => Response | Promise<Response>;
-
-export type BunRouteHandlers = Partial<Record<Method, BunHandler>>;
-
-export type BunRoutes = Record<string, BunRouteHandlers>;
-
 export type Result = Promise<string | object | null | Response> | (string | object | null | Response);
 
-export type NotFoundHandler = (ctx: RootContext) => Result | Promise<Result>;
+export type NotFoundHandler = (req: Request) => Response | Promise<Response>;
 
 export type ErrorHandler = (ctx: ErrorContext) => Result | Promise<Result>;
 
-export type InferOrAny<T extends ZodObject | undefined> = T extends ZodObject ? ZodInfer<T> : any;
+type InferOrAny<T extends ZodObject | undefined> = T extends ZodObject ? ZodInfer<T> : any;
 
-export type Next = () => Promise<Result>;
+type Next = () => Promise<Result>;
 
 export type Middleware = (ctx: MiddlewareContext) => Promise<Result>;
 
@@ -116,16 +110,16 @@ export type RootContext = {
 	getResponseHeaders: () => Headers;
 
 	/**
+	 * Gets the current response status
+	 */
+	getResponseStatus: () => number;
+
+	/**
 	 * Sets the HTTP status code and optional status text for the response.
 	 * @param code - HTTP status code (e.g., 200, 404)
 	 * @param text - Optional status message (e.g., "OK", "Not Found")
 	 */
 	setStatus: (code: number, text?: string) => void;
-
-	/**
-	 * Gets the current status values
-	 */
-	getResponseStatus: () => { status: number; statusText: string };
 
 	/**
 	 * Adds or updates a cookie in the map.
@@ -170,13 +164,13 @@ export type RootContext = {
 
 export type ErrorContext = RootContext & { exception: Exception };
 
-export type ExtractPathParams<S extends string> = S extends `${string}:${infer Param}/${infer Rest}`
+type ExtractPathParams<S extends string> = S extends `${string}:${infer Param}/${infer Rest}`
 	? { [K in Param | keyof ExtractPathParams<`/${Rest}`>]: string }
 	: S extends `${string}:${infer Param}`
 		? { [K in Param]: string }
 		: {};
 
-export type PathParams<S extends string> = {
+type PathParams<S extends string> = {
 	[K in keyof ExtractPathParams<S>]?: {
 		example: string;
 		description?: string;
@@ -189,6 +183,10 @@ export type AnyPathParams = {
 		description?: string;
 	};
 };
+
+export type ZodQueryObject = ZodObject<Record<string, ZodString | ZodOptional<ZodString> | ZodNullable<ZodString>>>;
+
+export type ZodHeaderObject = ZodObject<Record<string, ZodString | ZodOptional<ZodString> | ZodNullable<ZodString>>>;
 
 /**
  * Extended request context that includes validated request data and core request utilities.
@@ -207,8 +205,8 @@ export type AnyPathParams = {
 export type Context<
 	PATH extends string = any,
 	BODY extends ZodObject | undefined = any,
-	QUERY extends ZodObject | undefined = any,
-	HEADERS extends ZodObject | undefined = any,
+	QUERY extends ZodQueryObject | undefined = any,
+	HEADERS extends ZodHeaderObject | undefined = any,
 > = RootContext & {
 	/** Validated request body (or `any` if no schema provided) */
 	body: InferOrAny<BODY>;
@@ -226,8 +224,8 @@ export type Context<
 export type Handler<
 	PATH extends string = '/',
 	BODY extends ZodObject | undefined = any,
-	QUERY extends ZodObject | undefined = any,
-	HEADERS extends ZodObject | undefined = any,
+	QUERY extends ZodQueryObject | undefined = any,
+	HEADERS extends ZodHeaderObject | undefined = any,
 > = (ctx: Context<PATH, BODY, QUERY, HEADERS>) => Result;
 
 /**
@@ -244,8 +242,8 @@ export type Handler<
 export type RouteConfig<
 	PATH extends string = '/',
 	BODY extends ZodObject | undefined = undefined,
-	QUERY extends ZodObject | undefined = undefined,
-	HEADERS extends ZodObject | undefined = undefined,
+	QUERY extends ZodQueryObject | undefined = undefined,
+	HEADERS extends ZodHeaderObject | undefined = undefined,
 > = {
 	/**
 	 * Request body validation & typing (Zod).
@@ -343,11 +341,11 @@ export type ResponseConfig = {
 	type: ContentType;
 };
 
-export type AppLocale = (typeof locales)[number];
+type AppLocale = (typeof locales)[number];
 
 export type AppMode = (typeof modes)[number];
 
-export type OpenApiUi = (typeof openapiUis)[number];
+type OpenApiUi = (typeof openapiUis)[number];
 
 export type APIConfig = {
 	/**
@@ -402,7 +400,7 @@ export type APIConfig = {
 	/**
 	 * Openapi base path
 	 * @env inferance: 'OPENAPI_PATH'
-	 * @default '/openapi'
+	 * @default '/reference'
 	 */
 	openapiBasePath: string;
 
@@ -441,20 +439,36 @@ export type APIConfig = {
 	errorHandler: ErrorHandler;
 };
 
-export type Route = {
+export type Route = RouteDynamic | RouteStatic;
+
+type RouteDynamic = {
 	pathParts: string[];
 	method: Method;
 	handler: Handler;
 	config: RouteConfig;
-	isProxy: boolean;
 };
 
-export type StaticRoute = {
+type RouteStatic = {
 	pathParts: string[];
-	contentOrPath: string;
-	isFile: boolean;
-	contentType?: ContentType;
+	content: string | Blob;
+	contentType: ContentType;
 };
+
+export type BuildedRoute =
+	| {
+			path: string;
+			method: string;
+			handler: (req: BunRequest, server: Bun.Server) => Response | Promise<Response>;
+			routeConfig: RouteConfig;
+			isStatic: false;
+	  }
+	| {
+			path: string;
+			method: string;
+			handler: Response;
+			routeConfig: RouteConfig;
+			isStatic: true;
+	  };
 
 export type OARoute = {
 	method: Lowercase<Method>;
@@ -470,18 +484,6 @@ export type OARoute = {
 	summary?: string;
 	authorization?: 'bearer' | 'basic';
 	operationId?: string;
-};
-
-/**
- * Application-level configuration object.
- */
-export type AppConfig = {
-	/**
-	 * Global prefix for all routes (e.g., `/api`, `/v1`).
-	 * This is typically used to namespace endpoints.
-	 * @default ''
-	 */
-	prefix: string;
 };
 
 export type HttpUrlString = `${'http' | 'https'}://${string}`;

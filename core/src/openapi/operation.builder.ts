@@ -11,7 +11,7 @@ import {
 	TagObject,
 } from 'openapi3-ts/oas31';
 import { AnyPathParams, OARoute } from '../types';
-import { capitalize, getStatusText, objectCleanUndefined } from '../utils';
+import { capitalize, objectCleanUndefined } from '../helpers/utils';
 import { ZodInspector } from './zod-inspector';
 
 /**
@@ -155,7 +155,7 @@ export class OpenapiOperationBuilder {
 			this.route.responses.map(({ status, type, schema }) => {
 				const meta = ZodInspector.metadata(schema);
 				const code = String(status);
-				const description = meta.description ?? `${code} ${getStatusText(code) ?? 'Unknown'}`;
+				const description = meta.description ?? `${code} Response`;
 
 				return [
 					code,

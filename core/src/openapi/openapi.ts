@@ -1,9 +1,6 @@
 import { OpenApiBuilder } from 'openapi3-ts/oas31';
-
 import type { ZodType } from 'zod';
-import type { OARoute } from '../types';
-
-import { config } from '../config';
+import type { Method, OARoute, BuildedRoute } from '../types';
 import { swaggerPage, scalarPage } from './ui';
 import { OpenapiOperationBuilder } from './operation.builder';
 import { ZodInspector } from './zod-inspector';
@@ -78,35 +75,52 @@ export const openapi = (() => {
 		builder().addPath(path, item);
 	};
 
+	const addBuildedRoute = (route: BuildedRoute): void => {
+		const { method, path, routeConfig } = route;
+		addRoute({
+			method: method.toLowerCase() as Lowercase<Method>,
+			path,
+			mediaType: route.routeConfig.type ?? 'application/json',
+			body: 'body' in routeConfig ? routeConfig.body : undefined,
+			query: routeConfig.query,
+			header: routeConfig.headers,
+			params: routeConfig.params,
+			responses: routeConfig.responses,
+			tags: routeConfig.tags ?? ['Uncategorized'],
+			description: routeConfig.description,
+			summary: routeConfig.summary,
+			authorization: routeConfig.authorization,
+			operationId: routeConfig.operationId,
+		});
+	};
+
 	/** Append a server entry used by code-gen tools and UIs. */
 	const addServer = (url: string, description?: string) => builder().addServer({ url, description });
+
+	const title = (title: string) => {
+		builder().addTitle(title);
+	};
+
+	const description = (description: string) => {
+		builder().addDescription(description);
+	};
+
+	const version = (version: string) => {
+		builder().addVersion(version);
+	};
 
 	/* ----------------------------------------------------------------------- */
 	/*                         spec output convenience                         */
 	/* ----------------------------------------------------------------------- */
-
-	/** Ensure title, description and version are present (env → config → provided). */
-	const ensureInfo = (): void => {
-		const b = builder();
-		const info = b.getSpec().info;
-
-		if (!info.title) b.addTitle(config.get('openapiTitle'));
-		if (!info.description) b.addDescription(config.get('openapiDescription'));
-		if (!info.version) b.addVersion(config.get('version'));
-	};
-
 	const getSpec = () => {
-		ensureInfo();
 		return builder().getSpec();
 	};
 
 	const getJson = () => {
-		ensureInfo();
 		return builder().getSpecAsJson();
 	};
 
 	const getYaml = () => {
-		ensureInfo();
 		return builder().getSpecAsYaml();
 	};
 
@@ -124,12 +138,16 @@ export const openapi = (() => {
 	return {
 		builder,
 		addSchema,
+		addBuildedRoute,
 		addRoute,
 		addServer,
 		addTag: upsertTag,
 		getSpec,
 		getJson,
 		getYaml,
+		title,
+		description,
+		version,
 		swagger,
 		scalar,
 	} as const;

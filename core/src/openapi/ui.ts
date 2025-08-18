@@ -50,10 +50,7 @@ const scalarPage = (documentPath: string = '/openapi/document.json') => `<!docty
     <!-- Initialize the Scalar API Reference -->
     <script>
       Scalar.createApiReference('#app', {
-        // The URL of the OpenAPI/Swagger document
         url: '${documentPath}',
-        // Avoid CORS issues
-        // proxyUrl: 'https://proxy.scalar.com',
       })
     </script>
   </body>

@@ -1,7 +1,5 @@
-// Framework core
 export { App } from './app';
 export type { Middleware, NotFoundHandler, ErrorHandler, Method, MiddlewareContext, ErrorContext, Context } from './types';
-// Exception system
 export { Exception } from './exception';
 export {
 	BadRequest,
@@ -12,14 +10,12 @@ export {
 	NotFound,
 	Conflict,
 } from './exception/http.exception';
-// Utilities and Helpers
 export { config } from './config';
 export { openapi } from './openapi/openapi';
-export { logger } from './logger';
-export { spec } from './utils';
-export { JWT, JWTExpired, JWTInvalidSignature } from './jwt';
-export { HttpClient } from './http-client';
-// Core middlewares
+export { logger } from './helpers/logger';
+export { spec } from './helpers/utils';
+export { JWT, JWTExpired, JWTInvalidSignature } from './helpers/jwt';
+export { HttpClient } from './helpers/http-client';
 export { cors } from './middlewares/cors';
 export { signals } from './middlewares/signals';
 export { secureHeaders } from './middlewares/secure-headers';

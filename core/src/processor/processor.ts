@@ -1,74 +1,74 @@
 import { BunRequest } from 'bun';
-import { RequestStore } from './context/request-store';
-import { HeaderBuilder } from './context/header-builder';
-import { StatusBuilder } from './context/status-builder';
-import { Context, ErrorHandler, Handler, Result, Middleware, RootContext, RouteConfig } from './types';
-import { getStatusText, signal } from './utils';
+import { RequestStore } from './request-store';
+import { HeaderBuilder } from './header-builder';
+import { Context, ErrorHandler, Handler, Result, Middleware, RootContext, RouteConfig } from '../types';
+import { asArray, signal } from '../helpers/utils';
 import { BodyParser } from './body-parser';
 import { flattenError, ZodObject } from 'zod';
-import { BadRequest, InternalServerError } from './exception/http.exception';
-import { Exception } from './exception';
-import { logger } from './logger';
-import { AuthorizationParser } from './context/authorization-parser';
+import { BadRequest, InternalServerError } from '../exception/http.exception';
+import { Exception } from '../exception';
+import { logger } from '../helpers/logger';
+import { AuthorizationParser } from './authorization-parser';
 
 export class Processor {
 	private readonly rootContext: RootContext;
 
-	private readonly reqStore: RequestStore;
+	private readonly requestStore: RequestStore;
 
-	private readonly reqUrl: URL;
+	private readonly requestUrl: URL;
 
-	private readonly reqHeaders: Record<string, string> = {};
+	private readonly requestHeaders: Record<string, string> = {};
 
-	private readonly reqQuery: Record<string, string> = {};
+	private readonly requestQuery: Record<string, string> = {};
 
 	private readonly authorizationParser: AuthorizationParser;
 
 	private readonly cookies: Bun.CookieMap;
 
-	private readonly resHeaders: HeaderBuilder;
+	private readonly responseHeaders: HeaderBuilder;
 
-	private readonly statusBuilder: StatusBuilder;
+	private responseStatus: number = 200;
 
 	constructor(
 		private readonly req: BunRequest,
 		server: Bun.Server,
-		private readonly routeConfig: RouteConfig<any, any, any, any>,
+		private readonly routeConfig: RouteConfig,
 		private readonly middlewares: Middleware[], // initial global middlewares array
 		private readonly routeHandler: Handler,
 		private readonly errorHandler: ErrorHandler,
 	) {
 		// instance built-in context helpers
-		this.reqStore = new RequestStore();
-		this.resHeaders = new HeaderBuilder({ 'Content-Type': 'application/json' });
-		this.statusBuilder = new StatusBuilder(200);
+		this.requestStore = new RequestStore();
+		this.responseHeaders = new HeaderBuilder({ 'Content-Type': 'application/json' });
 		this.authorizationParser = new AuthorizationParser(req);
 		this.cookies = this.req.cookies;
 
-		this.reqUrl = new URL(this.req.url);
+		this.requestUrl = new URL(this.req.url);
 
-		this.reqQuery = Object.fromEntries(this.reqUrl.searchParams.entries());
-		this.reqHeaders = req.headers.toJSON();
+		this.requestQuery = Object.fromEntries(this.requestUrl.searchParams.entries());
+		this.requestHeaders = req.headers.toJSON();
 
 		this.rootContext = {
 			start: performance.now(),
 			request: this.req,
 			server,
-			url: this.reqUrl,
+			url: this.requestUrl,
 			ip: server.requestIP(req)?.address ?? 'unknown',
 			origin: this.req.headers.get('origin') ?? '',
 			bearer: this.authorizationParser.getBearer.bind(this.authorizationParser),
 			basicCredentials: this.authorizationParser.getBasicCredentials.bind(this.authorizationParser),
-			setHeader: this.resHeaders.set.bind(this.resHeaders),
-			deleteHeader: this.resHeaders.delete.bind(this.resHeaders),
-			getResponseHeaders: this.resHeaders.get.bind(this.resHeaders),
+			setHeader: this.responseHeaders.set.bind(this.responseHeaders),
+			deleteHeader: this.responseHeaders.delete.bind(this.responseHeaders),
+			getResponseHeaders: this.responseHeaders.get.bind(this.responseHeaders),
+			getResponseStatus: () => this.responseStatus,
 			setCookie: this.cookies.set.bind(this.cookies),
 			getCookie: this.cookies.get.bind(this.cookies),
 			deleteCookie: this.cookies.delete.bind(this.cookies),
-			setStatus: this.statusBuilder.set.bind(this.statusBuilder),
-			getResponseStatus: this.statusBuilder.get.bind(this.statusBuilder),
-			set: this.reqStore.set.bind(this.reqStore),
-			get: this.reqStore.get.bind(this.reqStore),
+			setStatus: (status: number) => {
+				this.responseStatus = status;
+			},
+			set: this.requestStore.set.bind(this.requestStore),
+			get: this.requestStore.get.bind(this.requestStore),
 			rawBody: {}, // unparsed yet
 		};
 	}
@@ -129,8 +129,8 @@ export class Processor {
 	private async getHandlerContext(): Promise<Context> {
 		const [body, query, headers] = await Promise.all([
 			this.validate(this.routeConfig.body, this.rootContext.rawBody, 'body'),
-			this.validate(this.routeConfig.query, this.reqQuery, 'query'),
-			this.validate(this.routeConfig.headers, this.reqHeaders, 'headers'),
+			this.validate(this.routeConfig.query, this.requestQuery, 'query'),
+			this.validate(this.routeConfig.headers, this.requestHeaders, 'headers'),
 		]);
 
 		return {
@@ -164,8 +164,8 @@ export class Processor {
 
 		if (typeof responseBody === 'string' || responseBody === null) {
 			return new Response(responseBody, {
-				headers: this.resHeaders.get(),
-				...this.statusBuilder.get(),
+				headers: this.responseHeaders.get(),
+				status: this.responseStatus,
 			});
 		}
 
@@ -202,10 +202,7 @@ export class Processor {
 			// 1- safe body parse, on fail will log and rawBody will still "{}"
 			await this.parseBody();
 			// 2- add route specific middlewares
-			if (this.routeConfig.use) {
-				const m = Array.isArray(this.routeConfig.use) ? this.routeConfig.use : [this.routeConfig.use];
-				this.middlewares.push(...m);
-			}
+			this.middlewares.push(...asArray(this.routeConfig.use));
 
 			// 3- Create functional route chain
 			let i = 0;
@@ -227,7 +224,7 @@ export class Processor {
 			const duration = performance.now() - this.rootContext.start;
 
 			console.error(error); // Log raw Error
-			signal('error', this.req.method, this.reqUrl.pathname, ex.status, getStatusText(ex.status), duration, this.rootContext.ip);
+			signal('error', this.req.method, this.requestUrl.pathname, ex.status, duration, this.rootContext.ip);
 
 			return this.createErrorResponse(ex);
 		}
