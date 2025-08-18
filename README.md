@@ -15,7 +15,6 @@ The core system has only about 3,700 lines of code and just two dependencies (zo
 - Automatic OpenAPI 3.1 document generation and UI (Swagger or Scalar)
 - Simple middleware system and optional global middlewares
 - Simple proxy helpers to forward requests and (optionally) document them — use app.proxy() for a single route, or app.proxyAll() to forward all routes under a given path.
-- Zero lock-in: use as little or as much as you need
 
 ## Included utilities
 
@@ -24,9 +23,9 @@ The core system has only about 3,700 lines of code and just two dependencies (zo
 ```ts
 import { logger } from '@crumbjs/core';
 logger.debug(a, b, c, d); // shows on mode:  'development'
-logger.info(a, b, c, d); // shows on modes:  'development', 'test', 'staging'
-logger.warn(a, b, c, d); // shows on modes: 'development', 'test', 'staging'
-logger.error(a, b, c, d); // shows on modes: 'development', 'test', 'staging', 'production'
+logger.info(a, b, c, d); // shows on modes:  'development', 'qa', 'staging'
+logger.warn(a, b, c, d); // shows on modes: 'development', 'qa', 'staging'
+logger.error(a, b, c, d); // shows on modes: 'development', 'qa', 'staging', 'production'
 ```
 
 - OpenAPI — additional documentation support through the openapi utility, using provided helpers or by directly accessing the openapi3-ts builder instance.
@@ -98,6 +97,8 @@ bun add @crumbjs/core
 
 ## Quick start (conceptual examples)
 
+- Ideally, put the Zod schemas in separate file(s) and define controllers with **App** instances in different files per module/domain.
+
 ```ts
 import { App, spec } from '@crumbjs/core';
 import { z } from 'zod';
@@ -167,15 +168,88 @@ app.post(
 app.serve();
 ```
 
-## The Handler Context
+## Composing Apps
 
 ```ts
-type Context<
-	PATH extends string = any,
-	BODY extends ZodObject | undefined = any,
-	QUERY extends ZodObject | undefined = any,
-	HEADERS extends ZodObject | undefined = any,
-> = {
+// src/index.ts -> MAIN APP
+import { App, cors, signals, secureHeaders } from '@crumbjs/core';
+import authController from './modules/auth/auth.controller'
+
+/**
+ * MAIN APPLICATION
+ *
+ * - `.prefix('api')`: every route in this App will start with `/api`.
+ * - `.use(cors(...))`, `.use(signals(...))`, `.use(secureHeaders())`:
+ *   These are **global middlewares**. They apply to all routes
+ *   defined here and also to any sub-apps mounted with `.use(...)`.
+ *
+ * - `.use(authController)`: mounts the Auth controller as a sub-app.
+ *   Its routes are merged under the `/api` prefix and inherit the
+ *   global middlewares.
+ *
+ * Final result in this example:
+ * - `/api/auth` → all routes from the Auth controller.
+ */
+export default new App()
+	.prefix('api')
+	.use(cors({ origin: '*' })) // <-- The middleware used in MAIN APP are global in used 'sub-apps'
+	.use(signals(true)) // <-- The middleware used in MAIN APP are global in used 'sub-apps'
+	.use(secureHeaders()); // <-- The middleware used in MAIN APP are global in used 'sub-apps'
+	.use(authController)  // <-- Mounts all routes defined at auth.controller
+	.serve();
+```
+
+```ts
+// src/modules/auth/auth.controller -> Example controller
+import { App, logger } from '@crumbjs/core';
+
+/**
+ * AUTH CONTROLLER (sub-app)
+ *
+ * - `.prefix('auth')`: this prefix is appended to the MAIN APP prefix.
+ *   Since the MAIN APP uses `/api`, the final routes will be:
+ *   - GET  /api/auth
+ *   - POST /api/auth
+ *
+ * - Global middlewares:
+ *   Because this controller is mounted with `.use(authController)`,
+ *   it automatically inherits all global middlewares from the MAIN APP
+ *   (cors, signals, secureHeaders).
+ */
+export default new App()
+	.prefix('auth')
+	.use(async (ctx) => {
+		logger.debug(`New request on auth.controller...`);
+		return await ctx.next();
+	}) // <-- this middleware is scoped to all routes of this 'sub-app'
+	.get('/', () => 'User Info')
+	.post('/', ({ body }) => generateTokens(body));
+// No need to serve() when is a controller app
+```
+
+## The Context(s)
+
+The different contexts are built by the **Processor** during the request lifecycle.
+
+- **RootContext** — Provides accessors/mutators for request/response and utility helpers (available on all contexts, see below).
+- **MiddlewareContext** — Created at the start of the Chain of Responsibility; all middlewares run can use this context.
+  - In this 'stage' rawBody is filled unvalidated.
+- **Context** — The most common and primary context used in route handlers; exposes validated `headers`, `query`, `body` and `params` (extracted from route path)
+- **ErrorContext** — Instantiated when an error occurs; carries the `Exception` instance used by crumbjs centralized error system.
+
+Notes:
+
+- The raw `request` instance is available throughout the lifecycle. Crumb uses a cloned copy of the original request to ensure it can be safely consumed at each stage of the lifecycle.
+- The `get` and `set` methods let developers store data in a middleware and access it later from handlers. Stored values exist only for the duration of the request lifecycle.
+- The `notFoundHandler` runs outside of the normal lifecycle — the request context is not available here. It is invoked only when Bun.serve cannot match any compiled route. If you explicitly `throw new NotFound()` inside a handler, that will be caught within the lifecycle.
+
+```ts
+/**
+ * Core context passed to all route handlers and middleware.
+ * Provides access to the request, parsed body, response controls,
+ * and a per-request key–value store.
+ */
+export type RootContext = {
 	/** start time context resolution: performance.now() */
 	start: DOMHighResTimeStamp;
 
@@ -239,16 +313,16 @@ type Context<
 	getResponseHeaders: () => Headers;
 
 	/**
+	 * Gets the current response status
+	 */
+	getResponseStatus: () => number;
+
+	/**
 	 * Sets the HTTP status code and optional status text for the response.
 	 * @param code - HTTP status code (e.g., 200, 404)
 	 * @param text - Optional status message (e.g., "OK", "Not Found")
 	 */
 	setStatus: (code: number, text?: string) => void;
-
-	/**
-	 * Gets the current status values
-	 */
-	getResponseStatus: () => { status: number; statusText: string };
 
 	/**
 	 * Adds or updates a cookie in the map.
@@ -289,7 +363,42 @@ type Context<
 	 * @throws {InternalServerError} if the key not exists
 	 */
 	get: <T = any>(key: string) => T;
+};
 
+/**
+ * Context available to middlewares.
+ * Extends {@link RootContext} with:
+ * - `next`: callback to pass control to the next middleware in the chain
+ */
+export type MiddlewareContext = RootContext & { next: Next };
+
+/**
+ * Context available when an error is caught during request handling.
+ * Extends {@link RootContext} with:
+ * - `exception`: the thrown {@link Exception} object containing error details
+ */
+export type ErrorContext = RootContext & { exception: Exception };
+
+/**
+ * Extended request context that includes validated request data and core request utilities.
+ *
+ * All fields (`body`, `query`, `params`, `headers`) are inferred from their corresponding
+ * Zod schemas. If a schema is not provided (`undefined`), the field defaults to `any`.
+ *
+ * This type also extends {@link RootContext}, which provides access to the raw request,
+ * response utilities, and a per-request key–value store.
+ *
+ * @template BODY - Zod schema for the request body
+ * @template QUERY - Zod schema for the query parameters
+ * @template PARAMS - Zod schema for the path parameters
+ * @template HEADERS - Zod schema for the request headers
+ */
+export type Context<
+	PATH extends string = any,
+	BODY extends ZodObject | undefined = any,
+	QUERY extends ZodQueryObject | undefined = any,
+	HEADERS extends ZodHeaderObject | undefined = any,
+> = RootContext & {
 	/** Validated request body (or `any` if no schema provided) */
 	body: InferOrAny<BODY>;
 
@@ -316,17 +425,17 @@ OpenAPI documentation is served automatically at `http://localhost:8080/openapi`
 
 Configuration can be supplied via environment variables or programmatically. The following variables are supported:
 
-| Variable              | Description                                                       | Default             |
-| --------------------- | ----------------------------------------------------------------- | ------------------- |
-| `APP_MODE`/`NODE_ENV` | Application mode (`development`, `production`, `test`, `staging`) | `development`       |
-| `APP_VERSION`         | API/app version                                                   | `1.0.0`             |
-| `PORT`                | HTTP port                                                         | `8080`              |
-| `OPENAPI`             | Enable/disable OpenAPI generation (`true`/`false`)                | `true`              |
-| `LOCALE`              | Zod error locale (`en`, `es`, `pt`)                               | `en`                |
-| `OPENAPI_TITLE`       | Global OpenAPI title                                              | `API`               |
-| `OPENAPI_DESCRIPTION` | Global OpenAPI description                                        | `API Documentation` |
-| `OPENAPI_PATH`        | Base path for OpenAPI routes                                      | `openapi`           |
-| `OPENAPI_UI`          | UI for docs (`swagger` or `scalar`)                               | `scalar`            |
+| Variable              | Description                                                     | Default             |
+| --------------------- | --------------------------------------------------------------- | ------------------- |
+| `APP_MODE`/`NODE_ENV` | Application mode (`development`, `production`, `qa`, `staging`) | `development`       |
+| `APP_VERSION`         | API/app version                                                 | `1.0.0`             |
+| `PORT`                | HTTP port                                                       | `8080`              |
+| `OPENAPI`             | Enable/disable OpenAPI generation (`true`/`false`)              | `true`              |
+| `LOCALE`              | Zod error locale (`en`, `es`, `pt`)                             | `en`                |
+| `OPENAPI_TITLE`       | Global OpenAPI title                                            | `API`               |
+| `OPENAPI_DESCRIPTION` | Global OpenAPI description                                      | `API Documentation` |
+| `OPENAPI_PATH`        | Base path for OpenAPI routes                                    | `/reference`        |
+| `OPENAPI_UI`          | UI for docs (`swagger` or `scalar`)                             | `scalar`            |
 
 Example `.env`:
 
@@ -345,7 +454,7 @@ app.serve({ port: 3000, withOpenapi: false });
 
 ## Philosophy
 
-CrumbJS is inspired by modern frameworks like Hono and Elysia but has a distinct goal: a clean, Bun-only backend layer with first-class validation and automatic documentation. It does not implement an HTTP router—instead it relies on Bun's own routing and adds typed validation, middleware chaining and OpenAPI generation on top.
+CrumbJS is inspired by modern frameworks like Hono and Elysia but has a distinct goal: a clean, Bun-only backend layer with first-class validation and automatic documentation in a single package with near-0 setup. It does not implement an HTTP router—instead it relies on Bun's own routing and adds typed validation, middleware chaining and OpenAPI generation on top.
 
 ## License
 
