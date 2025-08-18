@@ -122,14 +122,14 @@ export class JWT {
 	/**
 	 * Decode without verifying signature
 	 */
-	static decode<T extends Record<string, any>>(token: string): (T & JWTBaseClaims) | null {
+	static decode<T extends Record<string, any>>(token: string): T & JWTBaseClaims {
 		logger.warn('Decoding JWT without signature verification');
 		const parts = token.split('.');
-		if (parts.length < 2) return null;
+		if (parts.length < 2) throw new JWTInvalidFormat();
 		try {
 			return JSON.parse(base64UrlDecode(parts[1]));
 		} catch {
-			return null;
+			throw new JWTInvalidFormat();
 		}
 	}
 }
