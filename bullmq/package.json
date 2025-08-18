@@ -1,7 +1,7 @@
 {
 	"name": "@crumbjs/bullmq",
 	"type": "module",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"publishConfig": {
 		"access": "public"
 	},
@@ -20,13 +20,13 @@
 	},
 	"license": "MIT",
 	"peerDependencies": {
-		"typescript": "^5.9.2"
+		"typescript": "^5.9.2",
+		"@crumbjs/core": "^0.5.0"
 	},
 	"scripts": {
 		"build": "tsc"
 	},
 	"dependencies": {
-		"@crumbjs/core": "^0.5.0",
 		"bullmq": "^5.58.0",
 		"ioredis": "^5.7.0"
 	}

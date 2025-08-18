@@ -19,6 +19,8 @@ import { asArray } from './helpers/utils';
 
 export class App {
 	#prefix: string = '';
+	readonly #tags: string[] = [];
+	#hide: boolean = false;
 
 	private readonly routes: Route[] = [];
 
@@ -28,6 +30,24 @@ export class App {
 
 	prefix(prefix: string) {
 		this.#prefix = prefix;
+		return this;
+	}
+
+	/**
+	 * Asign tag(s) to all App routes, to add more dan one:
+	 * @example
+	 * ```ts
+	 * app.tag('tag1').tag('tag2').tag('tag3'); // the 3 tags will be assigned to all the app routes
+	 * ```
+	 * */
+	tag(tag: string) {
+		this.#tags.push(tag);
+		return this;
+	}
+
+	/** Hides all App routes from Openapi */
+	hide() {
+		this.#hide = true;
 		return this;
 	}
 
@@ -124,6 +144,12 @@ export class App {
 		for (const m of methods) {
 			// shallow-clone config to avoid repeating middlewares on app mounting on multi method cases
 			const cfg: RouteConfig<string, any, any, any> = config ? { ...config, use: asArray(config.use) } : {};
+
+			// App instance openapi settings inheritance
+			// Only here in the scoped add() - never in use()
+			// Routes inherit tags from App instance
+			if (this.#tags.length) cfg.tags = [...this.#tags, ...asArray(cfg.tags)];
+			if (this.#hide) cfg.hide = true;
 
 			this.routes.push({
 				pathParts: [this.getPrefix(), path],
