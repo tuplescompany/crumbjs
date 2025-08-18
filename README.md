@@ -16,63 +16,6 @@ The core system has only about 3,700 lines of code and just two dependencies (zo
 - Simple middleware system and optional global middlewares
 - Simple proxy helpers to forward requests and (optionally) document them — use app.proxy() for a single route, or app.proxyAll() to forward all routes under a given path.
 
-## Included utilities
-
-- Logger — level-based logging via the default logger utility, configurable through APP_MODE and/or the mode setting.
-
-```ts
-import { logger } from '@crumbjs/core';
-logger.debug(a, b, c, d); // shows on mode:  'development'
-logger.info(a, b, c, d); // shows on modes:  'development', 'qa', 'staging'
-logger.warn(a, b, c, d); // shows on modes: 'development', 'qa', 'staging'
-logger.error(a, b, c, d); // shows on modes: 'development', 'qa', 'staging', 'production'
-```
-
-- OpenAPI — additional documentation support through the openapi utility, using provided helpers or by directly accessing the openapi3-ts builder instance.
-
-```ts
-import { openapi } from '@crumbjs/core';
-// Use this before app.serve()
-openapi.addSchema('myschema', myZodObject);
-openapi.addTag('tagName', 'tagDescription');
-openapi.addServer('http://prod.example.com', 'Production Server description');
-openapi.builder().addExternalDocs(extDoc); // or any openapi3-ts methods
-```
-
-- JWT — minimal utility to sign, verify, and decode JSON Web Tokens.
-
-```ts
-import { JWT } from '@crumbjs/core';
-
-const token = await JWT.sign<AuthPayload>(myPayload, 'super-secret', 60 * 15); // 15min JWT token
-const payload = await JWT.verify<AuthPayload>(token, 'super-secret');
-const decoded = JWT.decode<AuthPayload>(token); // decode no-verify
-```
-
-- HTTP Client — Fluent Fetch API wrapper with Zod prevalidation and unified error handling via the Exception system, for effortless HTTP integration between crumbjs services.
-
-```ts
-import { HttpClient } from '@crumbjs/core';
-
-const httpClient = new HttpClient('http://127.0.0.1:8080');
-
-const { data, error } = await httpClient
-	.path('/v1/auth')
-	.prevalidate(loginRequestSchema) // prevalidate with zod before execute request
-	.data({
-		domain: 'grave-brief',
-		email: 'adela17@gmail.com',
-		password: 'MyPassword2025!',
-	})
-	.post<{ refreshToken: string }>();
-
-console.log('login result:', data);
-
-const refresh = await httpClient.path('/v1/auth').bearer(res.refreshToken).patch();
-
-console.log('refresh result:', refresh);
-```
-
 ## Included middlewares
 
 - cors
@@ -442,6 +385,63 @@ Example `.env`:
 ```env
 PORT=3000
 OPENAPI=false
+```
+
+## Included utilities
+
+- Logger — level-based logging via the default logger utility, configurable through APP_MODE and/or the mode setting.
+
+```ts
+import { logger } from '@crumbjs/core';
+logger.debug(a, b, c, d); // shows on mode:  'development'
+logger.info(a, b, c, d); // shows on modes:  'development', 'qa', 'staging'
+logger.warn(a, b, c, d); // shows on modes: 'development', 'qa', 'staging'
+logger.error(a, b, c, d); // shows on modes: 'development', 'qa', 'staging', 'production'
+```
+
+- OpenAPI — additional documentation support through the openapi utility, using provided helpers or by directly accessing the openapi3-ts builder instance.
+
+```ts
+import { openapi } from '@crumbjs/core';
+// Use this before app.serve()
+openapi.addSchema('myschema', myZodObject);
+openapi.addTag('tagName', 'tagDescription');
+openapi.addServer('http://prod.example.com', 'Production Server description');
+openapi.builder().addExternalDocs(extDoc); // or any openapi3-ts methods
+```
+
+- JWT — minimal utility to sign, verify, and decode JSON Web Tokens.
+
+```ts
+import { JWT } from '@crumbjs/core';
+
+const token = await JWT.sign<AuthPayload>(myPayload, 'super-secret', 60 * 15); // 15min JWT token
+const payload = await JWT.verify<AuthPayload>(token, 'super-secret');
+const decoded = JWT.decode<AuthPayload>(token); // decode no-verify
+```
+
+- HTTP Client — Fluent Fetch API wrapper with Zod prevalidation and unified error handling via the Exception system, for effortless HTTP integration between crumbjs services.
+
+```ts
+import { HttpClient } from '@crumbjs/core';
+
+const httpClient = new HttpClient('http://127.0.0.1:8080');
+
+const { data, error } = await httpClient
+	.path('/v1/auth')
+	.prevalidate(loginRequestSchema) // prevalidate with zod before execute request
+	.data({
+		domain: 'grave-brief',
+		email: 'adela17@gmail.com',
+		password: 'MyPassword2025!',
+	})
+	.post<{ refreshToken: string }>();
+
+console.log('login result:', data);
+
+const refresh = await httpClient.path('/v1/auth').bearer(res.refreshToken).patch();
+
+console.log('refresh result:', refresh);
 ```
 
 ## Programmatic configuration
