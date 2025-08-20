@@ -25,6 +25,12 @@ export default new App()
 
 ### Define Schema (only zod, no magic!)
 
+#### With Included Helpers
+
+#### With Zod
+
+**Important** to keep all document with the same structure avoid optional() and use nullable().default(null)
+
 ```ts
 import { ObjectId } from 'mongodb';
 
@@ -32,19 +38,16 @@ export const userSchema = z.object({
 	_id: z.instanceof(ObjectId),
 	email: z.email(),
 	passwordHash: z.string().nullable().default(null),
-	emailVerified: z.boolean().optional().default(false),
-	ban: z.boolean().optional().default(false),
-	banReason: z.string().optional(),
-	failAttempts: z.number().optional().default(0),
-	ssoData: z.instanceof(OauthUser).optional(),
+	emailVerified: z.boolean().default(false),
+	ban: z.boolean().default(false),
+	banReason: z.string().nullable().default(null),
+	failAttempts: z.number().default(0),
+	ssoData: z.instanceof(MyClass).nullable().default(null),
 	createdBy: z.instanceof(ObjectId).optional(),
-	lastLoginAt: z.date().optional(),
-	createdAt: z
-		.date()
-		.optional()
-		.default(() => new Date()),
-	updatedAt: z.date().optional(),
-	deletedAt: z.date().optional(),
+	lastLoginAt: z.date().nullable().default(null),
+	createdAt: z.date().default(() => new Date()),
+	updatedAt: z.date().nullable().default(null),
+	deletedAt: z.date().nullable().default(null),
 });
 ```
 

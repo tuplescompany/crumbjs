@@ -35,7 +35,11 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	}
 
 	private parseFilters(filters: Filter<Entity>, withTrash: boolean): any {
-		return this.softDeletes && withTrash === false ? { ...filters, [this.softDeletes]: { $exists: false } } : filters; /** NOSONAR */
+		if (!this.softDeletes || withTrash) return filters; // unmodified
+
+		return {
+			$or: [{ [this.softDeletes]: { $exists: false } }, { [this.softDeletes]: null }],
+		};
 	}
 
 	find() {

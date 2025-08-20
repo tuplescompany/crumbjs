@@ -1,5 +1,4 @@
 import { BunRequest } from 'bun';
-import { RequestStore } from './request-store';
 import { HeaderBuilder } from './header-builder';
 import { Context, ErrorHandler, Handler, Result, Middleware, RootContext, RouteConfig } from '../types';
 import { asArray, signal } from '../helpers/utils';
@@ -13,7 +12,7 @@ import { AuthorizationParser } from './authorization-parser';
 export class Processor {
 	private readonly rootContext: RootContext;
 
-	private readonly requestStore: RequestStore;
+	private store: Record<string, any> = {};
 
 	private readonly requestUrl: URL;
 
@@ -38,7 +37,6 @@ export class Processor {
 		private readonly errorHandler: ErrorHandler,
 	) {
 		// instance built-in context helpers
-		this.requestStore = new RequestStore();
 		this.responseHeaders = new HeaderBuilder({ 'Content-Type': 'application/json' });
 		this.authorizationParser = new AuthorizationParser(req);
 		this.cookies = this.req.cookies;
@@ -67,8 +65,13 @@ export class Processor {
 			setStatus: (status: number) => {
 				this.responseStatus = status;
 			},
-			set: this.requestStore.set.bind(this.requestStore),
-			get: this.requestStore.get.bind(this.requestStore),
+			set: (key: string, value: any) => {
+				this.store[key] = value;
+			},
+			get: <T = any>(key: string): T => {
+				if (!this.store[key]) throw new InternalServerError(`${key} doesnt exists in store`);
+				return this.store[key] as T;
+			},
 			rawBody: {}, // unparsed yet
 		};
 	}

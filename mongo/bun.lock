@@ -5,17 +5,18 @@
       "name": "@crumbjs/mongo",
       "devDependencies": {
         "@types/bun": "latest",
+        "bun-types": "^1.2.20",
       },
       "peerDependencies": {
-        "@crumbjs/core": "^0.6.1",
+        "@crumbjs/core": "^0.6.4",
         "mongodb": "^6.18.0",
-        "typescript": "^5",
-        "zod": "^4.0.14",
+        "typescript": "^5.9.2",
+        "zod": "^4.0.17",
       },
     },
   },
   "packages": {
-    "@crumbjs/core": ["@crumbjs/core@0.6.1", "", { "dependencies": { "openapi3-ts": "^4.5.0" } }, "sha512-pb2rt5OZ1qS1VSNq5Nq5cJ0xmMhNEwODNlAM3Skjfua4MG/Bujs7a4972oMCSFOHQ3g11nndj5IzMtQrHViDBQ=="],
+    "@crumbjs/core": ["@crumbjs/core@0.6.4", "", { "dependencies": { "openapi3-ts": "^4.5.0" } }, "sha512-0CMSnWZJpb6qCSZ4LRUdRF5oqjJ6qC+Smy8bC1OD7FMKdgUPwev0+GLcDBxyvO0UQiVcMwPSSLY2HKPRLuvBCg=="],
 
     "@mongodb-js/saslprep": ["@mongodb-js/saslprep@1.3.0", "", { "dependencies": { "sparse-bitfield": "^3.0.3" } }, "sha512-zlayKCsIjYb7/IdfqxorK5+xUMyi4vOKcFy10wKJYc63NSdKI8mNME+uJqfatkPmOSMMUiojrL58IePKBm3gvQ=="],
 
