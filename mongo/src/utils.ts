@@ -15,7 +15,7 @@ import { mongo } from './manager';
  * @param softDeletes - Field used for soft deletes, or `false` to disable. Defaults to `"deletedAt"`.
  * @returns A new {@link Repository} instance.
  */
-export function useRespository<S extends ZodObject>(
+export function useRepository<S extends ZodObject>(
 	dbName: string,
 	collection: string,
 	schema: S,
@@ -41,3 +41,35 @@ export const createPaginationSchema = <T extends ZodObject>(schema: T) => {
 		data: z.array(schema),
 	});
 };
+
+export const createInsertSchema = <T extends ZodObject>(schema: T) => {
+	return schema.omit({
+		_id: true,
+		deletedAt: true,
+		updatedAt: true,
+		createdAt: true,
+	});
+};
+
+export const createUpdateSchema = <T extends ZodObject>(schema: T) => {
+	return schema
+		.omit({
+			_id: true,
+		})
+		.partial();
+};
+
+export const boolSchema = z
+	.union([
+		z.boolean(),
+		z
+			.string()
+			.toLowerCase()
+			.transform((val) => {
+				if (['false', '0', ''].includes(val)) return false;
+				if (['true', '1'].includes(val)) return true;
+				throw new Error('Invalid boolean string');
+			}),
+		z.number().transform((val) => val === 1),
+	])
+	.default(false);

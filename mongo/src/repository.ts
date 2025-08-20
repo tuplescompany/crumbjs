@@ -131,7 +131,7 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 * @returns The created entity with `_id`.
 	 * @throws If insertion fails or schema validation fails.
 	 */
-	async create(data: EntityInput): Promise<Entity> {
+	async create(data: Omit<EntityInput, '_id'>): Promise<Entity> {
 		const createData = this.schema.omit({ _id: true }).parse(data);
 		createData._id = new ObjectId();
 
@@ -152,13 +152,38 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 * @param data - Partial entity data (validated via schema).
 	 * @returns The updated entity, or `null` if not found.
 	 */
-	async update(filters: Filter<Entity>, data: EntityPartial): Promise<Entity | null> {
-		const updateData = this.schema.partial().omit({ _id: true }).parse(data);
-		const set = { $set: updateData } as any;
+	async updateOne(filters: Filter<Entity>, data: EntityPartial): Promise<Entity | null> {
+		const existent = await this.findOneBy(filters);
 
-		const updated = await this.collection.findOneAndUpdate(filters as any, set, { returnDocument: 'after' });
+		if (existent) {
+			const { _id, ...existentData } = existent as any;
 
-		return updated as Entity | null;
+			const updatedData = {
+				...existentData,
+				...data,
+			};
+
+			const updateData = this.schema.partial().omit({ _id: true }).parse(updatedData);
+			const set = { $set: updateData } as any;
+
+			const updated = await this.collection.updateOne(filters as any, set);
+
+			if (!updated.acknowledged) return null;
+
+			return {
+				_id,
+				...updateData,
+			} as Entity;
+		}
+
+		return null;
+
+		// const updateData = this.schema.partial().omit({ _id: true }).parse(data);
+		// const set = { $set: updateData } as any;
+
+		// const updated = await this.collection.findOneAndUpdate(filters as any, set, { returnDocument: 'after' });
+
+		// return updated as Entity | null;
 	}
 
 	/**
@@ -169,7 +194,7 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 * @returns The updated entity, or `null` if not found.
 	 */
 	updateById(id: string, data: EntityPartial) {
-		return this.update({ _id: new ObjectId(id) } as any, data);
+		return this.updateOne({ _id: new ObjectId(id) } as any, data);
 	}
 
 	/**

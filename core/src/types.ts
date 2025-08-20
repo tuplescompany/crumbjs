@@ -59,10 +59,6 @@ export type AnyPathParams = {
 	};
 };
 
-export type ZodQueryObject = ZodObject<Record<string, ZodString | ZodOptional<ZodString> | ZodNullable<ZodString>>>;
-
-export type ZodHeaderObject = ZodObject<Record<string, ZodString | ZodOptional<ZodString> | ZodNullable<ZodString>>>;
-
 /**
  * Core context passed to all route handlers and middleware.
  * Provides access to the request, parsed body, response controls,
@@ -215,8 +211,8 @@ export type ErrorContext = RootContext & { exception: Exception };
 export type Context<
 	PATH extends string = any,
 	BODY extends ZodObject | undefined = any,
-	QUERY extends ZodQueryObject | undefined = any,
-	HEADERS extends ZodHeaderObject | undefined = any,
+	QUERY extends ZodObject | undefined = any,
+	HEADERS extends ZodObject | undefined = any,
 > = RootContext & {
 	/** Validated request body (or `any` if no schema provided) */
 	body: InferOrAny<BODY>;
@@ -234,8 +230,8 @@ export type Context<
 export type Handler<
 	PATH extends string = '/',
 	BODY extends ZodObject | undefined = any,
-	QUERY extends ZodQueryObject | undefined = any,
-	HEADERS extends ZodHeaderObject | undefined = any,
+	QUERY extends ZodObject | undefined = any,
+	HEADERS extends ZodObject | undefined = any,
 > = (ctx: Context<PATH, BODY, QUERY, HEADERS>) => Result;
 
 /**
@@ -252,8 +248,8 @@ export type Handler<
 export type RouteConfig<
 	PATH extends string = '/',
 	BODY extends ZodObject | undefined = undefined,
-	QUERY extends ZodQueryObject | undefined = undefined,
-	HEADERS extends ZodHeaderObject | undefined = undefined,
+	QUERY extends ZodObject | undefined = undefined,
+	HEADERS extends ZodObject | undefined = undefined,
 > = {
 	/**
 	 * Request body validation & typing (Zod).
