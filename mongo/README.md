@@ -126,6 +126,7 @@ const employeeRepository = useRespository(
 	'users', // Collection name
 	employeeSchema, // The zod schema who defines the collection objects
 	'deletedAt', // The field who determines that soft deletes are enabled. false to disable soft deletes.
+	'default', // Connection name
 );
 ```
 
