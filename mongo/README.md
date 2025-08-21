@@ -115,6 +115,7 @@ type Employee = {
 ### Create a repository
 
 - Basic repository, no-custom methods
+  For extra details, check [More about Repositories](#more-about-repositories).
 
 ```ts
 import { useRespository } from '@crumbjs/mongo';
@@ -132,7 +133,7 @@ const employeeRepository = useRespository(
 
 When you define a resource using `createResource`, the following REST endpoints are created automatically (prefix defaults to the collection name):
 
-## Routes
+## AUTOCRUD (automatic generation of a REST resource based on your collection)
 
 ### `GET /{prefix}`
 
@@ -313,7 +314,9 @@ export default new App()
 	.serve();
 ```
 
-- Advanced Repository, extending the repository class
+## More about Repositories
+
+### Advanced
 
 ```ts
 import { Repository, db } from '@crumbjs/mongo';
@@ -373,7 +376,7 @@ const success = await userRepo.deleteOne({ email: 'alice@example.com' });
 const success = await userRepo.deleteById('64f7a8d...123');
 ```
 
-### Use Mongo Manager to handle connections
+## The Mongo connection Manager
 
 It can be used outside CrumbJS, common use case: seeders and scripting
 
