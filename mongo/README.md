@@ -188,6 +188,8 @@ Delete a document by its ObjectId.
 - Soft deletes are enabled by default in resources, so this method updates `deletedAt` instead of physical removal.
 - Returns `{ success: true | false }`.
 
+### Define the rosource on your CrumbJS instance
+
 Autovalidated and openapi documented by crumbjs core **Important** the schemas for autocrud must have \_id, createAt, updateAt, deleteAt (softdeletes) included in schema example
 
 ```ts
