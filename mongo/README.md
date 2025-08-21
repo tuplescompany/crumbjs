@@ -1,4 +1,4 @@
-# @crumbjs/mongo | Small plugin for handle Mongo connection and add some Repository Patternt like to your project
+# @crumbjs/mongo | Connects your Crumbjs with mongo and auto-generate crud resources
 
 To install dependencies:
 
