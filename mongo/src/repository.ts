@@ -156,7 +156,7 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 * @returns The entity, or `null` if not found.
 	 */
 	async findById(id: string, withTrash: boolean = false) {
-		return this.findOneBy({ _id: this.parseObjectId(id) } as any, withTrash);
+		return this.findOne({ _id: this.parseObjectId(id) } as any, withTrash);
 	}
 
 	/**
@@ -166,7 +166,7 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 * @param withTrash - Whether to include soft-deleted documents.
 	 * @returns The entity, or `null` if not found.
 	 */
-	async findOneBy(filters: Filter<Entity>, withTrash: boolean = false): Promise<Entity | null> {
+	async findOne(filters: Filter<Entity>, withTrash: boolean = false): Promise<Entity | null> {
 		const query = this.parseFilters(filters, withTrash);
 		mongoLogger.debug(`Finding on ${this.collectionName}, filters: ${JSON.stringify(query)}`);
 		const res = await this.collection.findOne(query);

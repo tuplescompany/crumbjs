@@ -10,6 +10,12 @@ bun install @crumbjs/mongo
 
 ### Mount plugin
 
+- With only setting env variable (for single connection use cases)
+
+```bash
+MONGO_URI=mongodb://127.0.0.1:27017/?directConnection=true
+```
+
 ```ts
 import { App } from '@crumbjs/core';
 import { mongoPlugin } from '@crumbjs/mongo';
@@ -23,6 +29,8 @@ export default new App()
 	})
 	.serve();
 ```
+
+- Defining connections with mongoPlugin initializator
 
 ```ts
 import { App } from '@crumbjs/core';
@@ -46,11 +54,12 @@ export default new App()
 
 ### Define Schema (only zod, no magic!)
 
-#### Using Included Helpers
-
 We provide a small set of **helpers** (`document` and `field`) on top of Zod.  
 They’re thinner than raw Zod’s options, but designed to enforce **standard schemas** easily, with safe handling for `optional` and `nullable`.  
 ⚡ Important: The helpers always return **Zod schemas** (they are just wrappers).
+
+The same schema, could be written with pure Zod (no helpers) or a mix between the helpers and Zod
+⚠️ **Important**: to keep consistent schema shapes, avoid .optional() — instead use .nullable().default(null).
 
 ```ts
 import { document, field, softDelete, timestamps } from '@crumbjs/mongo';
@@ -103,72 +112,6 @@ type Employee = {
 };
 ```
 
-#### Using Raw Zod
-
-The same schema, but written with pure Zod (no helpers).
-⚠️ **Important**: to keep consistent schema shapes, avoid .optional() — instead use .nullable().default(null).
-
-```ts
-import { z } from 'zod';
-import { ObjectId } from 'mongodb';
-
-const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export const employeeSchema = z.object({
-	_id: z.instanceof(ObjectId),
-	// softDelete & timestamps
-	deletedAt: z.date().nullable().default(null),
-	createdAt: z.date().default(() => new Date()),
-	updatedAt: z.date().nullable().default(null),
-	// uuid with v4 validation
-	uuid: z
-		.string()
-		.regex(uuidV4Regex, 'Invalid UUID v4')
-		.default(() => crypto.randomUUID()),
-	// strings
-	name: z.string().min(3),
-	lastName: z.string().min(3),
-	// nullable date
-	birthDate: z.date().nullable().default(null),
-	// boolean with default true
-	active: z.boolean().default(true),
-	// enum
-	gender: z.enum(['male', 'female', 'none']),
-	// ObjectId fields
-	userId: z.string().transform((v) => new ObjectId(v)),
-	companyId: z
-		.string()
-		.transform((v) => new ObjectId(v))
-		.nullable()
-		.default(null),
-});
-```
-
-#### Mixed Example
-
-You can also mix helpers with raw Zod — since at the end everything is just a Zod schema:
-
-```ts
-import { document, field, softDelete, timestamps } from '@crumbjs/mongo';
-import { z } from 'zod';
-
-export const employeeSchema = document({
-	...softDelete(),
-	...timestamps(),
-	uuid: field.uuid({ auto: true }),
-	name: field.string({ min: 3 }),
-	email: field.string({ format: 'email' }),
-	lastName: field.string({ min: 3 }),
-	birthDate: field.date({ nullable: true }),
-	active: field.boolean(true),
-	gender: field.enum(['male', 'female', 'none']),
-	userId: field.objectId(),
-	companyId: field.objectId({ nullable: true }),
-	// Mixing raw Zod directly
-	zodV7: z.uuid({ version: 'v7' }), // e.g., enforce UUID v7
-});
-```
-
 ### Create a repository
 
 - Basic repository, no-custom methods
@@ -183,6 +126,187 @@ const employeeRepository = useRespository(
 	employeeSchema, // The zod schema who defines the collection objects
 	'deletedAt', // The field who determines that soft deletes are enabled. false to disable soft deletes.
 );
+```
+
+## Auto-crud resources with CrumbJS+Mongo (create, replace, update, delete and paginate)
+
+When you define a resource using `createResource`, the following REST endpoints are created automatically (prefix defaults to the collection name):
+
+## Routes
+
+### `GET /{prefix}`
+
+Retrieve a **paginated list** of documents.
+
+- Supports simple query filters (`field=value`).
+- Supports pagination (`page`, `pageSize`).
+- Can include soft-deleted documents with `withTrash=yes`.
+
+---
+
+### `GET /{prefix}/:id`
+
+Retrieve a **single document** by its ObjectId.
+
+- Returns `404` if not found.
+
+---
+
+### `POST /{prefix}`
+
+Create a **new document**.
+
+- Validates the request body against the resource schema.
+- Requires `authorizeCreate` if defined.
+- Returns the created document.
+
+---
+
+### `PUT /{prefix}/:id`
+
+Replace an **entire document** by its ObjectId.
+
+- The request body must contain a full valid document (except `_id`).
+- Returns the updated document or `404` if not found.
+
+---
+
+### `PATCH /{prefix}/:id`
+
+Partially update a document by its ObjectId.
+
+- The request body may include one or more fields.
+- Returns the updated document or `404` if not found.
+- Fails with `422` if the body is empty.
+
+---
+
+### `DELETE /{prefix}/:id`
+
+Delete a document by its ObjectId.
+
+- Soft deletes are enabled by default in resources, so this method updates `deletedAt` instead of physical removal.
+- Returns `{ success: true | false }`.
+
+Autovalidated and openapi documented by crumbjs core **Important** the schemas for autocrud must have \_id, createAt, updateAt, deleteAt (softdeletes) included in schema example
+
+```ts
+export default new App()
+	.use(mongoPlugin())
+	.use(
+		// The resource App instance
+		createResourse({
+			/**
+			 * Zod schema representing the structure and validation rules
+			 * of documents stored in this collection.
+			 *
+			 * Used for:
+			 * - Validating request payloads
+			 * - Typing responses and filters
+			 */
+			schema: employeeSchema,
+			/**
+			 * (optional)
+			 * Name of the MongoDB collection where this resource lives.
+			 * @default 'default'
+			 */
+			connection: '<mongomanager connection name>';
+			/**
+			 * Name of the MongoDB database where this resource lives.
+			 */
+			db: 'tuples_hr',
+			/**
+			 * Name of the MongoDB collection where this resource lives.
+			 */
+			collection: 'employees',
+			/**
+			 * (optional)
+			 * URL path prefix for all routes generated for this resource.
+			 *
+			 * Example:
+			 * - prefix = "employee" → `/employee`, `/employee/:id`, etc.
+			 *
+			 * @default Collection name
+			 */
+			prefix: 'employee', // all resource endpoints prefix
+			/**
+			 * (optional)
+			 * OpenAPI tags applied to all routes of this resource.
+			 * You can add additional tags later.
+			 *
+			 * @default Collection name
+			 */
+			tag: 'Employees', // the tags to append to openapi
+			/**
+			 * (optional)
+			 * CrumbJS Middleware functions applied to all routes of this resource.
+			 *
+			 * Useful for:
+			 * - Authentication/authorization checks
+			 * - Request/response transformations
+			 * - Logging or tracing
+			 */
+			use: [authMiddleware], // the middlewares to apply to ALL routes (optional, default = [])
+			/**
+			 * (optional) **Recomended**
+			 * Builds a MongoDB filter that will be automatically applied to this resource
+			 * depending on the type of operation being performed.
+			 *
+			 * Operations supported:
+			 * - `"get"`     → Collection query (list resources)
+			 * - `"getById"` → Single resource lookup by ID
+			 * - `"put"`     → Full resource replacement
+			 * - `"patch"`   → Partial update
+			 * - `"delete"`  → Resource deletion
+			 *
+			 * Typical use cases:
+			 * - Restrict data access to the authenticated user
+			 * - Enforce tenant-based filtering (multi-tenancy)
+			 * - Apply soft-delete or visibility constraints
+			 * - Allow different filters depending on the operation
+			 *
+			 * ⚠️ Note: For POST requests use {@link authorizeCreate} instead.
+			 *
+			 * @param c The request context.
+			 * @param triggeredBy The operation triggering the filter (`get`, `getById`, `put`, `patch`, `delete`).
+			 * @returns A MongoDB filter object to be merged into the query.
+			 */
+			prefilter: async (c, triggeredBy) => {
+				// BASIC EXAMPLE
+				const user = c.get<User>('user'); // previously loaded user to context in middlewares
+				// will filtrate documents when userId field equals user.id
+				// for more granular you can use triggeredBy, roles, etc. Its like a middleware who builds a mandatory filter to mongo
+				return {
+					userId: user.id,
+				};
+			},
+			/**
+			 * (optional) **Recomended**
+			 * Determines if the current request/user is allowed to create a new resource.
+			 *
+			 * Typical use cases:
+			 * - Validate permissions/roles before allowing creation
+			 * - Validate request body or headers beyond schema validation
+			 * - Enforce business rules (e.g., max items per user)
+			 *
+			 * @param c The request context, including the raw request body.
+			 * @returns
+			 *  - `true` → Creation is allowed.
+			 *  - `string` → Creation is denied, and the returned string will be used as the error message.
+			 */
+			authorizeCreate: async (c) => {
+				// BASIC EXAMPLE
+				const user = c.get<User>('user'); // previously loaded user to context in middlewares
+
+				if (!user.roles.includes('create:employees')) {
+					return 'You dont have access to create employees'; // <-- the unathorized exception will be thrown with this message
+				}
+
+				return true;
+			},
+		}),
+	)
+	.serve();
 ```
 
 - Advanced Repository, extending the repository class
@@ -228,8 +352,8 @@ userRepository.find().project(/** ... */); // get default collection FindCursor 
 // Second boolean method is allways withTrash like in get() method.
 // true => includes soft deleted and false => exclude soft deleted
 // default: false
+const user = await userRepository.findOne({ email: 'test@example.com' }); // get user where some key is...
 const user = await userRepository.findById('64f7a8d...123'); // get user where object id is...
-const user = await userRepository.findOneBy({ email: 'test@example.com' }); // get user where some key is...
 
 // Creates a Document
 // The data will be validated with zod
@@ -241,6 +365,7 @@ const updated = await userRepository.updateOne({ email: 'alice@example.com' }, {
 const updated2 = await userRepository.updateById('64f7a8d...123', { name: 'Alice Updated' });
 
 // Delete Document (if softDeletes enabled will execute an update otherwise will delete the document for good)
+const success = await userRepo.deleteOne({ email: 'alice@example.com' });
 const success = await userRepo.deleteById('64f7a8d...123');
 ```
 

@@ -20,8 +20,9 @@ export function useRepository<S extends ZodObject>(
 	collection: string,
 	schema: S,
 	softDeletes: string | false = 'deletedAt',
+	connectionName: string = 'default',
 ) {
-	return new Repository(mongo.db(dbName), collection, schema, softDeletes);
+	return new Repository(mongo.db(dbName, connectionName), collection, schema, softDeletes);
 }
 
 /**

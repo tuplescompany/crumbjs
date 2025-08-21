@@ -7,58 +7,99 @@ import { Filter, ObjectId } from 'mongodb';
 import { mongoLogger } from '../manager';
 
 type Resource<T extends ZodObject, Entity = ZodInfer<T>> = {
+	/**
+	 * Zod schema representing the structure and validation rules
+	 * of documents stored in this collection.
+	 *
+	 * Used for:
+	 * - Validating request payloads
+	 * - Typing responses and filters
+	 */
 	schema: T;
+
+	/**
+	 * Name of the MongoDB connection to use, as defined
+	 * in the Mongo manager.
+	 *
+	 * @default "default"
+	 */
+	connection?: string;
+
+	/**
+	 * Name of the MongoDB database where this resource lives.
+	 */
 	db: string;
+
+	/**
+	 * Name of the MongoDB collection where this resource lives.
+	 */
 	collection: string;
+
 	/**
-	 * Prefix for all resource routes. Cannot be empty
+	 * URL path prefix for all routes generated for this resource.
+	 *
+	 * Example:
+	 * - prefix = "employee" → `/employee`, `/employee/:id`, etc.
+	 *
+	 * @default Collection name
 	 */
-	prefix: string;
+	prefix?: string;
+
 	/**
-	 * Tags who applies to all resource routes
+	 * OpenAPI tags applied to all routes of this resource.
+	 * You can add additional tags later when extending the OpenAPI spec.
+	 *
+	 * @default Collection name
 	 */
-	tags: string[] | string;
+	tag?: string;
+
 	/**
-	 * Middlewares who applies to all resource routes
+	 * Middleware functions applied to all routes of this resource.
+	 *
+	 * Useful for:
+	 * - Authentication/authorization checks
+	 * - Request/response transformations
+	 * - Logging or tracing
 	 */
 	use?: Middleware[];
+
 	/**
-	 * Builds a MongoDB filter that will be automatically applied to this resource
-	 * depending on the type of operation being performed.
+	 * Builds a MongoDB filter that will be automatically applied
+	 * to all operations on this resource (except POST).
 	 *
 	 * Operations supported:
-	 * - `"get"`     → Collection query (list resources)
-	 * - `"getById"` → Single resource lookup by ID
-	 * - `"put"`     → Full resource replacement
-	 * - `"patch"`   → Partial update
-	 * - `"delete"`  → Resource deletion
+	 * - `"get"`     → Query collection (list resources)
+	 * - `"getById"` → Fetch a single resource by ID
+	 * - `"put"`     → Replace a resource
+	 * - `"patch"`   → Partially update a resource
+	 * - `"delete"`  → Delete a resource
 	 *
 	 * Typical use cases:
-	 * - Restrict data access to the authenticated user
-	 * - Enforce tenant-based filtering (multi-tenancy)
-	 * - Apply soft-delete or visibility constraints
-	 * - Allow different filters depending on the operation
+	 * - Restricting access to resources owned by the authenticated user
+	 * - Enforcing tenant scoping (multi-tenant apps)
+	 * - Applying soft-delete or visibility constraints
+	 * - Custom filters per operation type
 	 *
-	 * ⚠️ Note: For POST requests use {@link authorizeCreate} instead.
+	 * ⚠️ For POST requests, use {@link authorizeCreate} instead.
 	 *
 	 * @param c The request context.
-	 * @param triggeredBy The operation triggering the filter (`get`, `getById`, `put`, `patch`, `delete`).
+	 * @param triggeredBy The type of operation being executed.
 	 * @returns A MongoDB filter object to be merged into the query.
 	 */
 	prefilter?: (c: RootContext, triggeredBy: 'get' | 'getById' | 'put' | 'patch' | 'delete') => Promise<Filter<Entity>>;
 
 	/**
-	 * Determines if the current request/user is allowed to create a new resource.
+	 * Determines whether the current request is authorized to create a new resource.
 	 *
 	 * Typical use cases:
-	 * - Validate permissions/roles before allowing creation
-	 * - Validate request body or headers beyond schema validation
-	 * - Enforce business rules (e.g., max items per user)
+	 * - Checking user roles or permissions
+	 * - Validating request body or headers beyond schema validation
+	 * - Enforcing business rules (e.g., max items per user)
 	 *
 	 * @param c The request context, including the raw request body.
 	 * @returns
 	 *  - `true` → Creation is allowed.
-	 *  - `string` → Creation is denied, and the returned string will be used as the error message.
+	 *  - `string` → Creation is denied. The string will be used as an error message.
 	 */
 	authorizeCreate?: (c: RootContext & { rawBody: any }) => Promise<true | string>;
 };
@@ -96,14 +137,15 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 	if (!options.authorizeCreate)
 		mongoLogger.warn(`Resource endpoints for collection '${options.collection}' is working without 'authorizeCreate' rule`);
 
-	const repository = useRepository(options.db, options.collection, options.schema);
+	const connectionName = options.connection ?? 'default';
 
-	const resource = new App().prefix(options.prefix);
+	const repository = useRepository(options.db, options.collection, options.schema, 'deletedAt', connectionName);
+
+	const resource = new App().prefix(options.prefix ?? options.collection);
 
 	if (options.use) options.use.forEach((middleware) => resource.use(middleware));
 
-	const tags = Array.isArray(options.tags) ? options.tags : [options.tags];
-	tags.forEach((t) => resource.tag(t));
+	resource.tag(options.tag ?? options.collection);
 
 	/**
 	 * [GET] /{prefix} Get paginated collection document, optionally filtered by simple query filters (asserts only equals)
@@ -132,7 +174,7 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 		async (c) => {
 			const filters = await createFilters('getById', options, c, createObjectIdFilter(c.params.id));
 
-			const document = await repository.findOneBy(filters);
+			const document = await repository.findOne(filters);
 			if (!document) throw new NotFound();
 
 			return document;
