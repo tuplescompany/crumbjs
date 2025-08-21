@@ -195,7 +195,7 @@ function _dateString(opts: any = {}): any {
 		field = field.nullable().default(null);
 	}
 
-	field = field.meta({ example: nowFormatted() });
+	field = field.meta({ example: nowFormatted(), type: 'string', format: 'date-time' });
 
 	return field;
 }

@@ -1,7 +1,8 @@
 export { mongo, type MongoManager } from './manager';
 export { mongoPlugin } from './plugin';
-export { createPaginationSchema } from './utils';
-export { useRespository } from './utils';
+export { useRepository } from './utils';
 export { Repository } from './repository';
+export { createPaginationSchema } from './utils';
+export { createResourse } from './crud/create-resource';
 export type { PaginationResult } from './types';
 export { document, field, softDelete, timestamps } from './schema';
