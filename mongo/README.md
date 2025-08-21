@@ -1,4 +1,4 @@
-# @crumbjs/mongo | Connects your Crumbjs with mongo and auto-generate crud resources
+# @crumbjs/mongo | Connects your crumb app with mongodb and auto-generate crud resources
 
 To install dependencies:
 
@@ -71,8 +71,7 @@ export const employeeSchema = document({
 	name: field.string({ min: 3 }), // required string, min length 3
 	email: field.string({ format: 'email' }), // email with Zod’s .email() validator
 	lastName: field.string({ min: 3 }), // required string, min length 3
-	birthDate: field.date({ nullable: true }), // nullable date, default null
-	birthDateExample: field.dateString({ nullable: true }), // use dateString helper if you intent to receive the date from JSON.parse will be stored as Date in mongo.
+	birthDate: field.dateString({ nullable: true }), // use dateString helper if you intent to receive the date from JSON.parse will be stored as Date in mongo.
 	active: field.boolean(true), // boolean, default true
 	gender: field.enum(['male', 'female', 'none']), // enum, required
 	userId: field.objectId(), // ObjectId (hex string → transformed to ObjectId)
