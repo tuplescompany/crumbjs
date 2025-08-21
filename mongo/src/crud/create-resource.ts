@@ -1,8 +1,7 @@
-import { App, Middleware, NotFound, spec, Unauthorized, UnprocessableEntity } from '@crumbjs/core';
+import { App, Middleware, NotFound, spec, Unauthorized, UnprocessableEntity, type Context } from '@crumbjs/core';
 import { createPaginationQuerySchema } from './pagination';
 import { createPaginationSchema, useRepository } from '../utils';
 import z, { ZodObject, infer as ZodInfer } from 'zod';
-import { RootContext } from '@crumbjs/core/dist/types';
 import { Filter, ObjectId } from 'mongodb';
 import { mongoLogger } from '../manager';
 
@@ -86,10 +85,13 @@ type Resource<T extends ZodObject, Entity = ZodInfer<T>> = {
 	 * @param triggeredBy The type of operation being executed.
 	 * @returns A MongoDB filter object to be merged into the query.
 	 */
-	prefilter?: (c: RootContext, triggeredBy: 'get' | 'getById' | 'put' | 'patch' | 'delete') => Promise<Filter<Entity>>;
+	prefilter?: (c: Context, triggeredBy: 'get' | 'getById' | 'put' | 'patch' | 'delete') => Promise<Filter<Entity>>;
 
 	/**
 	 * Determines whether the current request is authorized to create a new resource.
+	 *
+	 * **Important Context validated body (c.body) type contains _id, createdAt, deletedAt and updatedAt but are excluded on parse dont use it**.
+	 * We are working on remove it from the type.
 	 *
 	 * Typical use cases:
 	 * - Checking user roles or permissions
@@ -101,7 +103,7 @@ type Resource<T extends ZodObject, Entity = ZodInfer<T>> = {
 	 *  - `true` → Creation is allowed.
 	 *  - `string` → Creation is denied. The string will be used as an error message.
 	 */
-	authorizeCreate?: (c: RootContext & { rawBody: any }) => Promise<true | string>;
+	authorizeCreate?: (c: Context<any, T>) => Promise<true | string>;
 };
 
 const createObjectIdFilter = (id: string) => {
@@ -117,7 +119,7 @@ const createObjectIdFilter = (id: string) => {
 const createFilters = async (
 	triggeredBy: 'get' | 'getById' | 'put' | 'patch' | 'delete',
 	options: Resource<any>,
-	c: RootContext,
+	c: Context,
 	prev?: object,
 ): Promise<Filter<any>> => {
 	if (options.prefilter) {
@@ -191,7 +193,7 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 		'/',
 		async (c) => {
 			if (options.authorizeCreate) {
-				const canOrMessage = await options.authorizeCreate(c);
+				const canOrMessage = await options.authorizeCreate(c as any);
 				if (canOrMessage !== true) throw new Unauthorized(canOrMessage);
 			}
 

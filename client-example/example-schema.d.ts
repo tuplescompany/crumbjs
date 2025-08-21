@@ -4,33 +4,226 @@
  */
 
 export interface paths {
-    "/employee": {
+    "/api/page": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["getEmployee"];
+        get: operations["getApiPage"];
         put?: never;
-        post: operations["postEmployee"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/employee/{id}": {
+    "/api": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["getEmployeeById"];
-        put: operations["putEmployeeById"];
+        get: operations["getApi"];
+        put?: never;
         post?: never;
-        delete: operations["deleteEmployeeById"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/infobae": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getApiInfobae"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/text": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postApiText"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/form-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postApiForm-test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/formd-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postApiFormd-test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postApiFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postApiJson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hello/{name}/{name2}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getApiHelloByNameByName2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/x/{param1}/x/{param2}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getApiXByParam1XByParam2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hello": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getApiHello"];
+        put?: never;
+        /** @description Sarasa */
+        post: operations["postApiHello"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/text-body": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postApiText-body"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/app2": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getApp2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/app3": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getApp3"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -43,9 +236,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["get"];
         put?: never;
-        post: operations["post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -64,18 +257,82 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    getEmployee: {
+    getApiPage: {
         parameters: {
             query?: {
                 page?: number;
                 pageSize?: number;
-                trash?: boolean | unknown | unknown;
             };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Unknown */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getApi: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unknown */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getApiInfobae: {
+        parameters: {
+            query: {
+                a: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unknown */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postApiText: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description POST /api/text Body */
+        requestBody: {
+            content: {
+                "application/json": {
+                    content: string;
+                    date: unknown;
+                    j: unknown[];
+                };
+            };
+        };
         responses: {
             /** @description 200 Response */
             200: {
@@ -84,92 +341,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        total: number;
-                        pageSize: number;
-                        pages: number;
-                        currentPage: number;
-                        prevPage: number | null;
-                        nextPage: number | null;
-                        data: {
-                            _id: unknown;
-                            /** @default null */
-                            deletedAt: unknown | null;
-                            /** @default 2025-08-20T22:36:10.933Z */
-                            createdAt: unknown;
-                            /** @default null */
-                            updatedAt: unknown | null;
-                            /** @default 9a44789e-12d3-415f-9ca8-7cb1dfa73e89 */
-                            uuid: string;
-                            name: string;
-                            lastName: string;
-                            /** @default null */
-                            birthDate: unknown | null;
-                            /** @default true */
-                            active: boolean;
-                            /** @default null */
-                            salary: number | null;
-                            /** @enum {string} */
-                            gender: "male" | "female" | "none";
-                            sub: {
-                                a: string;
-                                b: string;
-                            };
-                        }[];
-                    };
-                };
-            };
-            /** @description 400 Response */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        status: number;
+                        date: unknown;
                     };
                 };
             };
         };
     };
-    postEmployee: {
+    "postApiForm-test": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** @description POST /employee Body */
+        /** @description POST /api/form-test Body */
         requestBody: {
             content: {
-                /** @example {
-                 *       "uuid": "6d010d99-a163-42b4-8da5-bfaa8749478c",
-                 *       "name": "<string format>",
-                 *       "lastName": "<string format>",
-                 *       "birthDate": "2025-08-20 19:36:10",
-                 *       "salary": 10.5,
-                 *       "gender": "male",
-                 *       "sub": {
-                 *         "a": "<string format>",
-                 *         "b": "<string format>"
-                 *       }
-                 *     } */
-                "application/json": {
-                    /** @default 320bf4f3-5510-470d-817a-a3e3ea4eb398 */
-                    uuid: string;
-                    name: string;
-                    lastName: string;
-                    /** @default null */
-                    birthDate: unknown | null;
-                    /** @default true */
-                    active: boolean;
-                    /** @default null */
-                    salary: number | null;
-                    /** @enum {string} */
-                    gender: "male" | "female" | "none";
-                    sub: {
-                        a: string;
-                        b: string;
-                    };
+                "application/x-www-form-urlencoded": {
+                    a: string;
+                    b: string;
+                    c: string;
                 };
             };
         };
@@ -183,14 +374,137 @@ export interface operations {
             };
         };
     };
-    getEmployeeById: {
+    "postApiFormd-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unknown */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postApiFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description POST /api/file Body */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Unknown */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postApiJson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description POST /api/json Body */
+        requestBody: {
+            content: {
+                "application/json": {
+                    hello: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Unknown */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getApiHelloByNameByName2: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @example id-example */
-                id: string;
+                /**
+                 * @description sarasa description
+                 * @example sarasa example
+                 */
+                name: string;
+                /** @example name2-example */
+                name2: string;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 200 Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /** @example Text example */
+                    "application/json": string;
+                };
+            };
+        };
+    };
+    getApiXByParam1XByParam2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example param1-example */
+                param1: string;
+                /** @example param2-example */
+                param2: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unknown */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getApiHello: {
+        parameters: {
+            query: {
+                /** @example Elias */
+                name: string;
+                /** @example other */
+                other?: string;
+            };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -202,93 +516,113 @@ export interface operations {
                 };
                 content: {
                     /** @example {
-                     *       "uuid": "6d010d99-a163-42b4-8da5-bfaa8749478c",
-                     *       "name": "<string format>",
-                     *       "lastName": "<string format>",
-                     *       "birthDate": "2025-08-20 19:36:10",
-                     *       "salary": 10.5,
-                     *       "gender": "male",
-                     *       "sub": {
-                     *         "a": "<string format>",
-                     *         "b": "<string format>"
-                     *       }
+                     *       "first": 999
                      *     } */
                     "application/json": {
-                        _id: unknown;
-                        /** @default null */
-                        deletedAt: unknown | null;
-                        /** @default 2025-08-20T22:36:10.935Z */
-                        createdAt: unknown;
-                        /** @default null */
-                        updatedAt: unknown | null;
-                        /** @default 98b69177-8fba-4d9d-ab37-51089c54f059 */
-                        uuid: string;
-                        name: string;
-                        lastName: string;
-                        /** @default null */
-                        birthDate: unknown | null;
-                        /** @default true */
-                        active: boolean;
-                        /** @default null */
-                        salary: number | null;
-                        /** @enum {string} */
-                        gender: "male" | "female" | "none";
-                        sub: {
-                            a: string;
-                            b: string;
-                        };
+                        first: number;
                     };
                 };
             };
-            /** @description 404 Response */
-            404: {
+            /** @description 400 Response */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
+                        message: string;
+                        status: number;
+                    };
+                };
+            };
+            /** @description 500 Response */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
                         status: number;
                     };
                 };
             };
         };
     };
-    putEmployeeById: {
+    postApiHello: {
+        parameters: {
+            query?: never;
+            header: {
+                name: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /** @description POST /api/hello Body */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 400 Response */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /** @example {
+                     *       "status": 400,
+                     *       "message": "Invalid {part}",
+                     *       "fields": {
+                     *         "name": [
+                     *           "validation error 1",
+                     *           "validation error 2"
+                     *         ]
+                     *       }
+                     *     } */
+                    "application/json": {
+                        status: number;
+                        message: string;
+                        fields: {
+                            name?: string[];
+                        };
+                    };
+                };
+            };
+            /** @description 403 Response */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /** @example {
+                     *       "status": 403,
+                     *       "message": "Error message"
+                     *     } */
+                    "application/json": {
+                        status: number;
+                        message: string;
+                        fields: unknown;
+                    };
+                };
+            };
+        };
+    };
+    "postApiText-body": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                /** @example id-example */
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        /** @description PUT /employee/:id Body */
+        /** @description POST /api/text-body Body */
         requestBody: {
             content: {
-                "application/json": {
-                    /** @default null */
-                    deletedAt?: unknown | null;
-                    /** @default 2025-08-20T22:36:10.936Z */
-                    createdAt?: unknown;
-                    /** @default null */
-                    updatedAt?: unknown | null;
-                    /** @default c5928ca3-1715-47d9-b639-7aaeb1175f80 */
-                    uuid?: string;
-                    name?: string;
-                    lastName?: string;
-                    /** @default null */
-                    birthDate?: unknown | null;
-                    /** @default true */
-                    active?: boolean;
-                    /** @default null */
-                    salary?: number | null;
-                    /** @enum {string} */
-                    gender?: "male" | "female" | "none";
-                    sub?: {
-                        a: string;
-                        b: string;
-                    };
+                "text/plain": {
+                    text: string;
                 };
             };
         };
@@ -302,49 +636,50 @@ export interface operations {
             };
         };
     };
-    deleteEmployeeById: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @example id-example */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 200 Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        success: boolean;
-                    };
-                };
-            };
-        };
-    };
-    post: {
+    getApp2: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** @description POST / Body */
-        requestBody: {
-            content: {
-                /** @example {
-                 *       "ex": "my example string"
-                 *     } */
-                "application/json": {
-                    ex: string;
+        requestBody?: never;
+        responses: {
+            /** @description Unknown */
+            default: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
         };
+    };
+    getApp3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unknown */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Unknown */
             default: {

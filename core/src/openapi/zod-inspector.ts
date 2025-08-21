@@ -203,8 +203,11 @@ function objectMetadata<T extends ZodRawShape>(obj: ZodObject<T>): FieldMeta {
 	const own = leafMetadata(obj);
 	const ex: Record<string, unknown> = { ...(own.example ?? {}) };
 
-	for (const { key, metadata } of extractFields(obj)) {
-		if (metadata.example !== undefined) ex[key] = metadata.example;
+	for (const { key, schema } of extractFields(obj)) {
+		const childMeta = getMetadata(schema);
+		if (childMeta.example !== undefined) {
+			ex[key] = childMeta.example;
+		}
 	}
 
 	return { description: own.description, example: Object.keys(ex).length ? ex : undefined };

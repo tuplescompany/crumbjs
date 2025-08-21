@@ -285,6 +285,11 @@ export type RouteConfig<
 	headers?: HEADERS;
 
 	/**
+	 * **Use it with caution** the types and documentation will be infered any way, but the data will not be validated
+	 */
+	disableValidation?: boolean;
+
+	/**
 	 * Route-specific middleware(s). Runs before the handler.
 	 * Accepts a single middleware or an array.
 	 */

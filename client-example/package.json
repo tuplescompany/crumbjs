@@ -4,7 +4,7 @@
 	"type": "module",
 	"private": true,
 	"scripts": {
-		"generate": "npx openapi-typescript http://localhost:8080/reference/doc.json -o ./example-schema.d.ts"
+		"generate": "npx openapi-typescript http://localhost:8081/reference/doc.json -o ./example-schema.d.ts"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

@@ -1,4 +1,4 @@
-import { z, type ZodType } from 'zod';
+import { z, ZodObject, type ZodType } from 'zod';
 import type { AppMode, ContentType, ResponseConfig } from '../types';
 import { logger, LogLevel } from './logger';
 
@@ -41,6 +41,55 @@ export const spec = {
 	 */
 	file(name?: string) {
 		return z.file(name).meta({ type: 'string', format: 'binary' });
+	},
+
+	/**
+	 * Generates a Invalid response spec with `validate()` structure
+	 */
+	invalid(schema?: ZodObject) {
+		// Default fields schema, only usefull as example
+		let fieldsSchema: any = z.object({
+			fieldName: z.array(z.string()),
+		});
+
+		// If schema is set generates all the fields errors
+		if (schema) {
+			const fields = Object.keys(schema.shape);
+			const fieldsShape: any = {};
+			fields.forEach((f) => {
+				fieldsShape[f] = z
+					.array(z.string())
+					.optional()
+					.meta({ example: [`validation error 1`, `validation error 2`] });
+			});
+
+			fieldsSchema = z.object(fieldsShape);
+		}
+
+		return {
+			status: 400,
+			schema: z.object({
+				status: z.number().meta({ example: 400 }),
+				message: z.string().meta({ example: 'Invalid {part}' }),
+				fields: fieldsSchema,
+			}),
+			type: 'application/json',
+		} as ResponseConfig;
+	},
+
+	/**
+	 * Generates simple Exception response spec
+	 */
+	exception(status: number) {
+		return {
+			status,
+			schema: z.object({
+				status: z.number().meta({ example: status }),
+				message: z.string().meta({ example: 'Error message' }),
+				fields: z.any(),
+			}),
+			type: 'application/json',
+		} as ResponseConfig;
 	},
 
 	/**
