@@ -64,18 +64,21 @@ The same schema, could be written with pure Zod (no helpers) or a mix between th
 ```ts
 import { document, field, softDelete, timestamps } from '@crumbjs/mongo';
 
+// Example Schema
 export const employeeSchema = document({
-	...softDelete(), // adds deletedAt: Date | null (default: null)
-	...timestamps(), // adds createdAt: Date (default: now), updatedAt: Date | null (default: null)
-	uuid: field.uuid({ auto: true }), // auto-generate UUID v4 if missing, validate if provided
-	name: field.string({ min: 3 }), // required string, min length 3
-	email: field.string({ format: 'email' }), // email with Zod’s .email() validator
-	lastName: field.string({ min: 3 }), // required string, min length 3
-	birthDate: field.dateString({ nullable: true }), // use dateString helper if you intent to receive the date from JSON.parse will be stored as Date in mongo.
-	active: field.boolean(true), // boolean, default true
-	gender: field.enum(['male', 'female', 'none']), // enum, required
-	userId: field.objectId(), // ObjectId (hex string → transformed to ObjectId)
-	companyId: field.objectId({ nullable: true }), // hex string → transformed to ObjectId or null, default null
+	// Common system fields
+	...softDelete(), // adds: deletedAt: Date | null (default: null)
+	...timestamps(), // adds: createdAt: Date (default: now), updatedAt: Date | null (default: null)
+	// Collection specific fields
+	uuid: field.uuid({ auto: true }), // UUID v4, auto-generated if missing, validated if provided
+	name: field.string({ min: 3 }), // required, minimum length 3
+	lastName: field.string({ min: 3 }), // required, minimum length 3
+	email: field.string({ format: 'email' }), // required, must be a valid email address
+	birthDate: field.dateString({ nullable: true }), // accepts ISO date string in input (JSON), stored as Date in MongoDB; nullable
+	gender: field.enum(['male', 'female', 'none']), // required, enum constraint
+	active: field.boolean(true), // boolean flag, default true
+	userId: field.objectId(), // required ObjectId (hex string → ObjectId)
+	companyId: field.objectId({ nullable: true }), // optional relation, hex string → ObjectId or null (default: null)
 });
 
 // Type inferred on Repository.create() (input for inserts)
