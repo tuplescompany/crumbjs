@@ -498,3 +498,15 @@ export type OARoute = {
 };
 
 export type HttpUrlString = `${'http' | 'https'}://${string}`;
+
+export type FieldMeta = {
+	description?: string;
+	example?: unknown;
+};
+
+export type FieldInfo = {
+	key: string;
+	schema: ZodType;
+	required: boolean;
+	metadata: FieldMeta;
+};

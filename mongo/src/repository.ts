@@ -2,7 +2,7 @@ import type { ZodObject, infer as ZodInfer, input as ZodInput } from 'zod';
 import { Collection, Db, type Filter, ObjectId } from 'mongodb';
 import type { PaginationResult } from './types';
 import { mongoLogger } from './manager';
-import { Exception } from '@crumbjs/core';
+import { Exception, validate } from '@crumbjs/core';
 
 /**
  * Generic MongoDB Repository with Zod validation and optional soft deletes.
@@ -61,7 +61,7 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 		}
 		const sch = this.schema.omit({ _id: true }).pick(picks);
 
-		return sch.parse(data);
+		return validate(sch, data);
 	}
 
 	/**
@@ -181,7 +181,7 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 * @throws If insertion fails or schema validation fails.
 	 */
 	async create(data: Omit<EntityInput, '_id'>): Promise<Entity> {
-		const createData = this.schema.omit({ _id: true }).parse(data);
+		const createData = validate(this.schema.omit({ _id: true }), data);
 		createData._id = new ObjectId();
 
 		mongoLogger.debug(`Creating document on ${this.collectionName}, data: ${JSON.stringify(createData)}`);

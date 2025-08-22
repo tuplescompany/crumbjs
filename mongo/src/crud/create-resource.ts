@@ -149,6 +149,21 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 
 	resource.tag(options.tag ?? options.collection);
 
+	const patchBodySchema = options.schema.omit({ _id: true }).partial();
+	const postBodySchema = options.schema.omit({
+		_id: true,
+		deletedAt: true,
+		updatedAt: true,
+		createdAt: true,
+	});
+	// same at post for now
+	const putBodySchema = options.schema.omit({
+		_id: true,
+		deletedAt: true,
+		updatedAt: true,
+		createdAt: true,
+	});
+
 	/**
 	 * [GET] /{prefix} Get paginated collection document, optionally filtered by simple query filters (asserts only equals)
 	 */
@@ -164,7 +179,7 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 		},
 		{
 			query: createPaginationQuerySchema(options.schema),
-			responses: [spec.response(200, createPaginationSchema(options.schema)), spec.response(400, z.object({ status: z.number() }))],
+			responses: [spec.response(200, createPaginationSchema(options.schema)), spec.exception(400)],
 		},
 	);
 
@@ -196,18 +211,14 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 				const canOrMessage = await options.authorizeCreate(c as any);
 				if (canOrMessage !== true) throw new Unauthorized(canOrMessage);
 			}
-
+			c.setStatus(201);
 			return await repository.create(c.rawBody as any);
 		},
 		{
 			type: 'application/json',
-			body: options.schema.omit({
-				_id: true,
-				deletedAt: true,
-				updatedAt: true,
-				createdAt: true,
-			}),
-			responses: [spec.response(201, options.schema)],
+			disableValidation: true, // The validation is performed by Repository
+			body: postBodySchema,
+			responses: [spec.response(201, options.schema), spec.invalid(postBodySchema)],
 		},
 	);
 
@@ -228,9 +239,9 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 		},
 		{
 			type: 'application/json',
-			body: options.schema.omit({
-				_id: true,
-			}),
+			disableValidation: true, // The validation is performed by Repository
+			body: putBodySchema,
+			responses: [spec.response(200, options.schema), spec.invalid(putBodySchema)],
 		},
 	);
 
@@ -252,11 +263,9 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 		},
 		{
 			type: 'application/json',
-			body: options.schema
-				.omit({
-					_id: true,
-				})
-				.partial(),
+			disableValidation: true, // The validation is performed by Repository
+			body: patchBodySchema,
+			responses: [spec.invalid(patchBodySchema)],
 		},
 	);
 
