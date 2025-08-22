@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { cpSync, mkdirSync, existsSync } from 'node:fs';
+import { cpSync, rmSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
@@ -30,6 +30,8 @@ if (pm !== 'bun') {
 process.chdir(dest);
 console.log(`📦 Installing crumbjs with ${pm}…`);
 execSync(`${pm} install`, { stdio: 'inherit' });
+cpSync('env.example', '.env');
+rmSync('env.example');
 
 // 4 • final hints
 console.log(`\n🎉 Your app is ready!`);
