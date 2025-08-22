@@ -317,7 +317,7 @@ export default new App()
 	.serve();
 ```
 
-<img src="./img/example-full-doc.png" alt="CrumbJS AUTO CRUD Example" width="100%"/>
+<img src="https://raw.githubusercontent.com/tuplescompany/crumbjs/refs/heads/mongo-plugin/mongo/img/example-full-doc.png" alt="CrumbJS AUTO CRUD Example" width="100%"/>
 
 ## More about Repositories
 
