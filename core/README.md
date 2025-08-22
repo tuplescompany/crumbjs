@@ -29,7 +29,7 @@ The core system has only about 3,700 lines of code and just two dependencies (zo
 ## Official Plugins
 
 - [@crumbjs/bullmq](https://www.npmjs.com/package/@crumbjs/bullmq) -> Bullmq worker aside CrumbJS server. For simple redis queue system
-- [@crumbjs/mongo](https://www.npmjs.com/package/@crumbjs/mongo) -> Mongo connection handler and simple repository provider based on zod
+- [@crumbjs/mongo](https://www.npmjs.com/package/@crumbjs/mongo) -> Mongo connection handler, **AUTO-CRUD!** and simple repository provider based on zod
 
 ## Installation
 

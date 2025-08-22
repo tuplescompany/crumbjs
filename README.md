@@ -26,10 +26,10 @@ The core system has only about 3,700 lines of code and just two dependencies (zo
 - signals (log incomming request)
 - secureHeaders (ported from Hono)
 
-## Official Pludings
+## Official Plugins
 
-- @crumbjs/bullmq -> Bullmq worker aside CrumbJS server. For simple redis queue system
-- @crumbjs/mongo -> Mongo connection handler and repository provider
+- [@crumbjs/bullmq](https://www.npmjs.com/package/@crumbjs/bullmq) -> Bullmq worker aside CrumbJS server. For simple redis queue system
+- [@crumbjs/mongo](https://www.npmjs.com/package/@crumbjs/mongo) -> Mongo connection handler, **AUTO-CRUD!** and simple repository provider based on zod
 
 ## Installation
 
