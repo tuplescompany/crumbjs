@@ -317,6 +317,8 @@ export default new App()
 	.serve();
 ```
 
+<img src="./img/example-full-doc.png" alt="CrumbJS AUTO CRUD Example" width="100%"/>
+
 ## More about Repositories
 
 ### Advanced

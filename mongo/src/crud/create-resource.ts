@@ -180,6 +180,12 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 		{
 			query: createPaginationQuerySchema(options.schema),
 			responses: [spec.response(200, createPaginationSchema(options.schema)), spec.exception(400)],
+			summary: `Get a paginated list of ${options.collection} documents`,
+			description: `Retrieves a paginated collection of documents from **${options.db}.${options.collection}**.
+- Supports query filters (only equality conditions) based on schema fields.
+- Pagination handled via \`page\` and \`pageSize\`.
+- Can include trashed (soft-deleted) documents if \`withTrash=yes\`.
+- Automatically merges \`prefilter\` rules if defined (e.g., tenant scope, user-based filtering).`,
 		},
 	);
 
@@ -198,6 +204,10 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 		},
 		{
 			responses: [spec.response(200, options.schema), spec.response(404, z.object({ status: z.number() }))],
+			summary: `Find a ${options.collection} document by ID`,
+			description: `Fetches a single document from **${options.db}.${options.collection}** by its MongoDB ObjectId.
+- Applies \`prefilter\` rules if provided (e.g., tenant enforcement).
+- Returns **404 Not Found** if the document does not exist or does not satisfy filters.`,
 		},
 	);
 
@@ -219,6 +229,12 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 			disableValidation: true, // The validation is performed by Repository
 			body: postBodySchema,
 			responses: [spec.response(201, options.schema), spec.invalid(postBodySchema)],
+			summary: `Create a new ${options.collection} document`,
+			description: `Creates a new document in **${options.db}.${options.collection}** after validating the request payload against the schema.
+- Excludes system fields (\`_id\`, \`createdAt\`, \`updatedAt\`, \`deletedAt\`) from the request body.
+- Runs \`authorizeCreate\` hook (if defined) to enforce authorization rules before insertion.
+- Returns **201 Created** with the inserted document.
+- If validation fails, responds with detailed schema validation errors.`,
 		},
 	);
 
@@ -242,6 +258,12 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 			disableValidation: true, // The validation is performed by Repository
 			body: putBodySchema,
 			responses: [spec.response(200, options.schema), spec.invalid(putBodySchema)],
+			summary: `Replace a ${options.collection} document by ID`,
+			description: `Fully replaces a document in **${options.db}.${options.collection}** with the provided request body.
+- Requires all fields defined in the schema (except system fields).
+- Automatically updates the \`updatedAt\` timestamp.
+- Applies \`prefilter\` rules if provided.
+- Responds with the replaced document or **404 Not Found** if no match is found.`,
 		},
 	);
 
@@ -266,6 +288,12 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 			disableValidation: true, // The validation is performed by Repository
 			body: patchBodySchema,
 			responses: [spec.invalid(patchBodySchema)],
+			summary: `Partially update a ${options.collection} document by ID`,
+			description: `Applies a partial update to an existing document in **${options.db}.${options.collection}**.
+- At least one field must be provided; empty bodies are rejected.
+- Automatically updates the \`updatedAt\` timestamp.
+- Applies \`prefilter\` rules if provided.
+- Responds with the updated document or **404 Not Found** if no match is found.`,
 		},
 	);
 
@@ -282,6 +310,11 @@ export function createResourse<T extends ZodObject>(options: Resource<T>) {
 		},
 		{
 			responses: [spec.response(200, z.object({ success: z.boolean() }))],
+			summary: `Delete a ${options.collection} document by ID`,
+			description: `Deletes a document from **${options.db}.${options.collection}** by its MongoDB ObjectId.
+- If soft-delete is enabled (\`deletedAt\` field), sets the \`deletedAt\` timestamp instead of permanently removing the document.
+- Applies \`prefilter\` rules if provided.
+- Returns an object with \`success: true/false\` depending on the outcome.`,
 		},
 	);
 
