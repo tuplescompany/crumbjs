@@ -1,6 +1,8 @@
 # @crumbjs/bullmq - BullMQ Plugin for CrumbJS api
 
-A small plugin for the [CrumbJS](https://www.npmjs.com/package/@crumbjs/core) framework that provides a
+[Full Documentation Page](https://crumbjs-site.pages.dev/)
+
+A plugin for the [CrumbJS](https://www.npmjs.com/package/@crumbjs/core) framework that provides a
 Redis backed job queue using [BullMQ](https://docs.bullmq.io/).
 
 The plugin exposes am onStart trigger for Crumbjs existent app and provides utilities to define and dispach queueables events.

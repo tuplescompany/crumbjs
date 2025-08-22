@@ -1,5 +1,7 @@
 # @crumbjs/mongo | Connects your crumb app with mongodb and auto-generate crud resources
 
+[Full Documentation Page](https://crumbjs-site.pages.dev/)
+
 To install dependencies:
 
 ```bash
