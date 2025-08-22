@@ -1,6 +1,6 @@
 {
 	"name": "@crumbjs/core",
-	"version": "0.7.2",
+	"version": "0.7.3",
 	"publishConfig": {
 		"access": "public"
 	},
@@ -22,7 +22,9 @@
 	"devDependencies": {
 		"@types/bun": "latest",
 		"ts-unused-exports": "^11.0.1",
-		"typescript": "^5.9.2",
+		"typescript": "^5.9.2"
+	},
+	"peerDependencies": {
 		"zod": "^4.0.14"
 	},
 	"dependencies": {
