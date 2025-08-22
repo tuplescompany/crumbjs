@@ -25,9 +25,7 @@
 		"typescript": "^5.9.2"
 	},
 	"peerDependencies": {
-		"zod": "^4.0.14"
-	},
-	"dependencies": {
+		"zod": "^4.0.14",
 		"openapi3-ts": "^4.5.0"
 	}
 }
