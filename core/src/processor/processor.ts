@@ -1,19 +1,18 @@
 import { BunRequest } from 'bun';
-import { RequestStore } from './request-store';
 import { HeaderBuilder } from './header-builder';
 import { Context, ErrorHandler, Handler, Result, Middleware, RootContext, RouteConfig } from '../types';
 import { asArray, signal } from '../helpers/utils';
 import { BodyParser } from './body-parser';
-import { flattenError, ZodObject } from 'zod';
-import { BadRequest, InternalServerError } from '../exception/http.exception';
+import { InternalServerError } from '../exception/http.exception';
 import { Exception } from '../exception';
 import { logger } from '../helpers/logger';
 import { AuthorizationParser } from './authorization-parser';
+import { validate } from '../validator';
 
 export class Processor {
 	private readonly rootContext: RootContext;
 
-	private readonly requestStore: RequestStore;
+	private store: Record<string, any> = {};
 
 	private readonly requestUrl: URL;
 
@@ -38,7 +37,6 @@ export class Processor {
 		private readonly errorHandler: ErrorHandler,
 	) {
 		// instance built-in context helpers
-		this.requestStore = new RequestStore();
 		this.responseHeaders = new HeaderBuilder({ 'Content-Type': 'application/json' });
 		this.authorizationParser = new AuthorizationParser(req);
 		this.cookies = this.req.cookies;
@@ -67,26 +65,15 @@ export class Processor {
 			setStatus: (status: number) => {
 				this.responseStatus = status;
 			},
-			set: this.requestStore.set.bind(this.requestStore),
-			get: this.requestStore.get.bind(this.requestStore),
+			set: (key: string, value: any) => {
+				this.store[key] = value;
+			},
+			get: <T = any>(key: string): T => {
+				if (!this.store[key]) throw new InternalServerError(`${key} doesnt exists in store`);
+				return this.store[key] as T;
+			},
 			rawBody: {}, // unparsed yet
 		};
-	}
-
-	private async validate(schema: any, data: any, part: 'body' | 'query' | 'headers') {
-		// disable validation for non ZodObject schemas
-		if (!schema || !(schema instanceof ZodObject)) {
-			return data;
-		}
-
-		const res = schema.safeParse(data);
-		if (!res.success) {
-			throw new BadRequest({
-				part,
-				errors: flattenError(res.error).fieldErrors,
-			});
-		}
-		return res.data;
 	}
 
 	/**
@@ -119,19 +106,33 @@ export class Processor {
 
 		const contentType = this.req.headers.get('content-type') ?? '';
 		if (configType && !contentType.includes(configType)) {
-			throw new BadRequest({
-				part: 'headers',
-				errors: [`Invalid Content-Type: expected “${configType}”, got “${contentType ?? 'none'}”.`],
+			throw new Exception('Invalid Content-Type', 400, {
+				'Content-Type': [`Expected “${configType}”, got “${contentType ?? 'none'}”.`],
 			});
 		}
 	}
 
 	private async getHandlerContext(): Promise<Context> {
-		const [body, query, headers] = await Promise.all([
-			this.validate(this.routeConfig.body, this.rootContext.rawBody, 'body'),
-			this.validate(this.routeConfig.query, this.requestQuery, 'query'),
-			this.validate(this.routeConfig.headers, this.requestHeaders, 'headers'),
-		]);
+		// dont execute data validation by route configuration
+		if (this.routeConfig.disableValidation === true) {
+			return {
+				...this.rootContext,
+				body: this.rootContext.rawBody,
+				query: this.requestQuery,
+				params: this.req.params,
+				headers: this.requestHeaders,
+			};
+		}
+
+		const body = this.routeConfig.body
+			? validate(this.routeConfig.body, this.rootContext.rawBody, 'Invalid Body')
+			: this.rootContext.rawBody;
+
+		const query = this.routeConfig.query ? validate(this.routeConfig.query, this.requestQuery, 'Invalid Query') : this.requestQuery;
+
+		const headers = this.routeConfig.headers
+			? validate(this.routeConfig.headers, this.requestHeaders, 'Invalid Headers')
+			: this.requestHeaders;
 
 		return {
 			...this.rootContext,

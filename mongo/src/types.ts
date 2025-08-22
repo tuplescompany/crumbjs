@@ -5,5 +5,6 @@ export type PaginationResult<T> = {
 	currentPage: number;
 	prevPage: number | null;
 	nextPage: number | null;
+	filters: any;
 	data: T[];
 };

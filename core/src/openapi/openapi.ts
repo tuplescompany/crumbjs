@@ -3,7 +3,7 @@ import type { ZodType } from 'zod';
 import type { Method, OARoute, BuildedRoute } from '../types';
 import { swaggerPage, scalarPage } from './ui';
 import { OperationBuilder } from './operation.builder';
-import { ZodInspector } from './zod-inspector';
+import { convert } from './zod';
 
 /**
  * ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ export const openapi = (() => {
 	};
 
 	/** Register a Zod schema under `components.schemas`. */
-	const addSchema = (name: string, schema: ZodType) => builder().addSchema(name, ZodInspector.convert(schema));
+	const addSchema = (name: string, schema: ZodType) => builder().addSchema(name, convert(schema));
 
 	/** Add an application route and any new tags it introduces. */
 	const addRoute = (route: OARoute): void => {

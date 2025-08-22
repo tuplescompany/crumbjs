@@ -12,7 +12,7 @@ import {
 } from 'openapi3-ts/oas31';
 import { AnyPathParams, OARoute } from '../types';
 import { capitalize, objectCleanUndefined } from '../helpers/utils';
-import { ZodInspector } from './zod-inspector';
+import { convert, extractFields, getMetadata } from './zod';
 
 /**
  * Transforms an **OARoute** (your internal DSL) into the
@@ -79,14 +79,14 @@ export class OperationBuilder {
 		if (!this.route.body) return;
 
 		const mime = this.route.mediaType ?? 'application/json';
-		const meta = ZodInspector.metadata(this.route.body);
+		const meta = getMetadata(this.route.body);
 
 		return {
 			description: meta.description ?? `${this.route.method.toUpperCase()} ${this.route.path} Body`,
 			required: true,
 			content: {
 				[mime]: {
-					schema: ZodInspector.convert(this.route.body),
+					schema: convert(this.route.body),
 					example: meta.example,
 				} as MediaTypeObject,
 			} as ContentObject,
@@ -136,11 +136,11 @@ export class OperationBuilder {
 		const schema = this.route[part];
 		if (!schema) return [];
 
-		return ZodInspector.fields(schema).map(({ key, schema, required, metadata }) => ({
+		return extractFields(schema).map(({ key, schema, required, metadata }) => ({
 			name: key,
 			in: part,
 			required: required,
-			schema: ZodInspector.convert(schema),
+			schema: convert(schema),
 			...metadata,
 		})) as ParameterObject[];
 	}
@@ -153,7 +153,7 @@ export class OperationBuilder {
 
 		return Object.fromEntries(
 			this.route.responses.map(({ status, type, schema }) => {
-				const meta = ZodInspector.metadata(schema);
+				const meta = getMetadata(schema);
 				const code = String(status);
 				const description = meta.description ?? `${code} Response`;
 
@@ -163,7 +163,7 @@ export class OperationBuilder {
 						description,
 						content: {
 							[type]: {
-								schema: ZodInspector.convert(schema),
+								schema: convert(schema),
 								example: meta.example,
 							} as SchemaObject,
 						},

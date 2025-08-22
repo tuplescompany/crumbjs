@@ -1,0 +1,322 @@
+import { App, Middleware, NotFound, spec, Unauthorized, UnprocessableEntity, type Context } from '@crumbjs/core';
+import { createPaginationQuerySchema } from './pagination';
+import { createPaginationSchema, useRepository } from '../utils';
+import z, { ZodObject, infer as ZodInfer } from 'zod';
+import { Filter, ObjectId } from 'mongodb';
+import { mongoLogger } from '../manager';
+
+type Resource<T extends ZodObject, Entity = ZodInfer<T>> = {
+	/**
+	 * Zod schema representing the structure and validation rules
+	 * of documents stored in this collection.
+	 *
+	 * Used for:
+	 * - Validating request payloads
+	 * - Typing responses and filters
+	 */
+	schema: T;
+
+	/**
+	 * Name of the MongoDB connection to use, as defined
+	 * in the Mongo manager.
+	 *
+	 * @default "default"
+	 */
+	connection?: string;
+
+	/**
+	 * Name of the MongoDB database where this resource lives.
+	 */
+	db: string;
+
+	/**
+	 * Name of the MongoDB collection where this resource lives.
+	 */
+	collection: string;
+
+	/**
+	 * URL path prefix for all routes generated for this resource.
+	 *
+	 * Example:
+	 * - prefix = "employee" → `/employee`, `/employee/:id`, etc.
+	 *
+	 * @default Collection name
+	 */
+	prefix?: string;
+
+	/**
+	 * OpenAPI tags applied to all routes of this resource.
+	 * You can add additional tags later when extending the OpenAPI spec.
+	 *
+	 * @default Collection name
+	 */
+	tag?: string;
+
+	/**
+	 * Middleware functions applied to all routes of this resource.
+	 *
+	 * Useful for:
+	 * - Authentication/authorization checks
+	 * - Request/response transformations
+	 * - Logging or tracing
+	 */
+	use?: Middleware[];
+
+	/**
+	 * Builds a MongoDB filter that will be automatically applied
+	 * to all operations on this resource (except POST).
+	 *
+	 * Operations supported:
+	 * - `"get"`     → Query collection (list resources)
+	 * - `"getById"` → Fetch a single resource by ID
+	 * - `"put"`     → Replace a resource
+	 * - `"patch"`   → Partially update a resource
+	 * - `"delete"`  → Delete a resource
+	 *
+	 * Typical use cases:
+	 * - Restricting access to resources owned by the authenticated user
+	 * - Enforcing tenant scoping (multi-tenant apps)
+	 * - Applying soft-delete or visibility constraints
+	 * - Custom filters per operation type
+	 *
+	 * ⚠️ For POST requests, use {@link authorizeCreate} instead.
+	 *
+	 * @param c The request context.
+	 * @param triggeredBy The type of operation being executed.
+	 * @returns A MongoDB filter object to be merged into the query.
+	 */
+	prefilter?: (c: Context, triggeredBy: 'get' | 'getById' | 'put' | 'patch' | 'delete') => Promise<Filter<Entity>>;
+
+	/**
+	 * Determines whether the current request is authorized to create a new resource.
+	 *
+	 * **Important Context validated body (c.body) type contains _id, createdAt, deletedAt and updatedAt but are excluded on parse dont use it**.
+	 * We are working on remove it from the type.
+	 *
+	 * Typical use cases:
+	 * - Checking user roles or permissions
+	 * - Validating request body or headers beyond schema validation
+	 * - Enforcing business rules (e.g., max items per user)
+	 *
+	 * @param c The request context, including the raw request body.
+	 * @returns
+	 *  - `true` → Creation is allowed.
+	 *  - `string` → Creation is denied. The string will be used as an error message.
+	 */
+	authorizeCreate?: (c: Context<any, T>) => Promise<true | string>;
+};
+
+const createObjectIdFilter = (id: string) => {
+	try {
+		return { _id: new ObjectId(id) };
+	} catch (error) {
+		throw new UnprocessableEntity({
+			id: 'Invalid hex format',
+		});
+	}
+};
+
+const createFilters = async (
+	triggeredBy: 'get' | 'getById' | 'put' | 'patch' | 'delete',
+	options: Resource<any>,
+	c: Context,
+	prev?: object,
+): Promise<Filter<any>> => {
+	if (options.prefilter) {
+		const prefilters = await options.prefilter(c, triggeredBy);
+		return {
+			...(prev ?? {}),
+			...prefilters,
+		};
+	}
+
+	return prev ?? {};
+};
+
+export function createResourse<T extends ZodObject>(options: Resource<T>) {
+	if (!options.prefilter)
+		mongoLogger.warn(`Resource endpoints for collection '${options.collection}' is working without 'prefilter' rules`);
+	if (!options.authorizeCreate)
+		mongoLogger.warn(`Resource endpoints for collection '${options.collection}' is working without 'authorizeCreate' rule`);
+
+	const connectionName = options.connection ?? 'default';
+
+	const repository = useRepository(options.db, options.collection, options.schema, 'deletedAt', connectionName);
+
+	const resource = new App().prefix(options.prefix ?? options.collection);
+
+	if (options.use) options.use.forEach((middleware) => resource.use(middleware));
+
+	resource.tag(options.tag ?? options.collection);
+
+	const patchBodySchema = options.schema.omit({ _id: true }).partial();
+	const postBodySchema = options.schema.omit({
+		_id: true,
+		deletedAt: true,
+		updatedAt: true,
+		createdAt: true,
+	});
+	// same at post for now
+	const putBodySchema = options.schema.omit({
+		_id: true,
+		deletedAt: true,
+		updatedAt: true,
+		createdAt: true,
+	});
+
+	/**
+	 * [GET] /{prefix} Get paginated collection document, optionally filtered by simple query filters (asserts only equals)
+	 */
+	resource.get(
+		'/',
+		async (c) => {
+			// filters type is {} but is Record<string, ZodType> | undefined
+			const { page, pageSize, withTrash, ...filters } = c.query;
+
+			const finalFilters = await createFilters('get', options, c, filters);
+
+			return await repository.getPaginated(finalFilters, page, pageSize, withTrash === 'yes');
+		},
+		{
+			query: createPaginationQuerySchema(options.schema),
+			responses: [spec.response(200, createPaginationSchema(options.schema)), spec.exception(400)],
+			summary: `Get a paginated list of ${options.collection} documents`,
+			description: `Retrieves a paginated collection of documents from **${options.db}.${options.collection}**.
+- Supports query filters (only equality conditions) based on schema fields.
+- Pagination handled via \`page\` and \`pageSize\`.
+- Can include trashed (soft-deleted) documents if \`withTrash=yes\`.
+- Automatically merges \`prefilter\` rules if defined (e.g., tenant scope, user-based filtering).`,
+		},
+	);
+
+	/**
+	 * [GET] /{prefix}/:id Finds a document by ObjectId
+	 */
+	resource.get(
+		'/:id',
+		async (c) => {
+			const filters = await createFilters('getById', options, c, createObjectIdFilter(c.params.id));
+
+			const document = await repository.findOne(filters);
+			if (!document) throw new NotFound();
+
+			return document;
+		},
+		{
+			responses: [spec.response(200, options.schema), spec.response(404, z.object({ status: z.number() }))],
+			summary: `Find a ${options.collection} document by ID`,
+			description: `Fetches a single document from **${options.db}.${options.collection}** by its MongoDB ObjectId.
+- Applies \`prefilter\` rules if provided (e.g., tenant enforcement).
+- Returns **404 Not Found** if the document does not exist or does not satisfy filters.`,
+		},
+	);
+
+	/**
+	 * [POST] /{prefix} Validates and creates a document
+	 */
+	resource.post(
+		'/',
+		async (c) => {
+			if (options.authorizeCreate) {
+				const canOrMessage = await options.authorizeCreate(c as any);
+				if (canOrMessage !== true) throw new Unauthorized(canOrMessage);
+			}
+			c.setStatus(201);
+			return await repository.create(c.rawBody as any);
+		},
+		{
+			type: 'application/json',
+			disableValidation: true, // The validation is performed by Repository
+			body: postBodySchema,
+			responses: [spec.response(201, options.schema), spec.invalid(postBodySchema)],
+			summary: `Create a new ${options.collection} document`,
+			description: `Creates a new document in **${options.db}.${options.collection}** after validating the request payload against the schema.
+- Excludes system fields (\`_id\`, \`createdAt\`, \`updatedAt\`, \`deletedAt\`) from the request body.
+- Runs \`authorizeCreate\` hook (if defined) to enforce authorization rules before insertion.
+- Returns **201 Created** with the inserted document.
+- If validation fails, responds with detailed schema validation errors.`,
+		},
+	);
+
+	/**
+	 * [PUT] /{prefix}/:id Replace the entire document
+	 * Similar to patch, but the entire valid resource will be required to the replacement
+	 */
+	resource.put(
+		'/:id',
+		async (c) => {
+			const filters = await createFilters('put', options, c, createObjectIdFilter(c.params.id));
+
+			c.body.updatedAt = new Date();
+			const updated = await repository.updateOne(filters, c.rawBody as any);
+
+			if (!updated) throw new NotFound();
+			return updated;
+		},
+		{
+			type: 'application/json',
+			disableValidation: true, // The validation is performed by Repository
+			body: putBodySchema,
+			responses: [spec.response(200, options.schema), spec.invalid(putBodySchema)],
+			summary: `Replace a ${options.collection} document by ID`,
+			description: `Fully replaces a document in **${options.db}.${options.collection}** with the provided request body.
+- Requires all fields defined in the schema (except system fields).
+- Automatically updates the \`updatedAt\` timestamp.
+- Applies \`prefilter\` rules if provided.
+- Responds with the replaced document or **404 Not Found** if no match is found.`,
+		},
+	);
+
+	/**
+	 * [PATCH] /{prefix}/:id Partial update of a document by his ObjectId
+	 */
+	resource.patch(
+		'/:id',
+		async (c) => {
+			const filters = await createFilters('patch', options, c, createObjectIdFilter(c.params.id));
+
+			if (Object.keys(c.rawBody).length === 0) throw new UnprocessableEntity('At least one field should be updated');
+
+			c.rawBody.updatedAt = new Date();
+			const updated = await repository.updateOne(filters, c.rawBody as any);
+
+			if (!updated) throw new NotFound();
+			return updated;
+		},
+		{
+			type: 'application/json',
+			disableValidation: true, // The validation is performed by Repository
+			body: patchBodySchema,
+			responses: [spec.invalid(patchBodySchema)],
+			summary: `Partially update a ${options.collection} document by ID`,
+			description: `Applies a partial update to an existing document in **${options.db}.${options.collection}**.
+- At least one field must be provided; empty bodies are rejected.
+- Automatically updates the \`updatedAt\` timestamp.
+- Applies \`prefilter\` rules if provided.
+- Responds with the updated document or **404 Not Found** if no match is found.`,
+		},
+	);
+
+	/**
+	 * [DELETE] /{prefix}/:id Deletes a document by ObjectID - if softDeletes enabled (recommended) will update his updateAt field
+	 */
+	resource.delete(
+		'/:id',
+		async (c) => {
+			const filters = await createFilters('delete', options, c, createObjectIdFilter(c.params.id));
+
+			const deleted = await repository.deleteOne(filters);
+			return { success: deleted };
+		},
+		{
+			responses: [spec.response(200, z.object({ success: z.boolean() }))],
+			summary: `Delete a ${options.collection} document by ID`,
+			description: `Deletes a document from **${options.db}.${options.collection}** by its MongoDB ObjectId.
+- If soft-delete is enabled (\`deletedAt\` field), sets the \`deletedAt\` timestamp instead of permanently removing the document.
+- Applies \`prefilter\` rules if provided.
+- Returns an object with \`success: true/false\` depending on the outcome.`,
+		},
+	);
+
+	return resource;
+}

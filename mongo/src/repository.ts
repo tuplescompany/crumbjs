@@ -1,6 +1,8 @@
 import type { ZodObject, infer as ZodInfer, input as ZodInput } from 'zod';
 import { Collection, Db, type Filter, ObjectId } from 'mongodb';
 import type { PaginationResult } from './types';
+import { mongoLogger } from './manager';
+import { Exception, validate } from '@crumbjs/core';
 
 /**
  * Generic MongoDB Repository with Zod validation and optional soft deletes.
@@ -34,10 +36,53 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 		this.collection = this.db.collection<ZodInfer<S>>(this.collectionName);
 	}
 
-	private parseFilters(filters: Filter<Entity>, withTrash: boolean): any {
-		return this.softDeletes && withTrash === false ? { ...filters, [this.softDeletes]: { $exists: false } } : filters; /** NOSONAR */
+	/**
+	 * helper ->
+	 * @param id
+	 * @returns
+	 */
+	protected parseObjectId(id: string) {
+		try {
+			return new ObjectId(id);
+		} catch (error) {
+			throw new Exception(`Invalid value for ${this.collectionName}._id`, 400);
+		}
 	}
 
+	/**
+	 * helper -> Return an schema only with not-undefined data keys
+	 */
+	protected parsePartial(data: EntityPartial) {
+		const picks: any = {};
+		for (const key in data) {
+			if (data[key] !== undefined) {
+				picks[key] = true;
+			}
+		}
+		const sch = this.schema.omit({ _id: true }).pick(picks);
+
+		return validate(sch, data);
+	}
+
+	/**
+	 * helper ->
+	 * @param filters
+	 * @param withTrash
+	 * @returns
+	 */
+	protected parseFilters(filters: Filter<Entity>, withTrash: boolean): any {
+		if (!this.softDeletes || withTrash) return filters; // unmodified
+
+		return {
+			$or: [{ [this.softDeletes]: { $exists: false } }, { [this.softDeletes]: null }],
+			...filters,
+		};
+	}
+
+	/**
+	 * Start a MongoClient raw query
+	 * @returns
+	 */
 	find() {
 		return this.collection.find();
 	}
@@ -71,6 +116,10 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 		const currentPage = Math.min(Math.max(page, 1), pages);
 		const skip = (currentPage - 1) * size;
 
+		mongoLogger.debug(
+			`Getting paginated ${this.collectionName} documents, filters: ${JSON.stringify(query)}, limit: ${size}, skip ${skip}`,
+		);
+
 		const data = await this.collection.find(query).skip(skip).limit(size).toArray();
 
 		return {
@@ -80,6 +129,7 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 			currentPage,
 			prevPage: currentPage > 1 ? currentPage - 1 : null,
 			nextPage: currentPage < pages ? currentPage + 1 : null,
+			filters: query,
 			data: data as Entity[],
 		} as PaginationResult<Entity>;
 	}
@@ -93,6 +143,8 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 */
 	get(filters: Filter<Entity> = {}, withTrash: boolean = false): Promise<Entity[]> {
 		const query = this.parseFilters(filters, withTrash);
+
+		mongoLogger.debug(`Getting  ${this.collectionName} documents, filters: ${JSON.stringify(query)}`);
 		return this.collection.find(query).toArray() as Promise<Entity[]>;
 	}
 
@@ -104,7 +156,7 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 * @returns The entity, or `null` if not found.
 	 */
 	async findById(id: string, withTrash: boolean = false) {
-		return this.findOneBy({ _id: new ObjectId(id) } as any, withTrash);
+		return this.findOne({ _id: this.parseObjectId(id) } as any, withTrash);
 	}
 
 	/**
@@ -114,8 +166,9 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 * @param withTrash - Whether to include soft-deleted documents.
 	 * @returns The entity, or `null` if not found.
 	 */
-	async findOneBy(filters: Filter<Entity>, withTrash: boolean = false): Promise<Entity | null> {
+	async findOne(filters: Filter<Entity>, withTrash: boolean = false): Promise<Entity | null> {
 		const query = this.parseFilters(filters, withTrash);
+		mongoLogger.debug(`Finding on ${this.collectionName}, filters: ${JSON.stringify(query)}`);
 		const res = await this.collection.findOne(query);
 		return res as Entity | null;
 	}
@@ -127,30 +180,37 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 * @returns The created entity with `_id`.
 	 * @throws If insertion fails or schema validation fails.
 	 */
-	async create(data: EntityInput): Promise<Entity> {
-		const createData = this.schema.omit({ _id: true }).parse(data);
+	async create(data: Omit<EntityInput, '_id'>): Promise<Entity> {
+		const createData = validate(this.schema.omit({ _id: true }), data);
 		createData._id = new ObjectId();
+
+		mongoLogger.debug(`Creating document on ${this.collectionName}, data: ${JSON.stringify(createData)}`);
 
 		const result = await this.collection.insertOne(createData as any);
 
 		if (!result.acknowledged || !result.insertedId)
-			throw new Error(`Failed to create a document on collection ${this.collectionName}`, {
-				cause: 'acknowledged or insertedId not found in MongoClient response',
-			});
+			throw new Exception(
+				'Failed to create a document on collection ${this.collectionName}, acknowledged or insertedId not found in MongoClient response.',
+				503,
+			);
 
 		return { _id: result.insertedId, ...createData } as Entity;
 	}
 
 	/**
-	 * Updates a document matching the given filters.
+	 * key-method -> Updates a document matching the given filters.
 	 *
 	 * @param filters - MongoDB filter query.
 	 * @param data - Partial entity data (validated via schema).
 	 * @returns The updated entity, or `null` if not found.
 	 */
-	async update(filters: Filter<Entity>, data: EntityPartial): Promise<Entity | null> {
-		const updateData = this.schema.partial().omit({ _id: true }).parse(data);
+	async updateOne(filters: Filter<Entity>, data: EntityPartial): Promise<Entity | null> {
+		const updateData = this.parsePartial(data);
 		const set = { $set: updateData } as any;
+
+		mongoLogger.debug(
+			`Updating one document on ${this.collectionName}, filters: ${JSON.stringify(filters)} data: ${JSON.stringify(updateData)}`,
+		);
 
 		const updated = await this.collection.findOneAndUpdate(filters as any, set, { returnDocument: 'after' });
 
@@ -158,38 +218,47 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	}
 
 	/**
-	 * Updates a document by its MongoDB ObjectId.
+	 * shortcut -> Updates a document by its MongoDB ObjectId.
 	 *
 	 * @param id - Document ObjectId as string.
 	 * @param data - Partial entity data.
 	 * @returns The updated entity, or `null` if not found.
 	 */
 	updateById(id: string, data: EntityPartial) {
-		return this.update({ _id: new ObjectId(id) } as any, data);
+		return this.updateOne({ _id: this.parseObjectId(id) } as any, data);
 	}
 
 	/**
-	 * Deletes a document by its MongoDB ObjectId.
-	 * - If `softDeletes` is enabled, sets the delete field instead of removing.
-	 * - Otherwise, performs a hard delete.
-	 *
-	 * @param id - Document ObjectId as string.
-	 * @returns `true` if deletion (or soft deletion) was successful, `false` otherwise.
-	 * @throws If soft delete is enabled but no matching document is found.
+	 * key-method ->
+	 * @param filters
+	 * @returns
 	 */
-	async deleteById(id: string): Promise<boolean> {
+	async deleteOne(filters: Filter<Entity>): Promise<boolean> {
+		const softDeleteText = this.softDeletes ? 'Soft' : 'Hard';
+		mongoLogger.debug(`${softDeleteText} deleting document from ${this.collectionName} collection, filters: ${JSON.stringify(filters)}`);
+
 		if (this.softDeletes) {
-			const res = await this.updateById(id, { [this.softDeletes]: new Date() } as any);
+			const res = await this.updateOne(filters, { [this.softDeletes]: new Date() } as any);
 			if (!res) {
-				throw new Error(`Deletion could not be completed`, {
-					cause: `Soft deletes are enabled, but no matching document was found during the update operation.`,
-				});
+				throw new Exception(
+					'Deletion could not be completed, soft deletes are enabled, but no matching document was found during the update operation.',
+					503,
+				);
 			}
 
 			return true;
 		}
 
-		const res = await this.collection.deleteOne({ _id: new ObjectId(id) } as any);
+		const res = await this.collection.deleteOne(filters as any);
 		return res.deletedCount > 0;
+	}
+
+	/**
+	 * shortcut
+	 * @param id
+	 * @returns
+	 */
+	deleteById(id: string): Promise<boolean> {
+		return this.deleteOne({ _id: this.parseObjectId(id) } as any);
 	}
 }

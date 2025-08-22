@@ -5,7 +5,6 @@
 [![Under Development](https://img.shields.io/badge/under%20development-red.svg)](https://github.com/tuplescompany/crumbjs)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Bun](https://img.shields.io/badge/Bun-1.2.20-black?logo=bun)](https://bun.sh)
-[![Version](https://img.shields.io/badge/version-0.4.4-green.svg)](https://www.npmjs.com/package/@crumbjs/core)
 
 - We are working on a dedicated documentation page
 
@@ -26,6 +25,11 @@ The core system has only about 3,700 lines of code and just two dependencies (zo
 - cors
 - signals (log incomming request)
 - secureHeaders (ported from Hono)
+
+## Official Plugins
+
+- [@crumbjs/bullmq](https://www.npmjs.com/package/@crumbjs/bullmq) -> Bullmq worker aside CrumbJS server. For simple redis queue system
+- [@crumbjs/mongo](https://www.npmjs.com/package/@crumbjs/mongo) -> Mongo connection handler, **AUTO-CRUD!** and simple repository provider based on zod
 
 ## Installation
 
