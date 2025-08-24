@@ -5,27 +5,26 @@ import { mongoLogger } from './manager';
 import { Exception, validate } from '@crumbjs/core';
 
 /**
- * Generic MongoDB Repository with Zod validation and optional soft deletes.
+ * Generic MongoDB repository with Zod validation and optional soft deletes.
  *
- * Provides a strongly-typed interface for common CRUD operations, pagination,
- * and query handling. The repository validates input using a Zod schema,
- * ensuring consistent data shape and safety at runtime.
+ * Strongly-typed CRUD, pagination, and filter handling. Inputs are validated
+ * via the provided Zod schema for runtime safety.
  *
- * @typeParam S - Zod schema for the collection's documents.
- * @typeParam Entity - Inferred entity type from schema.
- * @typeParam EntityInput - Input type accepted when creating documents.
- * @typeParam EntityPartial - Partial update type for documents.
+ * @typeParam S - Zod schema for collection documents.
+ * @typeParam Entity - Inferred entity type from the schema.
+ * @typeParam EntityInput - Input type when creating documents (Zod input).
+ * @typeParam EntityPartial - Partial update type for PATCH-like operations.
  */
 export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput = ZodInput<S>, EntityPartial = Partial<Entity>> {
 	protected collection: Collection<ZodInfer<S>>;
 
 	/**
-	 * Creates a new repository bound to a specific database and collection.
+	 * Binds the repository to a database, collection, and schema.
 	 *
 	 * @param db - MongoDB database instance.
-	 * @param collectionName - Collection name.
-	 * @param schema - Zod schema for validation.
-	 * @param softDeletes - Field name used for soft deletes, or `false` to disable.
+	 * @param collectionName - Target collection name.
+	 * @param schema - Zod schema used for validation.
+	 * @param softDeletes - Field name for soft deletes, or `false` to disable (default: `"deletedAt"`).
 	 */
 	constructor(
 		private readonly db: Db,
@@ -37,20 +36,26 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	}
 
 	/**
-	 * helper ->
-	 * @param id
-	 * @returns
+	 * Parses a string into a MongoDB ObjectId.
+	 *
+	 * @param id - String representation of ObjectId.
+	 * @returns Parsed ObjectId.
+	 * @throws {Exception} If the value is not a valid ObjectId.
 	 */
 	protected parseObjectId(id: string) {
 		try {
 			return new ObjectId(id);
-		} catch (error) {
+		} catch {
 			throw new Exception(`Invalid value for ${this.collectionName}._id`, 400);
 		}
 	}
 
 	/**
-	 * helper -> Return an schema only with not-undefined data keys
+	 * Validates a partial payload against the schema (ignores `undefined` keys).
+	 * Useful for PATCH-like updates. `_id` is always omitted from validation.
+	 *
+	 * @param data - Partial entity data.
+	 * @returns Parsed/validated data with only defined keys.
 	 */
 	protected parsePartial(data: EntityPartial) {
 		const picks: any = {};
@@ -60,18 +65,18 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 			}
 		}
 		const sch = this.schema.omit({ _id: true }).pick(picks);
-
 		return validate(sch, data);
 	}
 
 	/**
-	 * helper ->
-	 * @param filters
-	 * @param withTrash
-	 * @returns
+	 * Applies soft-delete filtering unless `withTrash` is true.
+	 *
+	 * @param filters - Base MongoDB filter.
+	 * @param withTrash - Include soft-deleted documents if true.
+	 * @returns Effective filter used against the collection.
 	 */
 	protected parseFilters(filters: Filter<Entity>, withTrash: boolean): any {
-		if (!this.softDeletes || withTrash) return filters; // unmodified
+		if (!this.softDeletes || withTrash) return filters;
 
 		return {
 			$or: [{ [this.softDeletes]: { $exists: false } }, { [this.softDeletes]: null }],
@@ -80,19 +85,19 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	}
 
 	/**
-	 * Start a MongoClient raw query
-	 * @returns
+	 * Starts a raw `find()` query on the collection.
+	 * Use this when you need full MongoDB cursor control.
 	 */
 	find() {
 		return this.collection.find();
 	}
 
 	/**
-	 * Counts the number of documents matching the given filters.
+	 * Counts documents matching the filters (honors soft deletes by default).
 	 *
 	 * @param filters - MongoDB filter query.
-	 * @param withTrash - Whether to include soft-deleted documents.
-	 * @returns Number of matching documents.
+	 * @param withTrash - Include soft-deleted documents if true.
+	 * @returns Promise with the total count.
 	 */
 	count(filters: Filter<Entity> = {}, withTrash: boolean = false) {
 		const query = this.parseFilters(filters, withTrash);
@@ -103,10 +108,10 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 * Retrieves a paginated list of documents.
 	 *
 	 * @param filters - MongoDB filter query.
-	 * @param page - Page number (1-based).
+	 * @param page - 1-based page number (default: 1).
 	 * @param size - Page size (default: 10).
-	 * @param withTrash - Whether to include soft-deleted documents.
-	 * @returns A {@link PaginationResult} with metadata and document array.
+	 * @param withTrash - Include soft-deleted documents if true.
+	 * @returns Pagination metadata and items as {@link PaginationResult}.
 	 */
 	async getPaginated(filters: Filter<Entity> = {}, page: number = 1, size: number = 10, withTrash: boolean = false) {
 		const query = this.parseFilters(filters, withTrash);
@@ -135,11 +140,11 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	}
 
 	/**
-	 * Retrieves all documents matching the given filters.
+	 * Retrieves all documents matching the filters (honors soft deletes by default).
 	 *
 	 * @param filters - MongoDB filter query.
-	 * @param withTrash - Whether to include soft-deleted documents.
-	 * @returns Array of entities.
+	 * @param withTrash - Include soft-deleted documents if true.
+	 * @returns Promise with the list of entities.
 	 */
 	get(filters: Filter<Entity> = {}, withTrash: boolean = false): Promise<Entity[]> {
 		const query = this.parseFilters(filters, withTrash);
@@ -149,11 +154,11 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	}
 
 	/**
-	 * Finds a single document by its MongoDB ObjectId.
+	 * Finds a single document by its ObjectId value.
 	 *
 	 * @param id - Document ObjectId as string.
-	 * @param withTrash - Whether to include soft-deleted documents.
-	 * @returns The entity, or `null` if not found.
+	 * @param withTrash - Include soft-deleted documents if true.
+	 * @returns Promise with the entity or `null` if not found.
 	 */
 	async findById(id: string, withTrash: boolean = false) {
 		return this.findOne({ _id: this.parseObjectId(id) } as any, withTrash);
@@ -163,8 +168,8 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 * Finds a single document by custom filters.
 	 *
 	 * @param filters - MongoDB filter query.
-	 * @param withTrash - Whether to include soft-deleted documents.
-	 * @returns The entity, or `null` if not found.
+	 * @param withTrash - Include soft-deleted documents if true.
+	 * @returns Promise with the entity or `null` if not found.
 	 */
 	async findOne(filters: Filter<Entity>, withTrash: boolean = false): Promise<Entity | null> {
 		const query = this.parseFilters(filters, withTrash);
@@ -174,15 +179,16 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	}
 
 	/**
-	 * Creates a new document after validating against the Zod schema.
+	 * Creates a new document (optionally validated with Zod).
 	 *
-	 * @param data - Data to insert (validated via schema).
-	 * @returns The created entity with `_id`.
-	 * @throws If insertion fails or schema validation fails.
+	 * @param data - Document payload (validated against `schema` unless `parse=false`).
+	 * @param parse - Enable input validation (default: true). ⚠️ Disable only if you understand the risks.
+	 * @returns Promise with the created entity (including `_id`).
+	 * @throws {Exception} If the insert fails or validation fails.
 	 */
-	async create(data: Omit<EntityInput, '_id'>): Promise<Entity> {
-		const createData = validate(this.schema.omit({ _id: true }), data);
-		createData._id = new ObjectId();
+	async create(data: Omit<EntityInput, '_id'>, parse: boolean = true): Promise<Entity> {
+		const createData = parse ? validate(this.schema.omit({ _id: true }), data) : data;
+		(createData as any)._id = new ObjectId();
 
 		mongoLogger.debug(`Creating document on ${this.collectionName}, data: ${JSON.stringify(createData)}`);
 
@@ -194,18 +200,19 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 				503,
 			);
 
-		return { _id: result.insertedId, ...createData } as Entity;
+		return { _id: result.insertedId, ...(createData as any) } as Entity;
 	}
 
 	/**
-	 * key-method -> Updates a document matching the given filters.
+	 * Updates a single document matching the filters (PATCH-like).
 	 *
 	 * @param filters - MongoDB filter query.
-	 * @param data - Partial entity data (validated via schema).
-	 * @returns The updated entity, or `null` if not found.
+	 * @param data - Partial payload. Only defined keys are validated/set.
+	 * @param parse - Enable input validation (default: true). ⚠️ Disable only if you understand the risks.
+	 * @returns Promise with the updated entity, or `null` if not found.
 	 */
-	async updateOne(filters: Filter<Entity>, data: EntityPartial): Promise<Entity | null> {
-		const updateData = this.parsePartial(data);
+	async updateOne(filters: Filter<Entity>, data: EntityPartial, parse: boolean = true): Promise<Entity | null> {
+		const updateData = parse ? this.parsePartial(data) : data;
 		const set = { $set: updateData } as any;
 
 		mongoLogger.debug(
@@ -218,20 +225,23 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	}
 
 	/**
-	 * shortcut -> Updates a document by its MongoDB ObjectId.
+	 * Convenience wrapper around {@link updateOne} using an ObjectId.
 	 *
 	 * @param id - Document ObjectId as string.
-	 * @param data - Partial entity data.
-	 * @returns The updated entity, or `null` if not found.
+	 * @param data - Partial payload.
+	 * @param parse - Enable input validation (default: true).
+	 * @returns Promise with the updated entity, or `null` if not found.
 	 */
-	updateById(id: string, data: EntityPartial) {
-		return this.updateOne({ _id: this.parseObjectId(id) } as any, data);
+	updateById(id: string, data: EntityPartial, parse: boolean = true) {
+		return this.updateOne({ _id: this.parseObjectId(id) } as any, data, parse);
 	}
 
 	/**
-	 * key-method ->
-	 * @param filters
-	 * @returns
+	 * Deletes a single document. Performs a soft delete if configured, otherwise hard delete.
+	 *
+	 * @param filters - MongoDB filter query.
+	 * @returns Promise resolving to `true` if a document was deleted/soft-deleted, otherwise `false`.
+	 * @throws {Exception} If soft delete is enabled but no document matches.
 	 */
 	async deleteOne(filters: Filter<Entity>): Promise<boolean> {
 		const softDeleteText = this.softDeletes ? 'Soft' : 'Hard';
@@ -254,9 +264,10 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	}
 
 	/**
-	 * shortcut
-	 * @param id
-	 * @returns
+	 * Convenience wrapper around {@link deleteOne} using an ObjectId.
+	 *
+	 * @param id - Document ObjectId as string.
+	 * @returns Promise resolving to `true` if a document was deleted, otherwise `false`.
 	 */
 	deleteById(id: string): Promise<boolean> {
 		return this.deleteOne({ _id: this.parseObjectId(id) } as any);
