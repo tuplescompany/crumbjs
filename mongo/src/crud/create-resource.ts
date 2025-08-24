@@ -232,7 +232,7 @@ export function createResource<T extends ZodObject>(options: Resource<T>) {
 				if (options.beforeCreate) await options.beforeCreate(c as any, c.body as any);
 
 				c.setStatus(201);
-				const created = await repository.create(c.body as any);
+				const created = await repository.create(c.rawBody as any); // Important: c.body may have transformation, allways send rawBody to repository
 
 				if (options.afterCreate) await options.afterCreate(created);
 
@@ -273,7 +273,7 @@ export function createResource<T extends ZodObject>(options: Resource<T>) {
 				}
 
 				c.body.updatedAt = new Date();
-				const updated = await repository.updateOne(filters, c.body as any);
+				const updated = await repository.updateOne(filters, c.rawBody as any); // Important: c.body may have transformation, allways send rawBody to repository
 
 				if (!updated) throw new NotFound();
 
@@ -317,7 +317,7 @@ export function createResource<T extends ZodObject>(options: Resource<T>) {
 				}
 
 				c.body.updatedAt = new Date();
-				const updated = await repository.updateOne(filters, c.body as any);
+				const updated = await repository.updateOne(filters, c.rawBody as any); // Important: c.body may have transformation, allways send rawBody to repository
 
 				if (!updated) throw new NotFound();
 

@@ -199,7 +199,7 @@ function jsonSchemaToOpenApi(src: JSONSchema.BaseSchema): SchemaObject {
  * - `required`: whether the field is required (not optional/defaulted)
  * - `metadata`: description & example metadata
  */
-export function extractFields<T extends ZodRawShape>(obj: ZodObject<T>): FieldInfo[] {
+export function extractFields(obj: ZodObject): FieldInfo[] {
 	return Object.entries(obj.shape).map(([key, raw]) => {
 		const schema = raw as ZodType;
 		return {
