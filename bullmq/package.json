@@ -1,7 +1,7 @@
 {
 	"name": "@crumbjs/bullmq",
 	"type": "module",
-	"version": "0.2.7",
+	"version": "0.2.8",
 	"keywords": [
 		"crumbjs",
 		"bullmq",
@@ -14,6 +14,11 @@
 		"typescript",
 		"bun"
 	],
+	"author": "tuples-hr",
+	"homepage": "https://crumbjs-site.pages.dev",
+	"bugs": {
+		"url": "https://github.com/tuplescompany/crumbjs/issues"
+	},
 	"publishConfig": {
 		"access": "public"
 	},

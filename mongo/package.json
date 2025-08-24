@@ -1,6 +1,6 @@
 {
 	"name": "@crumbjs/mongo",
-	"version": "1.0.7",
+	"version": "1.0.8",
 	"keywords": [
 		"crumbjs",
 		"mongo",
@@ -19,6 +19,11 @@
 		"pagination",
 		"soft-delete"
 	],
+	"author": "tuples-hr",
+	"homepage": "https://crumbjs-site.pages.dev",
+	"bugs": {
+		"url": "https://github.com/tuplescompany/crumbjs/issues"
+	},
 	"publishConfig": {
 		"access": "public"
 	},
