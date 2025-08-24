@@ -1,0 +1,980 @@
+{
+    "tables": [
+        {
+            "name": "__drizzle_migrations",
+            "schemaName": "drizzle",
+            "note": {
+                "value": ""
+            }
+        },
+        {
+            "name": "employees",
+            "schemaName": "public",
+            "note": {
+                "value": ""
+            }
+        },
+        {
+            "name": "tenants",
+            "schemaName": "public",
+            "note": {
+                "value": ""
+            }
+        },
+        {
+            "name": "tenants_users",
+            "schemaName": "public",
+            "note": {
+                "value": ""
+            }
+        },
+        {
+            "name": "user_devices",
+            "schemaName": "public",
+            "note": {
+                "value": ""
+            }
+        },
+        {
+            "name": "users",
+            "schemaName": "public",
+            "note": {
+                "value": ""
+            }
+        },
+        {
+            "name": "examples",
+            "schemaName": "public",
+            "note": {
+                "value": ""
+            }
+        }
+    ],
+    "fields": {
+        "drizzle.__drizzle_migrations": [
+            {
+                "name": "id",
+                "type": {
+                    "type_name": "int4",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": true,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "hash",
+                "type": {
+                    "type_name": "text",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "created_at",
+                "type": {
+                    "type_name": "int8",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            }
+        ],
+        "public.employees": [
+            {
+                "name": "id",
+                "type": {
+                    "type_name": "uuid",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "expression",
+                    "value": "gen_random_uuid()"
+                },
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "name",
+                "type": {
+                    "type_name": "varchar(255)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "email",
+                "type": {
+                    "type_name": "varchar(255)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "phone",
+                "type": {
+                    "type_name": "varchar(255)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "created_at",
+                "type": {
+                    "type_name": "timestamptz",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "expression",
+                    "value": "now()"
+                },
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            }
+        ],
+        "public.tenants": [
+            {
+                "name": "id",
+                "type": {
+                    "type_name": "uuid",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "expression",
+                    "value": "gen_random_uuid()"
+                },
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "name",
+                "type": {
+                    "type_name": "varchar(255)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "domain",
+                "type": {
+                    "type_name": "varchar(255)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "billing_country",
+                "type": {
+                    "type_name": "varchar(100)",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "string",
+                    "value": "ARGENTINA"
+                },
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "billing_name",
+                "type": {
+                    "type_name": "varchar(255)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "billing_document_type",
+                "type": {
+                    "type_name": "varchar(80)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "billing_document_number",
+                "type": {
+                    "type_name": "varchar(80)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "billing_address",
+                "type": {
+                    "type_name": "text",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "contact_name",
+                "type": {
+                    "type_name": "varchar(255)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "contact_email",
+                "type": {
+                    "type_name": "varchar(150)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "contact_phone",
+                "type": {
+                    "type_name": "varchar(80)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "sso_provider",
+                "type": {
+                    "type_name": "sso_provider_enum",
+                    "schemaName": "public"
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "sso_domains",
+                "type": {
+                    "type_name": "json",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "plan",
+                "type": {
+                    "type_name": "varchar(30)",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "string",
+                    "value": "FREE"
+                },
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "status",
+                "type": {
+                    "type_name": "tenant_status",
+                    "schemaName": "public"
+                },
+                "dbdefault": {
+                    "type": "string",
+                    "value": "created"
+                },
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "primary_color",
+                "type": {
+                    "type_name": "varchar(20)",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "string",
+                    "value": "#8d58dd"
+                },
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "secondary_color",
+                "type": {
+                    "type_name": "varchar(20)",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "string",
+                    "value": "#3e609b"
+                },
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "background_url",
+                "type": {
+                    "type_name": "varchar(500)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "logo_url",
+                "type": {
+                    "type_name": "varchar(500)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "created_at",
+                "type": {
+                    "type_name": "timestamptz",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "expression",
+                    "value": "now()"
+                },
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "updated_at",
+                "type": {
+                    "type_name": "timestamptz",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            }
+        ],
+        "public.tenants_users": [
+            {
+                "name": "id",
+                "type": {
+                    "type_name": "uuid",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "expression",
+                    "value": "gen_random_uuid()"
+                },
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "tenant_id",
+                "type": {
+                    "type_name": "uuid",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "user_id",
+                "type": {
+                    "type_name": "uuid",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "roles",
+                "type": {
+                    "type_name": "json",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "created_at",
+                "type": {
+                    "type_name": "timestamptz",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "expression",
+                    "value": "now()"
+                },
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "updated_at",
+                "type": {
+                    "type_name": "timestamptz",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            }
+        ],
+        "public.user_devices": [
+            {
+                "name": "id",
+                "type": {
+                    "type_name": "uuid",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "expression",
+                    "value": "gen_random_uuid()"
+                },
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "ip",
+                "type": {
+                    "type_name": "varchar(50)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "agent",
+                "type": {
+                    "type_name": "text",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            }
+        ],
+        "public.users": [
+            {
+                "name": "id",
+                "type": {
+                    "type_name": "uuid",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "expression",
+                    "value": "gen_random_uuid()"
+                },
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "email",
+                "type": {
+                    "type_name": "varchar(255)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "password_hash",
+                "type": {
+                    "type_name": "varchar(255)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "email_verified",
+                "type": {
+                    "type_name": "bool",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "boolean",
+                    "value": "false"
+                },
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "ban",
+                "type": {
+                    "type_name": "bool",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "boolean",
+                    "value": "false"
+                },
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "ban_reason",
+                "type": {
+                    "type_name": "varchar(500)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "fail_attempts",
+                "type": {
+                    "type_name": "int4",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "number",
+                    "value": "0"
+                },
+                "not_null": true,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "sso_data",
+                "type": {
+                    "type_name": "jsonb",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "created_by",
+                "type": {
+                    "type_name": "uuid",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "last_login_at",
+                "type": {
+                    "type_name": "timestamptz",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "created_at",
+                "type": {
+                    "type_name": "timestamptz",
+                    "schemaName": null
+                },
+                "dbdefault": {
+                    "type": "expression",
+                    "value": "now()"
+                },
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "updated_at",
+                "type": {
+                    "type_name": "timestamptz",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "deleted_at",
+                "type": {
+                    "type_name": "timestamptz",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            }
+        ],
+        "public.examples": [
+            {
+                "name": "id",
+                "type": {
+                    "type_name": "int4",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": true,
+                "increment": true,
+                "note": {
+                    "value": ""
+                }
+            },
+            {
+                "name": "number",
+                "type": {
+                    "type_name": "numeric(14,4)",
+                    "schemaName": null
+                },
+                "dbdefault": null,
+                "not_null": false,
+                "increment": false,
+                "note": {
+                    "value": ""
+                }
+            }
+        ]
+    },
+    "refs": [
+        {
+            "name": "tenants_users_tenant_id_tenants_id_fk",
+            "endpoints": [
+                {
+                    "tableName": "tenants_users",
+                    "schemaName": "public",
+                    "fieldNames": [
+                        "tenant_id"
+                    ],
+                    "relation": "*"
+                },
+                {
+                    "tableName": "tenants",
+                    "schemaName": "public",
+                    "fieldNames": [
+                        "id"
+                    ],
+                    "relation": "1"
+                }
+            ],
+            "onDelete": null,
+            "onUpdate": null
+        },
+        {
+            "name": "tenants_users_user_id_users_id_fk",
+            "endpoints": [
+                {
+                    "tableName": "tenants_users",
+                    "schemaName": "public",
+                    "fieldNames": [
+                        "user_id"
+                    ],
+                    "relation": "*"
+                },
+                {
+                    "tableName": "users",
+                    "schemaName": "public",
+                    "fieldNames": [
+                        "id"
+                    ],
+                    "relation": "1"
+                }
+            ],
+            "onDelete": null,
+            "onUpdate": null
+        }
+    ],
+    "enums": [
+        {
+            "name": "sso_provider_enum",
+            "schemaName": "public",
+            "values": [
+                {
+                    "name": "google"
+                },
+                {
+                    "name": "microsoft"
+                }
+            ]
+        },
+        {
+            "name": "tenant_status",
+            "schemaName": "public",
+            "values": [
+                {
+                    "name": "created"
+                },
+                {
+                    "name": "active"
+                },
+                {
+                    "name": "suspended"
+                }
+            ]
+        },
+        {
+            "name": "token_kind_enum",
+            "schemaName": "public",
+            "values": [
+                {
+                    "name": "access"
+                },
+                {
+                    "name": "refresh"
+                },
+                {
+                    "name": "email_verification"
+                },
+                {
+                    "name": "password_reset"
+                }
+            ]
+        }
+    ],
+    "indexes": {
+        "public.tenants_users": [
+            {
+                "name": "uidx_tenant_user",
+                "type": "btree",
+                "columns": [
+                    {
+                        "type": "column",
+                        "value": "user_id"
+                    },
+                    {
+                        "type": "column",
+                        "value": "tenant_id"
+                    }
+                ]
+            },
+            {
+                "name": "idx_tenants_users_tenant_id",
+                "type": "btree",
+                "columns": [
+                    {
+                        "type": "column",
+                        "value": "tenant_id"
+                    }
+                ]
+            },
+            {
+                "name": "idx_tenants_users_user_id",
+                "type": "btree",
+                "columns": [
+                    {
+                        "type": "column",
+                        "value": "user_id"
+                    }
+                ]
+            }
+        ]
+    },
+    "tableConstraints": {
+        "drizzle.__drizzle_migrations": {
+            "id": {
+                "pk": true
+            }
+        },
+        "public.employees": {
+            "id": {
+                "pk": true
+            }
+        },
+        "public.tenants": {
+            "id": {
+                "pk": true
+            },
+            "domain": {
+                "unique": true
+            }
+        },
+        "public.tenants_users": {
+            "id": {
+                "pk": true
+            }
+        },
+        "public.user_devices": {
+            "id": {
+                "pk": true
+            }
+        },
+        "public.users": {
+            "id": {
+                "pk": true
+            },
+            "email": {
+                "unique": true
+            }
+        }
+    }
+}

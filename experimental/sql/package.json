@@ -1,0 +1,14 @@
+{
+  "name": "@crumbjs/sql",
+  "module": "src/index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@dbml/connector": "^3.13.9"
+  }
+}
