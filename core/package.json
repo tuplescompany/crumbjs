@@ -1,6 +1,6 @@
 {
 	"name": "@crumbjs/core",
-	"version": "0.7.6",
+	"version": "0.7.7",
 	"keywords": [
 		"crumbjs",
 		"api",
@@ -15,8 +15,7 @@
 		"swagger",
 		"type-safe",
 		"typescript",
-		"bun",
-		"dependency-injection"
+		"bun"
 	],
 	"publishConfig": {
 		"access": "public"
