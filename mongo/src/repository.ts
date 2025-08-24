@@ -272,4 +272,60 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	deleteById(id: string): Promise<boolean> {
 		return this.deleteOne({ _id: this.parseObjectId(id) } as any);
 	}
+
+	/**
+	 * Creates multiple documents (optionally validated with Zod).
+	 *
+	 * @param items - Array of payloads (validated against `schema` unless `parse=false`).
+	 * @param parse - Enable input validation (default: true). ⚠️ Disable only if you understand the risks.
+	 * @returns Promise with the created entities (each including `_id`).
+	 * @throws {Exception} If the insert fails or validation fails.
+	 */
+	async createMany(items: ReadonlyArray<Omit<EntityInput, '_id'>>, parse: boolean = true): Promise<Entity[]> {
+		if (!items.length) return [];
+
+		const payloads = items.map((it) => (parse ? validate(this.schema.omit({ _id: true }), it) : (it as any)));
+		const docs = payloads.map((p) => ({ ...(p as any), _id: new ObjectId() }));
+
+		mongoLogger.debug(`Creating ${docs.length} documents on ${this.collectionName}`);
+
+		const res = await this.collection.insertMany(docs as any[], { ordered: true });
+
+		if (!res.acknowledged)
+			throw new Exception(
+				`Failed to create documents on collection ${this.collectionName}, MongoClient did not acknowledge the operation.`,
+				503,
+			);
+
+		return docs as unknown as Entity[];
+	}
+
+	/**
+	 * Updates multiple documents matching the filters (PATCH-like).
+	 *
+	 * @param filters - MongoDB filter query.
+	 * @param data - Partial payload. Only defined keys are validated/set.
+	 * @param parse - Enable input validation (default: true). ⚠️ Disable only if you understand the risks.
+	 * @returns Promise with the update summary: matched and modified counts.
+	 */
+	async updateMany(
+		filters: Filter<Entity>,
+		data: EntityPartial,
+		parse: boolean = true,
+	): Promise<{ matchedCount: number; modifiedCount: number }> {
+		const updateData = parse ? this.parsePartial(data) : data;
+		const keys = Object.keys(updateData as any);
+		if (keys.length === 0) {
+			mongoLogger.debug(`updateMany on ${this.collectionName} received empty payload. Skipping.`);
+			return { matchedCount: 0, modifiedCount: 0 };
+		}
+
+		mongoLogger.debug(
+			`Updating many documents on ${this.collectionName}, filters: ${JSON.stringify(filters)}, keys: ${JSON.stringify(keys)}`,
+		);
+
+		const res = await this.collection.updateMany(filters as any, { $set: updateData as any });
+
+		return { matchedCount: res.matchedCount ?? 0, modifiedCount: res.modifiedCount ?? 0 };
+	}
 }
