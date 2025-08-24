@@ -1,6 +1,24 @@
 {
 	"name": "@crumbjs/mongo",
-	"version": "1.0.4",
+	"version": "1.0.7",
+	"keywords": [
+		"crumbjs",
+		"mongo",
+		"mongodb",
+		"auto-crud",
+		"crud",
+		"repository",
+		"repository-pattern",
+		"zod",
+		"schema-validation",
+		"openapi",
+		"swagger",
+		"typescript",
+		"bun",
+		"rest-api",
+		"pagination",
+		"soft-delete"
+	],
 	"publishConfig": {
 		"access": "public"
 	},

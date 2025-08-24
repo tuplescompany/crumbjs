@@ -1,6 +1,23 @@
 {
 	"name": "@crumbjs/core",
-	"version": "0.7.5",
+	"version": "0.7.6",
+	"keywords": [
+		"crumbjs",
+		"api",
+		"rest",
+		"http-server",
+		"router",
+		"middleware",
+		"validation",
+		"request-validation",
+		"zod",
+		"openapi",
+		"swagger",
+		"type-safe",
+		"typescript",
+		"bun",
+		"dependency-injection"
+	],
 	"publishConfig": {
 		"access": "public"
 	},

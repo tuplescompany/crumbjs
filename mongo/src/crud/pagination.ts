@@ -2,7 +2,12 @@ import z, { ZodBoolean, ZodDate, ZodNumber, ZodObject, ZodType } from 'zod';
 
 export const createPaginationQuerySchema = <T extends ZodObject>(schema: T) => {
 	const simpleFiltersShape = createSimpleFiltersShape(schema);
-	return paginateQuerySchema.extend(simpleFiltersShape);
+	return paginateQuerySchema
+		.extend({
+			sortField: createSimpleSortByShape(schema),
+			sortDirection: z.enum(['asc', 'desc']).optional(),
+		})
+		.extend(simpleFiltersShape);
 };
 
 export const paginateQuerySchema = z.object({
@@ -10,6 +15,12 @@ export const paginateQuerySchema = z.object({
 	pageSize: z.coerce.number().optional().default(10),
 	withTrash: z.enum(['yes', 'no']).optional(),
 });
+
+function createSimpleSortByShape<T extends ZodObject>(schema: T) {
+	const fields = Object.keys(createSimpleFiltersShape(schema));
+	fields.push('_id');
+	return z.enum(fields).optional();
+}
 
 /**
  * Converts a ZodObject to a flatten representations of it with subobject separated by prefix.

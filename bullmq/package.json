@@ -1,7 +1,19 @@
 {
 	"name": "@crumbjs/bullmq",
 	"type": "module",
-	"version": "0.2.6",
+	"version": "0.2.7",
+	"keywords": [
+		"crumbjs",
+		"bullmq",
+		"redis",
+		"queues",
+		"background-jobs",
+		"workers",
+		"task-queue",
+		"retry",
+		"typescript",
+		"bun"
+	],
 	"publishConfig": {
 		"access": "public"
 	},

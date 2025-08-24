@@ -179,11 +179,22 @@ export function createResource<T extends ZodObject>(options: Resource<T>) {
 		resource.get(
 			'/',
 			async (c) => {
-				const { page, pageSize, withTrash, ...filters } = c.query as any;
+				const { page, pageSize, withTrash, sortField, sortDirection, ...filters } = c.query as any;
 
 				const finalFilters = await createFilters('get', c, filters);
 
-				return await repository.getPaginated(finalFilters, page, pageSize, withTrash === 'yes');
+				const sortBy = sortField ?? '_id';
+				const sortWay = sortDirection ?? 'desc';
+
+				return await repository.getPaginated(
+					finalFilters,
+					{
+						[sortBy]: sortWay,
+					},
+					page,
+					pageSize,
+					withTrash === 'yes',
+				);
 			},
 			{
 				query: createPaginationQuerySchema(options.schema),

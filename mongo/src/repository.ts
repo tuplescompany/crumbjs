@@ -1,5 +1,5 @@
 import type { ZodObject, infer as ZodInfer, input as ZodInput } from 'zod';
-import { Collection, Db, type Filter, ObjectId } from 'mongodb';
+import { Collection, Db, type Filter, ObjectId, Sort } from 'mongodb';
 import type { PaginationResult } from './types';
 import { mongoLogger } from './manager';
 import { Exception, validate } from '@crumbjs/core';
@@ -113,7 +113,7 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 * @param withTrash - Include soft-deleted documents if true.
 	 * @returns Pagination metadata and items as {@link PaginationResult}.
 	 */
-	async getPaginated(filters: Filter<Entity> = {}, page: number = 1, size: number = 10, withTrash: boolean = false) {
+	async getPaginated(filters: Filter<Entity> = {}, sort: Sort = {}, page: number = 1, size: number = 10, withTrash: boolean = false) {
 		const query = this.parseFilters(filters, withTrash);
 
 		const count = await this.count(query);
@@ -122,10 +122,10 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 		const skip = (currentPage - 1) * size;
 
 		mongoLogger.debug(
-			`Getting paginated ${this.collectionName} documents, filters: ${JSON.stringify(query)}, limit: ${size}, skip ${skip}`,
+			`Getting paginated ${this.collectionName} documents, filters: ${JSON.stringify(query)}, sort: ${JSON.stringify(sort)} limit: ${size}, skip ${skip}`,
 		);
 
-		const data = await this.collection.find(query).skip(skip).limit(size).toArray();
+		const data = await this.collection.find(query).skip(skip).limit(size).sort(sort).toArray();
 
 		return {
 			total: count,
@@ -146,11 +146,11 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 	 * @param withTrash - Include soft-deleted documents if true.
 	 * @returns Promise with the list of entities.
 	 */
-	get(filters: Filter<Entity> = {}, withTrash: boolean = false): Promise<Entity[]> {
+	get(filters: Filter<Entity> = {}, sort: Sort = {}, withTrash: boolean = false): Promise<Entity[]> {
 		const query = this.parseFilters(filters, withTrash);
 
 		mongoLogger.debug(`Getting  ${this.collectionName} documents, filters: ${JSON.stringify(query)}`);
-		return this.collection.find(query).toArray() as Promise<Entity[]>;
+		return this.collection.find(query).sort(sort).toArray() as Promise<Entity[]>;
 	}
 
 	/**
