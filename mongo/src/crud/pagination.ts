@@ -1,24 +1,9 @@
 import z, { ZodObject } from 'zod';
 import { createSimpleFiltersShape } from './filters';
 
-// type helper to avoid page, pageSize, withTrash unknowns at crud
-type PaginationQuerySchema = z.ZodObject<
-	{
-		page: z.ZodDefault<z.ZodOptional<z.ZodCoercedNumber<unknown>>>;
-		pageSize: z.ZodDefault<z.ZodOptional<z.ZodCoercedNumber<unknown>>>;
-		withTrash: z.ZodOptional<
-			z.ZodEnum<{
-				yes: 'yes';
-				no: 'no';
-			}>
-		>;
-	},
-	z.core.$strip
->;
-
-export const createPaginationQuerySchema = <T extends ZodObject>(schema: T): PaginationQuerySchema => {
+export const createPaginationQuerySchema = <T extends ZodObject>(schema: T) => {
 	const simpleFiltersShape = createSimpleFiltersShape(schema);
-	return paginateQuerySchema.extend(simpleFiltersShape) as PaginationQuerySchema;
+	return paginateQuerySchema.extend(simpleFiltersShape);
 };
 
 export const paginateQuerySchema = z.object({
