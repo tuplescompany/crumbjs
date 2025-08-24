@@ -4,6 +4,7 @@ import { createPaginationSchema, useRepository } from '../utils';
 import z, { ZodObject, infer as ZodInfer } from 'zod';
 import { Filter, ObjectId } from 'mongodb';
 import { mongoLogger } from '../manager';
+import { verifySchema } from './verify-schema';
 
 type BodylessContext = Omit<Context, 'body' | 'rawBody'>;
 
@@ -120,8 +121,11 @@ const createObjectIdFilter = (id: string) => {
 };
 
 export function createResource<T extends ZodObject>(options: Resource<T>) {
-	if (!options.prefilter)
-		mongoLogger.warn(`Resource endpoints for collection '${options.collection}' is working without 'prefilter' rules`);
+	verifySchema(options.schema, options.collection);
+
+	if (options.schema.shape)
+		if (!options.prefilter)
+			mongoLogger.warn(`Resource endpoints for collection '${options.collection}' is working without 'prefilter' rules`);
 	if (!options.beforeCreate)
 		mongoLogger.warn(`Resource endpoints for collection '${options.collection}' is working without 'beforeCreate' rule`);
 
