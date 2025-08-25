@@ -423,6 +423,12 @@ export type APIConfig = {
 	openapiUi: OpenApiUi;
 
 	/**
+	 * Generates client.schema.ts on server boot (when withOpenapi=true and mode='development')
+	 * @default 'true'
+	 */
+	generateClientSchema: boolean;
+
+	/**
 	 * Handler for unmatched routes (404).
 	 *
 	 * Default:

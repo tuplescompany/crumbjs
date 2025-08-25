@@ -38,7 +38,7 @@
 	"license": "MIT",
 	"peerDependencies": {
 		"typescript": "^5.9.2",
-		"@crumbjs/core": "^0.7.2"
+		"@crumbjs/core": "^0.8.0"
 	},
 	"scripts": {
 		"build": "tsc"

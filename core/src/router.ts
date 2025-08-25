@@ -7,6 +7,7 @@ import { config } from './config';
 import { Processor } from './processor/processor';
 import { logger } from './helpers/logger';
 import { BunRequest } from 'bun';
+import { createClientSpecs } from './client';
 
 /**
  * Builds an Bun Http server from your main App
@@ -113,6 +114,11 @@ export class Router {
 
 		const openapiReadyMessage = withOpenapi ? `enabled, UI: ${openapiUi}` : 'disabled';
 		logger.debug(`📘 OPENAPI: ${openapiReadyMessage}`);
+
+		if (withOpenapi && config.get('mode') === 'development' && config.get('generateClientSchema')) {
+			logger.debug(`📘 CLIENT: Generating specification`);
+			await createClientSpecs(openapi.getJson());
+		}
 
 		return routes;
 	}

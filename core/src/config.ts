@@ -4,6 +4,19 @@ import { logger } from './helpers/logger';
 import { APIConfig } from './types';
 import { objectCleanUndefined } from './helpers/utils';
 
+const stringBoolean = z.union([
+	z.boolean(),
+	z
+		.string()
+		.toLowerCase()
+		.transform((val) => {
+			if (['false', '0', ''].includes(val)) return false;
+			if (['true', '1'].includes(val)) return true;
+			throw new Error('Invalid boolean string');
+		}),
+	z.number().transform((val) => val === 1),
+]);
+
 const parse = <S extends ZodType>(index: string, rule: S, def: ZodInfer<S>): ZodInfer<S> => {
 	const value = process.env[index];
 	if (!value) return def;
@@ -37,11 +50,12 @@ const extract = (): APIConfig => ({
 	version: parse('APP_VERSION', z.string(), '1.0.0'),
 	port: parse('PORT', z.coerce.number(), 8080),
 	locale: parse('LOCALE', z.enum(locales), 'en'),
-	withOpenapi: parse('OPENAPI', z.coerce.boolean(), true),
+	withOpenapi: parse('OPENAPI', stringBoolean, true),
 	openapiTitle: parse('OPENAPI_TITLE', z.string(), 'Api'),
 	openapiDescription: parse('OPENAPI_DESCRIPTION', z.string(), 'API Documentation'),
 	openapiBasePath: parse('OPENAPI_PATH', z.string().regex(/^\/(?:[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*)$/), '/reference'),
 	openapiUi: parse('OPENAPI_UI', z.enum(openapiUis), 'scalar'),
+	generateClientSchema: parse('GENERATE_CLIENT_SCHEMA', stringBoolean, false),
 	errorHandler: defaultErrorHandler,
 	notFoundHandler: defaultNotFoundHandler,
 });

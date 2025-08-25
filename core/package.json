@@ -1,6 +1,6 @@
 {
 	"name": "@crumbjs/core",
-	"version": "0.7.8",
+	"version": "0.8.0",
 	"keywords": [
 		"crumbjs",
 		"api",
@@ -48,5 +48,8 @@
 	"peerDependencies": {
 		"zod": "^4.0.14",
 		"openapi3-ts": "^4.5.0"
+	},
+	"dependencies": {
+		"openapi-typescript": "^7.9.1"
 	}
 }
