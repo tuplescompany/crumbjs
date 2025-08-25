@@ -26,4 +26,4 @@ bun install @crumbjs/mongo
 
 ## Documentation
 
-[Full Documentation Page](https://crumbjs.com/docs/plugins/mongo/)
+[Full Documentation Page](https://crumbjs.com/docs/mongo)

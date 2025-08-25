@@ -34,4 +34,4 @@ The core system has only about 3,700 lines of code and just two dependencies (zo
 
 ## Documentation
 
-[Full Documentation Page](https://crumbjs.com/docs/plugins/mongo/)
+[Full Documentation Page](https://crumbjs.com)
