@@ -9,7 +9,7 @@ export function verifySchema(schema: ZodObject, collection: string) {
 		const hasAll = requiredKeys.every((key) => key in schema.shape);
 
 		if (!hasAll) {
-			throw new Error("Schema is missing one or more required system fields: '_id', 'createdAt', 'updatedAt', 'deletedAt'.");
+			throw new Error("Schema is missing one or more required system fields for resources: '_id', 'createdAt', 'updatedAt', 'deletedAt'.");
 		}
 
 		// system fields

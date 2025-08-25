@@ -55,7 +55,7 @@ export function safeToJsonSchema(schema: ZodType): JSONSchema.BaseSchema {
 
 		// Handle unrepresentable array elements
 		if (schema.def.type === 'array') {
-			return z.toJSONSchema(schema, { unrepresentable: 'any' });
+			return z.toJSONSchema(z.array(z.string()));
 		}
 
 		// fallback for a non-object / non-array unrepresentable

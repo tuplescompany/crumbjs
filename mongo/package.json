@@ -1,6 +1,6 @@
 {
 	"name": "@crumbjs/mongo",
-	"version": "1.0.8",
+	"version": "1.0.9",
 	"keywords": [
 		"crumbjs",
 		"mongo",
@@ -47,7 +47,7 @@
 		"bun-types": "^1.2.20"
 	},
 	"peerDependencies": {
-		"@crumbjs/core": "^0.7.5",
+		"@crumbjs/core": "^0.8.0",
 		"mongodb": "^6.18.0",
 		"typescript": "^5.9.2",
 		"zod": "^4.0.17"
