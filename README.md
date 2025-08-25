@@ -17,6 +17,7 @@ The core system has only about 3,700 lines of code and just two dependencies (zo
 - Built for Bun.serve and only targets backend APIs
 - Zod-based validation for bodies, queries and headers
 - Automatic OpenAPI 3.1 document generation and UI (Swagger or Scalar)
+- Auto-generate type-safe clients (eg. for frontend), with zero allocations.
 - Simple middleware system and optional global middlewares
 - Simple proxy helpers to forward requests and (optionally) document them — use app.proxy() for a single route, or app.proxyAll() to forward all routes under a given path.
 
