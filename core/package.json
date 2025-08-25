@@ -1,6 +1,6 @@
 {
 	"name": "@crumbjs/core",
-	"version": "0.8.0",
+	"version": "0.8.1",
 	"keywords": [
 		"crumbjs",
 		"api",
@@ -27,7 +27,7 @@
 		"dist"
 	],
 	"author": "tuples-hr",
-	"homepage": "https://crumbjs-site.pages.dev",
+	"homepage": "https://crumbjs.com",
 	"bugs": {
 		"url": "https://github.com/tuplescompany/crumbjs/issues"
 	},

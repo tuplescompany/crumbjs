@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Bun](https://img.shields.io/badge/Bun-1.2.20-black?logo=bun)](https://bun.sh)
 
-[Full Documentation Page](https://crumbjs-site.pages.dev/)
+[Full Documentation Page](https://crumbjs.com)
 
 CrumbJS is a lightweight API framework for [Bun](https://bun.com/) focused on backend development. It layers configuration, validation and documentation on top of Bun's built-in router while keeping a familiar Express-like developer experience. Validation is powered by [Zod](https://github.com/colinhacks/zod) and every route can be automatically documented through OpenAPI.
 
@@ -34,4 +34,4 @@ The core system has only about 3,700 lines of code and just two dependencies (zo
 
 ## Documentation
 
-[Full Documentation Page](https://crumbjs-site.pages.dev/docs/plugins/mongo/)
+[Full Documentation Page](https://crumbjs.comdocs/plugins/mongo/)

@@ -1,7 +1,7 @@
 {
 	"name": "@crumbjs/bullmq",
 	"type": "module",
-	"version": "0.2.9",
+	"version": "0.2.10",
 	"keywords": [
 		"crumbjs",
 		"bullmq",
@@ -15,7 +15,7 @@
 		"bun"
 	],
 	"author": "tuples-hr",
-	"homepage": "https://crumbjs-site.pages.dev",
+	"homepage": "https://crumbjs.com",
 	"bugs": {
 		"url": "https://github.com/tuplescompany/crumbjs/issues"
 	},
