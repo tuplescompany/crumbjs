@@ -32,4 +32,5 @@ bun install @crumbjs/bullmq
 
 ## Documentation
 
-[Full Documentation Page](https://crumbjs-site.pages.dev/docs/plugins/queues)
+[Full Documentation Page](https://crumbjs.com)
+[Plugin Doc](https://crumbjs.com/docs/queues)

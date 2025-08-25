@@ -11,4 +11,4 @@ bun create crumbjs api
 
 ## Documentation
 
-[Full Documentation Page](https://crumbjs-site.pages.dev/)
+[Full Documentation Page](https://crumbjs.com)
