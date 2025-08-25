@@ -15,6 +15,9 @@
 		"swagger",
 		"type-safe",
 		"typescript",
+		"api-client",
+		"client-sdk",
+		"end-to-end",
 		"bun"
 	],
 	"publishConfig": {
