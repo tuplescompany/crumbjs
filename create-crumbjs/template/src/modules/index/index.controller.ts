@@ -1,7 +1,9 @@
 import { App } from '@crumbjs/core';
 import { IndexModel } from './index.model';
 
-export const indexController = new App().get(
+const indexController = new App();
+
+indexController.get(
 	'/hello/:name',
 	({ params }) => ({
 		hello: params.name,
@@ -16,3 +18,5 @@ export const indexController = new App().get(
 		responses: [IndexModel.indexResponseOK],
 	},
 );
+
+export default indexController;
