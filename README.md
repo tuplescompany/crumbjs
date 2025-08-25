@@ -5,6 +5,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Bun](https://img.shields.io/badge/Bun-1.2.20-black?logo=bun)](https://bun.sh)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-%E2%98%95%EF%B8%8F-ffdd00?logo=buymeacoffee&logoColor=000&labelColor=444)](https://buymeacoffee.com/crumbjs)
 
 [Full Documentation Page](https://crumbjs.com)
 
@@ -35,3 +36,16 @@ The core system has only about 3,700 lines of code and just two dependencies (zo
 ## Documentation
 
 [Full Documentation Page](https://crumbjs.com)
+
+## Contribute
+
+The best contribution is to **use CrumbJS in the wild**. If you want to go further:
+
+- ⭐ Star the repo: https://github.com/tuplescompany/crumbjs
+- 🐞 [Report a bug](https://github.com/tuplescompany/crumbjs/issues)
+- 💡 [Request a feature](https://github.com/tuplescompany/crumbjs/issues/new?template=feature_request.md)
+- 🧰 PRs welcome (small, focused changes)
+- 💖 [Sponsor on Open Collective](https://opencollective.com/crumbjs)
+- ☕ [Buy me a coffee](https://buymeacoffee.com/crumbjs)
+
+Thanks for helping us keep the framework lean, type-safe, and fast to ship.
