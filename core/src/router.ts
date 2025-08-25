@@ -7,7 +7,7 @@ import { config } from './config';
 import { Processor } from './processor/processor';
 import { logger } from './helpers/logger';
 import { BunRequest } from 'bun';
-import { createClientSpecs } from './client';
+import { createClientSpecs } from './client-generator';
 
 /**
  * Builds an Bun Http server from your main App
