@@ -27,8 +27,8 @@ export function safeToJsonSchema(schema: ZodType): JSONSchema.BaseSchema {
 	try {
 		// Implicit definition of JSON schema
 		const meta = schema.meta();
-		if (meta?.jsonSchema) {
-			return meta.jsonSchema as JSONSchema.BaseSchema;
+		if (meta?.json) {
+			return meta.json as JSONSchema.BaseSchema;
 		}
 
 		return z.toJSONSchema(schema, { unrepresentable: 'throw' });

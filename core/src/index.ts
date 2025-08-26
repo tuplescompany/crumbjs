@@ -20,4 +20,3 @@ export { cors } from './middlewares/cors';
 export { signals } from './middlewares/signals';
 export { secureHeaders } from './middlewares/secure-headers';
 export { validate, safeValidate, validateAsync, safeValidateAsync } from './validator';
-export { zh } from './helpers/schema-types';
