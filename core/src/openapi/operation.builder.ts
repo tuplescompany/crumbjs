@@ -114,12 +114,12 @@ export class OperationBuilder {
 
 	private buildPathParameterList() {
 		if (this.route['params'] instanceof ZodObject) {
-			return extractFields(this.route['params']).map(({ key, schema, required, metadata }) => ({
-				name: key,
+			return extractFields(this.route['params']).map((f) => ({
+				name: f.key,
 				in: 'path',
-				required: required,
-				schema: convert(schema),
-				...metadata,
+				required: true,
+				schema: convert(f.schema),
+				...f.metadata,
 			})) as ParameterObject[];
 		}
 

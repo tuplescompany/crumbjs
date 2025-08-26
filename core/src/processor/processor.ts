@@ -7,7 +7,7 @@ import { InternalServerError } from '../exception/http.exception';
 import { Exception } from '../exception';
 import { logger } from '../helpers/logger';
 import { AuthorizationParser } from './authorization-parser';
-import { validate } from '../validator';
+import { validate, validateAsync } from '../validator';
 
 export class Processor {
 	private readonly rootContext: RootContext;
@@ -125,16 +125,20 @@ export class Processor {
 		}
 
 		const body = this.routeConfig.body
-			? validate(this.routeConfig.body, this.rootContext.rawBody, 'Invalid Body')
+			? await validateAsync(this.routeConfig.body, this.rootContext.rawBody, 'Invalid Body')
 			: this.rootContext.rawBody;
 
-		const query = this.routeConfig.query ? validate(this.routeConfig.query, this.requestQuery, 'Invalid Query') : this.requestQuery;
+		const query = this.routeConfig.query
+			? await validateAsync(this.routeConfig.query, this.requestQuery, 'Invalid Query')
+			: this.requestQuery;
 
 		const headers = this.routeConfig.headers
-			? validate(this.routeConfig.headers, this.requestHeaders, 'Invalid Headers')
+			? await validateAsync(this.routeConfig.headers, this.requestHeaders, 'Invalid Headers')
 			: this.requestHeaders;
 
-		const params = this.routeConfig.params ? validate(this.routeConfig.params, this.req.params, 'Invalid Path Params') : this.req.params;
+		const params = this.routeConfig.params
+			? await validateAsync(this.routeConfig.params, this.req.params, 'Invalid Path Params')
+			: this.req.params;
 
 		return {
 			...this.rootContext,
