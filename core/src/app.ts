@@ -1,4 +1,16 @@
-import type { APIConfig, ContentType, Handler, HttpUrlString, Method, Middleware, MethodOpts, OnStart, Route, RouteConfig } from './types';
+import type {
+	APIConfig,
+	ContentType,
+	Handler,
+	HttpUrlString,
+	Method,
+	Middleware,
+	MethodOpts,
+	OnStart,
+	Route,
+	RouteConfig,
+	PathParamsSchema,
+} from './types';
 import { Router } from './router';
 import type { ZodObject } from 'zod';
 import { createProxyHandler } from './helpers/proxy';
@@ -117,7 +129,12 @@ export class App {
 		return this.middlewares;
 	}
 
-	private add(method: MethodOpts, path: string, handler: Handler<string>, config?: RouteConfig<any, any, any, any>) {
+	private add(
+		method: MethodOpts,
+		path: string,
+		handler: Handler<string, any, any, any, any>,
+		config?: RouteConfig<any, any, any, any, any>,
+	) {
 		let methods: Method[];
 
 		if (Array.isArray(method)) {
@@ -229,16 +246,23 @@ export class App {
 		BODY extends ZodObject | undefined = undefined,
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
-	>(methods: MethodOpts, path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
+		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
+	>(
+		methods: MethodOpts,
+		path: PATH,
+		handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS>,
+		config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>,
+	) {
 		return this.add(methods, path, handler, config);
 	}
 
 	/** Register a GET route */
-	get<PATH extends string = '/', QUERY extends ZodObject | undefined = undefined, HEADERS extends ZodObject | undefined = undefined>(
-		path: PATH,
-		handler: Handler<PATH, undefined, QUERY, HEADERS>,
-		config?: RouteConfig<PATH, undefined, QUERY, HEADERS>,
-	) {
+	get<
+		PATH extends string = '/',
+		QUERY extends ZodObject | undefined = undefined,
+		HEADERS extends ZodObject | undefined = undefined,
+		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
+	>(path: PATH, handler: Handler<PATH, undefined, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, undefined, QUERY, HEADERS, PARAMS>) {
 		return this.add('GET', path, handler, config);
 	}
 
@@ -248,7 +272,8 @@ export class App {
 		BODY extends ZodObject | undefined = undefined,
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
-	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
+		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
+	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>) {
 		return this.add('POST', path, handler, config);
 	}
 
@@ -258,7 +283,8 @@ export class App {
 		BODY extends ZodObject | undefined = undefined,
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
-	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
+		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
+	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>) {
 		return this.add('PUT', path, handler, config);
 	}
 
@@ -268,7 +294,8 @@ export class App {
 		BODY extends ZodObject | undefined = undefined,
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
-	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
+		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
+	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>) {
 		return this.add('PATCH', path, handler, config);
 	}
 
@@ -278,25 +305,28 @@ export class App {
 		BODY extends ZodObject | undefined = undefined,
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
-	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS>) {
+		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
+	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>) {
 		return this.add('DELETE', path, handler, config);
 	}
 
 	/** Register a OPTIONS route */
-	options<PATH extends string = '/', QUERY extends ZodObject | undefined = undefined, HEADERS extends ZodObject | undefined = undefined>(
-		path: PATH,
-		handler: Handler<PATH, undefined, QUERY, HEADERS>,
-		config?: RouteConfig<PATH, undefined, QUERY, HEADERS>,
-	) {
+	options<
+		PATH extends string = '/',
+		QUERY extends ZodObject | undefined = undefined,
+		HEADERS extends ZodObject | undefined = undefined,
+		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
+	>(path: PATH, handler: Handler<PATH, undefined, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, undefined, QUERY, HEADERS, PARAMS>) {
 		return this.add('OPTIONS', path, handler, config);
 	}
 
 	/** Register a HEAD route */
-	head<PATH extends string = '/', QUERY extends ZodObject | undefined = undefined, HEADERS extends ZodObject | undefined = undefined>(
-		path: PATH,
-		handler: Handler<PATH, undefined, QUERY, HEADERS>,
-		config?: RouteConfig<PATH, undefined, QUERY, HEADERS>,
-	) {
+	head<
+		PATH extends string = '/',
+		QUERY extends ZodObject | undefined = undefined,
+		HEADERS extends ZodObject | undefined = undefined,
+		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
+	>(path: PATH, handler: Handler<PATH, undefined, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, undefined, QUERY, HEADERS, PARAMS>) {
 		return this.add('HEAD', path, handler, config);
 	}
 

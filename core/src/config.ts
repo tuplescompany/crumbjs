@@ -32,15 +32,16 @@ const parse = <S extends ZodType>(index: string, rule: S, def: ZodInfer<S>): Zod
 /**
  * Build **ServerConfig** from environment variables.
  * Environment keys and defaults:
- * - `APP_MODE`            → one of `modes`                         (default: `"development"`)
- * - `APP_VERSION`         → string                                 (default: `"1.0.0"`)
- * - `PORT`                → number                                 (default: `8080`)
- * - `LOCALE`              → one of `locales`                       (default: `"en"`)
- * - `OPENAPI`             → boolean                                (default: `true`)
- * - `OPENAPI_TITLE`       → string                                 (default: `"Api"`)
- * - `OPENAPI_DESCRIPTION` → string                                 (default: `"API Documentation"`)
- * - `OPENAPI_PATH`        → absolute path `/seg/seg`               (default: `"/reference"`)
- * - `OPENAPI_UI`          → one of `openapiUis`                    (default: `"scalar"`)
+ * - `APP_MODE`            		→ one of `modes`			(default: `"development"`)
+ * - `APP_VERSION`         		→ string					(default: `"1.0.0"`)
+ * - `PORT`                		→ number					(default: `8080`)
+ * - `LOCALE`              		→ one of `locales`			(default: `"en"`)
+ * - `OPENAPI`             		→ boolean					(default: `true`)
+ * - `OPENAPI_TITLE`       		→ string					(default: `"Api"`)
+ * - `OPENAPI_DESCRIPTION` 		→ string					(default: `"API Documentation"`)
+ * - `OPENAPI_PATH`        		→ absolute path `/seg/seg`	(default: `"/reference"`)
+ * - `OPENAPI_UI`          		→ one of `openapiUis`		(default: `"scalar"`)
+ * - `GENERATE_CLIENT_SCHEMA` 	→ boolean					(default: `false`)
  *
  * @returns {ServerConfig} A fully validated configuration object.
  * @see parse
