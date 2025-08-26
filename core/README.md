@@ -44,7 +44,6 @@ The best contribution is to **use CrumbJS in the wild**. If you want to go furth
 - 🐞 [Report a bug](https://github.com/tuplescompany/crumbjs/issues)
 - 💡 [Request a feature](https://github.com/tuplescompany/crumbjs/issues/new?template=feature_request.md)
 - 🧰 PRs welcome (small, focused changes)
-- 💖 [Sponsor on Open Collective](https://opencollective.com/crumbjs)
 - ☕ [Buy me a coffee](https://buymeacoffee.com/crumbjs)
 
 Thanks for helping us keep the framework lean, type-safe, and fast to ship.
