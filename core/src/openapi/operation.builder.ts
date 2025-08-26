@@ -13,6 +13,7 @@ import {
 import { AnyPathParams, OARoute } from '../types';
 import { capitalize, objectCleanUndefined } from '../helpers/utils';
 import { convert, extractFields, getMetadata } from './zod';
+import { ZodObject } from 'zod';
 
 /**
  * Transforms an **OARoute** (your internal DSL) into the
@@ -112,12 +113,20 @@ export class OperationBuilder {
 	}
 
 	private buildPathParameterList() {
-		const routeParams = {
-			...this.defaultPathParams(), // all params must exists, so we create a default meta-structure for each params
-			...objectCleanUndefined(this.route.params), // user defined params meta, overwrites the defaults
-		};
+		if (this.route['params'] instanceof ZodObject) {
+			return extractFields(this.route['params']).map(({ key, schema, required, metadata }) => ({
+				name: key,
+				in: 'path',
+				required: required,
+				schema: convert(schema),
+				...metadata,
+			})) as ParameterObject[];
+		}
+
+		const routeParams = this.defaultPathParams();
 
 		const params: ParameterObject[] = [];
+
 		for (const key in routeParams) {
 			params.push({
 				name: key,

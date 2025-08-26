@@ -39,7 +39,7 @@ export type Middleware = (ctx: MiddlewareContext) => Promise<Result>;
 
 export type OnStart = () => void | Promise<void>;
 
-type ExtractPathParams<S extends string> = S extends `${string}:${infer Param}/${infer Rest}`
+export type ExtractPathParams<S extends string> = S extends `${string}:${infer Param}/${infer Rest}`
 	? { [K in Param | keyof ExtractPathParams<`/${Rest}`>]: string }
 	: S extends `${string}:${infer Param}`
 		? { [K in Param]: string }
@@ -51,6 +51,12 @@ type PathParams<S extends string> = {
 		description?: string;
 	};
 };
+
+type PathParamsShape<S extends string> = {
+	[K in keyof ExtractPathParams<S>]: ZodType;
+};
+
+export type PathParamsSchema<S extends string> = ZodObject<PathParamsShape<S>>;
 
 export type AnyPathParams = {
 	[key: string]: {
@@ -194,6 +200,9 @@ export type MiddlewareContext = RootContext & { next: Next };
  */
 export type ErrorContext = RootContext & { exception: Exception };
 
+type InferOrExtract<S extends string, P extends PathParamsSchema<S> | undefined> =
+	P extends PathParamsSchema<S> ? ZodInfer<P> : ExtractPathParams<S>;
+
 /**
  * Extended request context that includes validated request data and core request utilities.
  *
@@ -209,10 +218,11 @@ export type ErrorContext = RootContext & { exception: Exception };
  * @template HEADERS - Zod schema for the request headers
  */
 export type Context<
-	PATH extends string = any,
+	PATH extends string = '/',
 	BODY extends ZodObject | undefined = any,
 	QUERY extends ZodObject | undefined = any,
 	HEADERS extends ZodObject | undefined = any,
+	PARAMS extends PathParamsSchema<PATH> | undefined = any,
 > = RootContext & {
 	/** Validated request body (or `any` if no schema provided) */
 	body: InferOrAny<BODY>;
@@ -220,8 +230,8 @@ export type Context<
 	/** Validated query parameters (or `any` if no schema provided) */
 	query: InferOrAny<QUERY>;
 
-	/** Validated route/path parameters (or `any` if no schema provided) */
-	params: ExtractPathParams<PATH>;
+	/** If z.object() was provided to route config will be the infer type else the raw string:string record */
+	params: InferOrExtract<PATH, PARAMS>;
 
 	/** Validated request headers (or `any` if no schema provided) */
 	headers: InferOrAny<HEADERS>;
@@ -232,7 +242,8 @@ export type Handler<
 	BODY extends ZodObject | undefined = any,
 	QUERY extends ZodObject | undefined = any,
 	HEADERS extends ZodObject | undefined = any,
-> = (ctx: Context<PATH, BODY, QUERY, HEADERS>) => Result;
+	PARAMS extends PathParamsSchema<PATH> | undefined = any,
+> = (ctx: Context<PATH, BODY, QUERY, HEADERS, PARAMS>) => Result;
 
 /**
  * Route-level configuration: validation, docs, and behavior.
@@ -250,6 +261,7 @@ export type RouteConfig<
 	BODY extends ZodObject | undefined = undefined,
 	QUERY extends ZodObject | undefined = undefined,
 	HEADERS extends ZodObject | undefined = undefined,
+	PARAMS extends PathParamsSchema<PATH> | undefined = any,
 > = {
 	/**
 	 * Request body validation & typing (Zod).
@@ -273,7 +285,7 @@ export type RouteConfig<
 	 *
 	 * @example { id: { description: "User identifier", example: "123" } }
 	 */
-	params?: PathParams<PATH>;
+	params?: PARAMS;
 
 	/**
 	 * Request headers validation & typing (Zod).
@@ -493,7 +505,7 @@ export type OARoute = {
 	mediaType?: string;
 	body?: ZodObject;
 	query?: ZodObject;
-	params?: AnyPathParams;
+	params?: ZodObject | AnyPathParams;
 	header?: ZodObject;
 	responses?: ResponseConfig[];
 	tags?: string[];

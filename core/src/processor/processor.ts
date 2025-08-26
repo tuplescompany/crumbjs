@@ -134,11 +134,13 @@ export class Processor {
 			? validate(this.routeConfig.headers, this.requestHeaders, 'Invalid Headers')
 			: this.requestHeaders;
 
+		const params = this.routeConfig.params ? validate(this.routeConfig.params, this.req.params, 'Invalid Path Params') : this.req.params;
+
 		return {
 			...this.rootContext,
 			body,
 			query,
-			params: this.req.params,
+			params,
 			headers,
 		};
 	}

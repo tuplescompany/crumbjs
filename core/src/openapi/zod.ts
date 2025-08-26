@@ -1,5 +1,5 @@
 import { SchemaObject } from 'openapi3-ts/oas31';
-import z, { ZodArray, ZodDefault, ZodObject, ZodOptional, ZodRawShape, ZodType } from 'zod';
+import z, { ZodDefault, ZodObject, ZodOptional, ZodRawShape, ZodType } from 'zod';
 import { JSONSchema } from 'zod/v4/core';
 import { objectCleanUndefined } from '../helpers/utils';
 import { FieldInfo, FieldMeta } from '../types';
@@ -25,6 +25,12 @@ function isRequired(schema: ZodType): boolean {
  */
 export function safeToJsonSchema(schema: ZodType): JSONSchema.BaseSchema {
 	try {
+		// Implicit definition of JSON schema
+		const meta = schema.meta();
+		if (meta?.jsonSchema) {
+			return meta.jsonSchema as JSONSchema.BaseSchema;
+		}
+
 		return z.toJSONSchema(schema, { unrepresentable: 'throw' });
 	} catch {
 		// When object is unable to parse with toJSONSchema is because some field is unrepresentable

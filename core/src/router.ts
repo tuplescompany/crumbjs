@@ -116,8 +116,8 @@ export class Router {
 		logger.debug(`📘 OPENAPI: ${openapiReadyMessage}`);
 
 		if (withOpenapi && config.get('mode') === 'development' && config.get('generateClientSchema')) {
-			logger.debug(`📘 CLIENT: Generating specification`);
 			await createClientSpecs(openapi.getJson());
+			logger.debug(`📘 CLIENT: Generated client specification`);
 		}
 
 		return routes;
