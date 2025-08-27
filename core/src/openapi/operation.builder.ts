@@ -87,7 +87,7 @@ export class OperationBuilder {
 			required: true,
 			content: {
 				[mime]: {
-					schema: convert(this.route.body),
+					schema: convert(this.route.body, 'input'),
 					example: meta.example,
 				} as MediaTypeObject,
 			} as ContentObject,
@@ -118,7 +118,7 @@ export class OperationBuilder {
 				name: f.key,
 				in: 'path',
 				required: true,
-				schema: convert(f.schema),
+				schema: convert(f.schema, 'input'),
 				...f.metadata,
 			})) as ParameterObject[];
 		}
@@ -149,7 +149,7 @@ export class OperationBuilder {
 			name: key,
 			in: part,
 			required: required,
-			schema: convert(schema),
+			schema: convert(schema, 'input'),
 			...metadata,
 		})) as ParameterObject[];
 	}
@@ -172,7 +172,7 @@ export class OperationBuilder {
 						description,
 						content: {
 							[type]: {
-								schema: convert(schema),
+								schema: convert(schema, 'output'),
 								example: meta.example,
 							} as SchemaObject,
 						},

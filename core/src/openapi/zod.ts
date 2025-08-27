@@ -1,5 +1,5 @@
 import { SchemaObject } from 'openapi3-ts/oas31';
-import z, { ZodDefault, ZodObject, ZodOptional, ZodRawShape, ZodType } from 'zod';
+import z, { ZodDefault, ZodEmail, ZodObject, ZodOptional, ZodRawShape, ZodType } from 'zod';
 import { JSONSchema } from 'zod/v4/core';
 import { objectCleanUndefined } from '../helpers/utils';
 import { FieldInfo, FieldMeta } from '../types';
@@ -9,89 +9,39 @@ import { FieldInfo, FieldMeta } from '../types';
  * Internally uses `safeToJsonSchema` for tolerant conversion and then maps the JSON Schema
  * into OpenAPI-compatible format (recursive).
  */
-export function convert(schema: ZodType): SchemaObject {
-	return jsonSchemaToOpenApi(safeToJsonSchema(schema));
-}
-
-function isRequired(schema: ZodType): boolean {
-	return !(schema instanceof ZodOptional || schema instanceof ZodDefault);
+export function convert(schema: ZodType, io: 'input' | 'output' = 'output'): SchemaObject {
+	return jsonSchemaToOpenApi(safeToJsonSchema(schema, io));
 }
 
 /**
- * Attempt to convert a Zod schema into a JSON Schema.
- * - Falls back to manual mapping for unrepresentable fields (objects, arrays, custom types).
- * - Ensures recursive handling of nested properties.
- * - Always returns a valid `JSONSchema.BaseSchema`.
+ * Wrapper for toJSONSchema with overrides
  */
-export function safeToJsonSchema(schema: ZodType): JSONSchema.BaseSchema {
-	try {
-		// Implicit definition of JSON schema
-		const meta = schema.meta();
-		if (meta?.json) {
-			return meta.json as JSONSchema.BaseSchema;
-		}
+export function safeToJsonSchema(schema: ZodType, io: 'input' | 'output' = 'output'): JSONSchema.BaseSchema {
+	// Implicit definition of JSON schema
+	const meta = schema.meta();
+	if (meta?.json) {
+		return meta.json as JSONSchema.BaseSchema;
+	}
 
-		return z.toJSONSchema(schema, { unrepresentable: 'throw' });
-	} catch {
-		// When object is unable to parse with toJSONSchema is because some field is unrepresentable
-		// loop all fields and map unrepresentables to a type
-		if (schema.def.type === 'object') {
-			const obj = schema as ZodObject<any>;
-			const shape = obj.shape;
-
-			const properties: Record<string, JSONSchema.BaseSchema> = {};
-			const required: string[] = [];
-
-			for (const [key, child] of Object.entries(shape)) {
-				// recurse per property
-				const childSchema = safeToJsonSchema(child as ZodType);
-				properties[key] = childSchema;
-
-				if (isRequired(child as ZodType)) {
-					required.push(key);
-				}
+	return z.toJSONSchema(schema, {
+		unrepresentable: 'any',
+		target: 'openapi-3.0',
+		io,
+		override: (ctx) => {
+			const def = ctx.zodSchema._zod.def;
+			if (def.type === 'date') {
+				ctx.jsonSchema.type = 'string';
+				ctx.jsonSchema.format = 'date-time';
 			}
-
-			return {
-				type: 'object',
-				properties,
-				...(required.length ? { required } : {}),
-			};
-		}
-
-		// Handle unrepresentable array elements
-		if (schema.def.type === 'array') {
-			return z.toJSONSchema(z.array(z.string()));
-		}
-
-		// fallback for a non-object / non-array unrepresentable
-		return mapUnrepresentable(schema.def.type) as JSONSchema.BaseSchema;
-	}
-}
-
-/**
- * Map Zod internal "def.type" values that are unrepresentable by JSON Schema
- * into a best-effort JSON Schema equivalent.
- * For example: `bigint` → `{ type: 'integer', format: 'bigint' }`.
- */
-function mapUnrepresentable(defType: string) {
-	if (defType === 'string') {
-		return { type: 'string', format: 'objectId' };
-	}
-
-	if (defType === 'date') {
-		return { type: 'string', format: 'date-time' };
-	}
-
-	if (defType === 'bigint') {
-		return { type: 'integer', format: 'bigint' };
-	}
-
-	if (defType === 'custom') {
-		return { type: 'object' };
-	}
-
-	return { type: 'string' };
+			if (def.type === 'bigint') {
+				ctx.jsonSchema.type = 'integer';
+				ctx.jsonSchema.format = 'int64';
+			}
+			if (ctx.zodSchema instanceof ZodEmail && !ctx.jsonSchema.examples?.length && ctx.zodSchema.meta() === undefined) {
+				ctx.jsonSchema.examples = ['smith.agent@matrix.com'];
+			}
+		},
+	});
 }
 
 /**
