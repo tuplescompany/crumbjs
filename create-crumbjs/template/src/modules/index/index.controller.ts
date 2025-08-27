@@ -9,12 +9,7 @@ indexController.get(
 		hello: params.name,
 	}),
 	{
-		params: {
-			name: {
-				example: 'CrumbJS',
-				description: 'The name we will greet',
-			},
-		},
+		params: IndexModel.indexParams,
 		responses: [IndexModel.indexResponseOK],
 	},
 );
