@@ -8,7 +8,7 @@ import { Processor } from './processor/processor';
 import { logger } from './helpers/logger';
 import { BunRequest } from 'bun';
 import { createClientSpecs } from './client-generator';
-import { autoRegisterInvalidResponses } from './helpers/route-config';
+import { autoCompleteRouteConfig } from './helpers/route-config';
 
 /**
  * Builds an Bun Http server from your main App
@@ -37,7 +37,7 @@ export class Router {
 						config.get('errorHandler'),
 					).execute();
 				},
-				routeConfig: autoRegisterInvalidResponses(route.config),
+				routeConfig: autoCompleteRouteConfig(route.config),
 				isStatic: false,
 			};
 		}
