@@ -13,7 +13,7 @@ export {
 export { config } from './config';
 export { openapi } from './openapi/openapi';
 export { Logger, LogLevel, logger, createLogger } from './helpers/logger';
-export { spec } from './helpers/utils';
+export { spec } from './helpers/spec';
 export { JWT, JWTExpired, JWTInvalidSignature, JWTInvalidFormat } from './helpers/jwt';
 export { HttpClient } from './helpers/http-client';
 export { cors } from './middlewares/cors';

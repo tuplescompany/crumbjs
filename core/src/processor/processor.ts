@@ -149,6 +149,25 @@ export class Processor {
 		};
 	}
 
+	private findFirstSuccessResponse() {
+		return this.routeConfig.responses?.find(
+			(r) => r.status === 'default' || (typeof r.status === 'number' && r.status >= 200 && r.status < 300),
+		);
+	}
+
+	private async parseSuccessResult(result: Awaited<Result>) {
+		const unparseable = result instanceof Response || typeof result === 'string' || result === null;
+		if (unparseable || !this.routeConfig.parseResult) return result;
+
+		const successResponse = this.findFirstSuccessResponse();
+
+		if (!successResponse) return result; // not success schema to parse with
+
+		const parsedResult = await validateAsync(successResponse.schema, result, 'Invalid Response Body');
+
+		return parsedResult as object;
+	}
+
 	/**
 	 * Normalizes an awaited `Result` value into a `Response` instance.
 	 *
@@ -186,7 +205,8 @@ export class Processor {
 	 */
 	private async createErrorResponse(ex: Exception) {
 		try {
-			return this.createResponse(await this.errorHandler({ ...this.rootContext, exception: ex }));
+			const errorResult = await this.errorHandler({ ...this.rootContext, exception: ex });
+			return this.createResponse(errorResult);
 		} catch (error) {
 			// Border case, bad coded ExceptionHandler
 			const safeError = error instanceof Error ? error.message : String(error);
@@ -224,7 +244,10 @@ export class Processor {
 			};
 
 			// 4- Parse and return Response
-			return this.createResponse(await run());
+			const result = await run();
+			const parsedResult = await this.parseSuccessResult(result); // only will parse if result is object-kind and response is configured
+
+			return this.createResponse(parsedResult);
 		} catch (error) {
 			const ex = Exception.parse(error);
 

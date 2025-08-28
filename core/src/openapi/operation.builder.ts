@@ -11,7 +11,7 @@ import {
 	TagObject,
 } from 'openapi3-ts/oas31';
 import { AnyPathParams, OARoute } from '../types';
-import { capitalize, objectCleanUndefined } from '../helpers/utils';
+import { capitalize } from '../helpers/utils';
 import { convert, extractFields, getMetadata } from './zod';
 import { ZodObject } from 'zod';
 

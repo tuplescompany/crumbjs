@@ -8,6 +8,7 @@ import { Processor } from './processor/processor';
 import { logger } from './helpers/logger';
 import { BunRequest } from 'bun';
 import { createClientSpecs } from './client-generator';
+import { autoRegisterInvalidResponses } from './helpers/route-config';
 
 /**
  * Builds an Bun Http server from your main App
@@ -36,7 +37,7 @@ export class Router {
 						config.get('errorHandler'),
 					).execute();
 				},
-				routeConfig: route.config,
+				routeConfig: autoRegisterInvalidResponses(route.config),
 				isStatic: false,
 			};
 		}
@@ -83,7 +84,9 @@ export class Router {
 			}
 
 			// Register openapi route if is enabled and not specifically hide on the route
-			if (withOpenapi && !routeConfig.hide) openapi.addBuildedRoute(buildedRoute);
+			if (withOpenapi && !routeConfig.hide) {
+				openapi.addBuildedRoute(buildedRoute);
+			}
 
 			logger.debug(`🌐 ${method} ${path} Registered`);
 		}

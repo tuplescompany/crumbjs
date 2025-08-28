@@ -356,6 +356,20 @@ export type RouteConfig<
 	 * If omitted, it is inferred from the final resolved path (and method).
 	 */
 	operationId?: string;
+
+	/**
+	 * Whether to parse the response using Zod (applies only to successful responses).
+	 *
+	 * If a default or `2xx` response schema is defined, the Processor will validate
+	 * and transform the result with Zod before returning it.
+	 *
+	 * Example use case: hide or transform fields before sending data back to the client.
+	 *
+	 * The result will not be parsed even on true if your handler return a Response instance or raw string or null. Only object kind
+	 *
+	 * @default false
+	 */
+	parseResult?: boolean;
 };
 
 export type ResponseConfig = {
