@@ -20,6 +20,19 @@ export class Router {
 		this.startAt = performance.now();
 	}
 
+	/**
+	 * Merge global specific defined middlewares and the root App instance middlewares
+	 * Both applies to all api routes
+	 */
+	private getGlobalMiddlewares() {
+		const globals = Object.values(this.app.getGlobalMiddlewares());
+		const rootapp = this.app.getMiddlewares();
+
+		globals.push(...rootapp);
+
+		return globals;
+	}
+
 	private buildRoute(route: Route): BuildedRoute {
 		const fullPath = buildPath(...route.pathParts);
 		// RouteDinamic
@@ -32,7 +45,7 @@ export class Router {
 						request,
 						server,
 						route.config,
-						this.app.getMiddlewares(), // served app middlewares are global scope
+						this.getGlobalMiddlewares(), // served app middlewares are global scope
 						route.handler,
 						config.get('errorHandler'),
 					).execute();
