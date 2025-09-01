@@ -1,6 +1,6 @@
 import { type ZodObject, type infer as ZodInfer, type ZodType, type ZodString, ZodOptional, ZodNullable } from 'zod';
 import type { BunRequest, CookieInit } from 'bun';
-import { locales, modes, openapiUis } from './constants';
+import { modes, openapiUis } from './constants';
 import { Exception } from './exception';
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
@@ -378,8 +378,6 @@ export type ResponseConfig = {
 	type: ContentType;
 };
 
-type AppLocale = (typeof locales)[number];
-
 export type AppMode = (typeof modes)[number];
 
 type OpenApiUi = (typeof openapiUis)[number];
@@ -411,14 +409,6 @@ export type APIConfig = {
 	 * @default true
 	 */
 	withOpenapi: boolean;
-
-	/**
-	 * Set locale
-	 * @warn v 0.x.x only set zod locale at boot time the internal app errors are in english
-	 * @env inferance: 'LOCALE'
-	 * @default 'en'
-	 */
-	locale: AppLocale;
 
 	/**
 	 * Openapi application title

@@ -1,5 +1,5 @@
 import z, { type ZodType, type infer as ZodInfer } from 'zod';
-import { defaultErrorHandler, defaultNotFoundHandler, locales, modes, openapiUis } from './constants';
+import { defaultErrorHandler, defaultNotFoundHandler, modes, openapiUis } from './constants';
 import { logger } from './helpers/logger';
 import { APIConfig } from './types';
 import { objectCleanUndefined } from './helpers/utils';
@@ -35,7 +35,6 @@ const parse = <S extends ZodType>(index: string, rule: S, def: ZodInfer<S>): Zod
  * - `APP_MODE`            		→ one of `modes`			(default: `"development"`)
  * - `APP_VERSION`         		→ string					(default: `"1.0.0"`)
  * - `PORT`                		→ number					(default: `8080`)
- * - `LOCALE`              		→ one of `locales`			(default: `"en"`)
  * - `OPENAPI`             		→ boolean					(default: `true`)
  * - `OPENAPI_TITLE`       		→ string					(default: `"Api"`)
  * - `OPENAPI_DESCRIPTION` 		→ string					(default: `"API Documentation"`)
@@ -50,7 +49,6 @@ const extract = (): APIConfig => ({
 	mode: parse('APP_MODE', z.enum(modes), 'development'),
 	version: parse('APP_VERSION', z.string(), '1.0.0'),
 	port: parse('PORT', z.coerce.number(), 8080),
-	locale: parse('LOCALE', z.enum(locales), 'en'),
 	withOpenapi: parse('OPENAPI', stringBoolean, true),
 	openapiTitle: parse('OPENAPI_TITLE', z.string(), 'Api'),
 	openapiDescription: parse('OPENAPI_DESCRIPTION', z.string(), 'API Documentation'),
