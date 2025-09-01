@@ -1,3 +1,4 @@
+import { App } from '../app';
 import { Method, Middleware, MiddlewareContext } from '../types';
 
 type OriginFn = (ctx: MiddlewareContext) => string;
@@ -88,12 +89,17 @@ export type Cors = {
 	 * Default: not set (credentials will not be sent)
 	 */
 	credentials?: boolean;
+};
 
-	/**
-	 * Return and empty response on OPTIONS preflight request with the configured cors headers
-	 * @default true
-	 */
-	handleOptionsRequest?: boolean;
+export const cors = (opts: Cors | string | ((ctx: MiddlewareContext) => string)) => {
+	return new App().useGlobal(corsMiddleware(opts), 'crumbjs-cors').options(
+		'/*',
+		({ setStatus }) => {
+			setStatus(204);
+			return null;
+		},
+		{ hide: true },
+	);
 };
 
 /**
@@ -105,11 +111,12 @@ export type Cors = {
  * app.use(cors({ origin: "https://app.example.com" }))
  * ```
  */
-export const cors = (opts: Cors | string | ((ctx: MiddlewareContext) => string)): Middleware => {
+const corsMiddleware = (opts: Cors | string | ((ctx: MiddlewareContext) => string)): Middleware => {
 	const corsOpts: Cors = typeof opts === 'object' && opts !== null && 'origin' in opts ? opts : { origin: opts };
 
 	return async function corsMiddleware(ctx: MiddlewareContext) {
-		const { credentials, methods, allowedHeaders, exposedHeaders, maxAge, handleOptionsRequest } = corsOpts;
+		console.log('cors middleware applied...');
+		const { credentials, methods, allowedHeaders, exposedHeaders, maxAge } = corsOpts;
 
 		// Convert allways to a functional origin validator and execute it passing MiddlewareContext
 		const validOrigin = getOriginFn(corsOpts.origin)(ctx);
@@ -129,14 +136,6 @@ export const cors = (opts: Cors | string | ((ctx: MiddlewareContext) => string))
 		if (exposedHeaders?.length) ctx.setHeader('Access-Control-Expose-Headers', exposedHeaders.join(','));
 
 		if (maxAge) ctx.setHeader('Access-Control-Max-Age', String(maxAge));
-
-		// If the incomming request is OPTIONS and handleOptionsRequest is not false, return an empty response with cors headers
-		if (handleOptionsRequest !== false && ctx.request.method === 'OPTIONS') {
-			return new Response(null, {
-				headers: ctx.getResponseHeaders(),
-				status: 204,
-			});
-		}
 
 		return await ctx.next();
 	};

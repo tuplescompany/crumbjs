@@ -55,7 +55,7 @@ export const spec = {
 		return {
 			status,
 			schema: z.object({
-				status: z.number().meta({ example: status }),
+				status: z.literal(status),
 				message: z.string().meta({ example: 'Error message' }),
 				fields: z.any(),
 			}),

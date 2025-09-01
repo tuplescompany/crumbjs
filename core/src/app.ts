@@ -25,6 +25,9 @@ export class App {
 
 	private readonly middlewares: Middleware[] = [];
 
+	// global middleware holds all the App instance (bubble up) global middlewares and apply it to all routes on router build
+	private globalMiddlewares: Record<string, Middleware> = {};
+
 	private onStartTriggers: Record<string, OnStart> = {};
 
 	prefix(prefix: string) {
@@ -67,6 +70,22 @@ export class App {
 		return this.onStartTriggers;
 	}
 
+	getGlobalMiddlewares() {
+		return this.globalMiddlewares;
+	}
+
+	/**
+	 * useGlobal force to apply the middleware in all routes even if is within a child App instance.
+	 *
+	 * Usefull for create App instance plugin-like solution that includes middlewares and routes, and maybe onStartupTriggers
+	 *
+	 * **Important** No need to set global middleware at root app, all middlewares in root App instance are global by default.
+	 */
+	useGlobal(middleware: Middleware, name: string) {
+		this.globalMiddlewares[name] = middleware;
+		return this;
+	}
+
 	/**
 	 * Mounts a middleware function or another {@link App} instance onto the current application.
 	 *
@@ -104,7 +123,7 @@ export class App {
 	use(usable: Middleware | App) {
 		if (usable instanceof App) {
 			for (const child of usable.getRoutes()) {
-				// RouteDynamic - add child App scoped middleware to route
+				// Add child App scoped middleware to route
 				if ('config' in child) {
 					child.config.use = [...usable.getMiddlewares(), ...asArray(child.config.use)];
 				}
@@ -112,6 +131,12 @@ export class App {
 				child.pathParts = [this.getPrefix(), ...child.pathParts];
 				this.routes.push(child);
 			}
+
+			// bubble up global middlewares
+			this.globalMiddlewares = {
+				...this.globalMiddlewares,
+				...usable.getGlobalMiddlewares(),
+			};
 
 			// Avoid duplication with name index
 			this.onStartTriggers = {
