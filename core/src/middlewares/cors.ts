@@ -115,7 +115,6 @@ const corsMiddleware = (opts: Cors | string | ((ctx: MiddlewareContext) => strin
 	const corsOpts: Cors = typeof opts === 'object' && opts !== null && 'origin' in opts ? opts : { origin: opts };
 
 	return async function corsMiddleware(ctx: MiddlewareContext) {
-		console.log('cors middleware applied...');
 		const { credentials, methods, allowedHeaders, exposedHeaders, maxAge } = corsOpts;
 
 		// Convert allways to a functional origin validator and execute it passing MiddlewareContext

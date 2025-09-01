@@ -4,6 +4,21 @@ export interface IExecutionContext {
 	props: any;
 }
 
+// Mock of an CF ExecutionContext
+export class MockExecutionContext implements IExecutionContext {
+	props: any;
+
+	constructor() {
+		this.props = {};
+	}
+
+	waitUntil(promise: Promise<any>): void {
+		promise.then((res) => res).catch((error) => console.error(error));
+	}
+
+	passThroughOnException() {}
+}
+
 export interface IFetcher {
 	fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
 	connect(

@@ -2,6 +2,8 @@ import { type ZodObject, type infer as ZodInfer, type ZodType, type ZodString, Z
 import { modes, openapiUis } from './constants';
 import { Exception } from './exception';
 import { Processor } from './processor/processor';
+import { IExecutionContext } from './cloudflare';
+import { CookieSerializeOptions } from 'cookie-es';
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -74,6 +76,10 @@ export type RootContext = {
 	/** The original Fetch API Request object */
 	request: Request;
 
+	env: any;
+
+	stack: (name: string, promise: Promise<any>) => void;
+
 	/** extracted request Origin */
 	origin: string;
 
@@ -82,12 +88,6 @@ export type RootContext = {
 	 * @throws {BadRequest} on inexistent or short)
 	 */
 	bearer: () => string;
-
-	/**
-	 * parse the basic authorization returning user and password object
-	 * @throws {BadRequest} on inexistent or invalid)
-	 */
-	basicCredentials: () => { user: string; password: string };
 
 	/** extracted request client ip address */
 	ip: string;
@@ -139,29 +139,29 @@ export type RootContext = {
 	 */
 	setStatus: (code: number, text?: string) => void;
 
-	// /**
-	//  * Adds or updates a cookie in the map.
-	//  *
-	//  * @param name - The name of the cookie
-	//  * @param value - The value of the cookie
-	//  * @param options - Optional cookie attributes
-	//  */
-	// setCookie: (name: string, value: string, options?: CookieInit) => void;
+	/**
+	 * Adds or updates a cookie in the map.
+	 *
+	 * @param name - The name of the cookie
+	 * @param value - The value of the cookie
+	 * @param options - Optional cookie attributes
+	 */
+	setCookie: (name: string, value: string, options?: CookieSerializeOptions) => void;
 
-	// /**
-	//  * Gets the value of a cookie with the specified name.
-	//  *
-	//  * @param name - The name of the cookie to retrieve
-	//  * @returns The cookie value as a string, or null if the cookie doesn't exist
-	//  */
-	// getCookie: (name: string) => string | null;
+	/**
+	 * Gets the value of a cookie with the specified name.
+	 *
+	 * @param name - The name of the cookie to retrieve
+	 * @returns The cookie value as a string, or null if the cookie doesn't exist
+	 */
+	getCookie: (name: string) => string | null;
 
-	// /**
-	//  * Removes a cookie from the map.
-	//  *
-	//  * @param name - The name of the cookie to delete
-	//  */
-	// deleteCookie: (name: string) => void;
+	/**
+	 * Removes a cookie from the map.
+	 *
+	 * @param name - The name of the cookie to delete
+	 */
+	deleteCookie: (name: string, options?: CookieSerializeOptions) => void;
 
 	/**
 	 * RequestStores a value in the per-request context.

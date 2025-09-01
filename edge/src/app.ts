@@ -1,6 +1,5 @@
 import type {
 	APIConfig,
-	ContentType,
 	Handler,
 	HttpUrlString,
 	Method,
@@ -28,7 +27,7 @@ export class App {
 	// global middleware holds all the App instance (bubble up) global middlewares and apply it to all routes on router build
 	private globalMiddlewares: Record<string, Middleware> = {};
 
-	private onStartTriggers: Record<string, OnStart> = {};
+	private onCloseTriggers: Record<string, Promise<any>> = {};
 
 	prefix(prefix: string) {
 		this.#prefix = prefix;
@@ -61,13 +60,13 @@ export class App {
 		return this.routes;
 	}
 
-	onStart(fn: OnStart, name = 'default') {
-		this.onStartTriggers[name] = fn;
+	onClose(promise: Promise<any>, name: string = 'default') {
+		this.onCloseTriggers[name] = promise;
 		return this;
 	}
 
-	getStartupTriggers() {
-		return this.onStartTriggers;
+	getOnCloseTriggers() {
+		return this.onCloseTriggers;
 	}
 
 	getGlobalMiddlewares() {
@@ -138,10 +137,9 @@ export class App {
 				...usable.getGlobalMiddlewares(),
 			};
 
-			// Avoid duplication with name index
-			this.onStartTriggers = {
-				...usable.getStartupTriggers(),
-				...this.onStartTriggers, // father wins
+			this.onCloseTriggers = {
+				...usable.getOnCloseTriggers(),
+				...this.onCloseTriggers,
 			};
 		} else {
 			this.middlewares.push(usable);
@@ -208,7 +206,7 @@ export class App {
 	 * proxyAll('/v2', 'https://new-api.example.com'); // eg. '/v2/orders' will be fowarded to
 	 */
 	proxyAll(localPath: string, dest: HttpUrlString, use?: Middleware | Middleware[]) {
-		const ensureWildcard = !localPath.endsWith('/*') ? localPath.concat('/*') : localPath;
+		const ensureWildcard = !localPath.endsWith('/**') ? localPath.concat('/**') : localPath;
 
 		return this.add('*', ensureWildcard, createProxyHandler(localPath, dest), { use, hide: true });
 	}
@@ -231,11 +229,11 @@ export class App {
 	 * proxy('POST', '/auth', 'https://auth-ms.example.com/v1/auth', { body: authSchema });
 	 */
 	proxy(method: Method, localPath: string, dest: HttpUrlString, config?: RouteConfig<any, any, any, any>) {
-		if (localPath.endsWith('/*')) {
-			const suggestPath = localPath.replace('/*', '');
+		if (localPath.endsWith('/**')) {
+			const suggestPath = localPath.replace('/**', '');
 			const proxyAllExample = `app.proxyAll('${suggestPath}', '${dest}', middlewares)`;
 			throw new Error(
-				`Invalid path '${localPath}': single-method proxy cannot use '/*'. Use '${suggestPath}' for exact match, or use '${proxyAllExample}' for prefix forwarding.`,
+				`Invalid path '${localPath}': single-method proxy cannot use '/**'. Use '${suggestPath}' for exact match, or use '${proxyAllExample}' for prefix forwarding.`,
 			);
 		}
 

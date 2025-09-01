@@ -2,30 +2,34 @@ import { HeaderBuilder } from './header-builder';
 import { Context, ErrorHandler, Handler, Result, Middleware, RootContext, RouteConfig } from '../types';
 import { asArray } from '../helpers/utils';
 import { BodyParser } from './body-parser';
-import { InternalServerError } from '../exception/http.exception';
+import { BadRequest, InternalServerError } from '../exception/http.exception';
 import { Exception } from '../exception';
 import { logger } from '../helpers/logger';
-import { AuthorizationParser } from './authorization-parser';
 import { validateAsync } from '../validator';
+import { Cookies } from './cookies';
+import { Stack } from '../stack';
 
 export class Processor {
 	private readonly rootContext: RootContext;
 
+	private readonly url: URL;
+
 	private store: Record<string, any> = {};
 
-	private readonly requestHeaders: Record<string, string> = {};
+	private readonly requestHeaders: Headers;
 
 	private readonly requestQuery: Record<string, string> = {};
 
-	private readonly authorizationParser: AuthorizationParser;
-
 	private readonly responseHeaders: HeaderBuilder;
+
+	private readonly cookies: Cookies;
 
 	private responseStatus: number = 200;
 
 	constructor(
-		private readonly url: URL,
 		private readonly request: Request,
+		private readonly env: any,
+		private readonly stack: Stack,
 		private readonly params: Record<string, string>,
 		private readonly routeConfig: RouteConfig,
 		private readonly middlewares: Middleware[], // initial global middlewares array
@@ -34,26 +38,51 @@ export class Processor {
 	) {
 		// instance built-in context helpers
 		this.responseHeaders = new HeaderBuilder({ 'Content-Type': 'application/json' });
-		this.authorizationParser = new AuthorizationParser(request);
 		// this.cookies = this.request.cookies; // todo
 
-		this.requestQuery = {}; // todo
-		this.requestHeaders = {}; // todo
+		this.requestHeaders = this.request.headers;
+
+		this.url = new URL(request.url);
+
+		this.url.searchParams.forEach((value, key) => {
+			this.requestQuery[key] = value;
+		});
+
+		this.cookies = new Cookies(this.request);
 
 		this.rootContext = {
 			request: this.request,
+			env: this.env,
+			stack: this.stack.push.bind(this.stack),
 			url: this.url,
 			ip: this.request.headers.get('CF-Connecting-IP') ?? 'unknown', // todo
 			origin: this.request.headers.get('origin') ?? '',
-			bearer: this.authorizationParser.getBearer.bind(this.authorizationParser),
-			basicCredentials: this.authorizationParser.getBasicCredentials.bind(this.authorizationParser),
+			bearer: () => {
+				const auth = this.requestHeaders.get('authorization');
+
+				if (!auth) {
+					throw new BadRequest({ authorization: ['Authorization header is missing'] });
+				}
+
+				const [scheme, token] = auth.trim().split(/\s+/, 2);
+
+				if (scheme?.toLowerCase() !== 'bearer') {
+					throw new BadRequest({ authorization: ['Authorization scheme must be Bearer'] });
+				}
+
+				if (!token) {
+					throw new BadRequest({ authorization: ['Bearer token is missing or empty'] });
+				}
+
+				return token;
+			},
 			setHeader: this.responseHeaders.set.bind(this.responseHeaders),
 			deleteHeader: this.responseHeaders.delete.bind(this.responseHeaders),
 			getResponseHeaders: this.responseHeaders.get.bind(this.responseHeaders),
 			getResponseStatus: () => this.responseStatus,
-			// setCookie: this.cookies.set.bind(this.cookies),
-			// getCookie: this.cookies.get.bind(this.cookies),
-			// deleteCookie: this.cookies.delete.bind(this.cookies),
+			setCookie: this.cookies.set.bind(this.cookies),
+			getCookie: this.cookies.get.bind(this.cookies),
+			deleteCookie: this.cookies.del.bind(this.cookies),
 			setStatus: (status: number) => {
 				this.responseStatus = status;
 			},
@@ -116,6 +145,11 @@ export class Processor {
 			};
 		}
 
+		const requestHeadersRecord: Record<string, string> = {};
+		this.requestHeaders.forEach((value, key) => {
+			requestHeadersRecord[key] = value;
+		});
+
 		const body = this.routeConfig.body
 			? await validateAsync(this.routeConfig.body, this.rootContext.rawBody, 'Invalid Body')
 			: this.rootContext.rawBody;
@@ -125,8 +159,8 @@ export class Processor {
 			: this.requestQuery;
 
 		const headers = this.routeConfig.headers
-			? await validateAsync(this.routeConfig.headers, this.requestHeaders, 'Invalid Headers')
-			: this.requestHeaders;
+			? await validateAsync(this.routeConfig.headers, requestHeadersRecord, 'Invalid Headers')
+			: requestHeadersRecord;
 
 		const params = this.routeConfig.params ? await validateAsync(this.routeConfig.params, this.params, 'Invalid Path Params') : this.params;
 
@@ -179,8 +213,11 @@ export class Processor {
 		const responseBody = typeof result === 'string' || result === null ? result : JSON.stringify(result);
 
 		if (typeof responseBody === 'string' || responseBody === null) {
+			const headers = this.responseHeaders.get();
+			this.cookies.apply(headers);
+
 			return new Response(responseBody, {
-				headers: this.responseHeaders.get(),
+				headers: headers,
 				status: this.responseStatus,
 			});
 		}
@@ -215,6 +252,12 @@ export class Processor {
 	}
 
 	async execute() {
+		const response = await this.resolve();
+		this.stack.execute();
+		return response;
+	}
+
+	async resolve() {
 		try {
 			// 1- safe body parse, on fail will log and rawBody will still "{}"
 			await this.parseBody();

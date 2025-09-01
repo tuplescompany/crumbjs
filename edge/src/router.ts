@@ -6,7 +6,8 @@ import { Processor } from './processor/processor';
 import { logger } from './helpers/logger';
 import { addRoute, createRouter, findRoute, RouterContext } from './rou3';
 import { defaultErrorHandler, defaultNotFoundHandler, modes } from './constants';
-import { IExecutionContext } from './cloudflare';
+import { MockExecutionContext, IExecutionContext } from './cloudflare';
+import { Stack } from './stack';
 
 /**
  * Builds a fetcher workers from App and childs
@@ -66,8 +67,6 @@ export class Router {
 	private buildRoutes() {
 		const { withOpenapi, openapiBasePath, openapiUi } = this.config;
 
-		let routes: Record<string, any> = {};
-
 		for (const route of this.app.getRoutes()) {
 			const fullPath = buildPath(...route.pathParts);
 
@@ -80,8 +79,6 @@ export class Router {
 			if (withOpenapi && !route.config.hide) {
 				openapi.addBuildedRoute(route.method, fullPath, route.config);
 			}
-
-			logger.debug(`🌐 ${route.method} ${fullPath} Registered`);
 		}
 
 		/**
@@ -95,22 +92,14 @@ export class Router {
 
 			addRoute(this.rou3, 'GET', documentPath, {
 				handler: () => Response.json(specs),
-				config: { hide: true },
+				config: {},
 			});
 
 			addRoute(this.rou3, 'GET', openapiUiPath, {
 				handler: () => new Response(openapi[openapiUi](documentPath), { headers: { 'Content-Type': 'text/html' } }),
-				config: { hide: true },
+				config: {},
 			});
-
-			logger.debug(`📘 GET ${documentPath} Registered`);
-			logger.debug(`📘 GET ${openapiUiPath} Registered`);
 		}
-
-		const openapiReadyMessage = withOpenapi ? `enabled, UI: ${openapiUi}` : 'disabled';
-		logger.debug(`📘 OPENAPI: ${openapiReadyMessage}`);
-
-		return routes;
 	}
 
 	worker(options?: Partial<APIConfig>) {
@@ -122,8 +111,8 @@ export class Router {
 		this.buildRoutes();
 
 		return {
-			root: this.app,
-			fetch: async (request: Request, env: any, ctx: IExecutionContext) => {
+			app: this.app,
+			fetch: async (request: Request, env?: any, ctx?: IExecutionContext) => {
 				// Worker ENV overrides
 				if (env.APP_MODE && modes.includes(env.APP_MODE)) {
 					const logLevel = getModeLogLevel(env.APP_MODE);
@@ -137,9 +126,13 @@ export class Router {
 					return this.config.notFoundHandler(request);
 				}
 
+				const execContext = ctx ?? new MockExecutionContext();
+				const stack = new Stack(execContext, this.app.getOnCloseTriggers());
+
 				const processor = new Processor(
-					url,
 					request,
+					env ?? {},
+					stack,
 					match.params ?? {},
 					match.data.config,
 					this.getGlobalMiddlewares(),
