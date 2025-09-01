@@ -1,8 +1,11 @@
 {
-	"name": "@crumbjs/core",
-	"version": "0.9.10",
+	"name": "@crumbjs/edge",
+	"version": "0.0.1",
 	"keywords": [
 		"crumbjs",
+		"edge",
+		"cloudflare",
+		"cloudflare workers",
 		"api",
 		"rest",
 		"http-server",
@@ -17,8 +20,7 @@
 		"typescript",
 		"api-client",
 		"client-sdk",
-		"end-to-end",
-		"bun"
+		"end-to-end"
 	],
 	"publishConfig": {
 		"access": "public"
@@ -44,15 +46,15 @@
 		"build": "tsc"
 	},
 	"devDependencies": {
-		"@types/bun": "latest",
 		"ts-unused-exports": "^11.0.1",
 		"typescript": "^5.9.2"
 	},
 	"peerDependencies": {
-		"zod": "4.1.4",
-		"openapi3-ts": "^4.5.0"
+		"openapi3-ts": "^4.5.0",
+		"zod": "4.1.4"
 	},
 	"dependencies": {
+		"cookie-es": "^2.0.0",
 		"openapi-typescript": "^7.9.1"
 	}
 }

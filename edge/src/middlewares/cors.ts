@@ -93,7 +93,7 @@ export type Cors = {
 
 export const cors = (opts: Cors | string | ((ctx: MiddlewareContext) => string)) => {
 	return new App().useGlobal(corsMiddleware(opts), 'crumbjs-cors').options(
-		'/*',
+		'/**',
 		({ setStatus }) => {
 			setStatus(204);
 			return null;
