@@ -40,7 +40,7 @@ export const spec = {
 		return {
 			status: 400,
 			schema: z.object({
-				status: z.number().meta({ example: 400 }),
+				status: z.literal(400),
 				message: z.string().meta({ example: 'Invalid {part}' }),
 				fields: fieldsSchema,
 			}),
