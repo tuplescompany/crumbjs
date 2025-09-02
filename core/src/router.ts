@@ -32,7 +32,7 @@ export class Router {
 		return globals;
 	}
 
-	private buildRoute(route: Route): BuildedRoute {
+	private async buildRoute(route: Route): Promise<BuildedRoute> {
 		const fullPath = buildPath(...route.pathParts);
 		// RouteDinamic
 		if ('handler' in route) {
@@ -53,13 +53,17 @@ export class Router {
 				isStatic: false,
 			};
 		}
+
 		// RouteStatic
+		const content = route.content instanceof Blob ? await route.content.bytes() : route.content;
+		const contentType = route.contentType ?? (route.content instanceof Blob ? route.content.type : 'application/octet-stream');
 		return {
 			path: fullPath,
 			method: 'GET',
-			handler: new Response(route.content, {
+			// @ts-expect-error
+			handler: new Response(content, {
 				headers: {
-					'Content-Type': route.contentType,
+					'Content-Type': contentType,
 				},
 			}),
 			routeConfig: { hide: true } as RouteConfig,
@@ -82,17 +86,18 @@ export class Router {
 	private async buildRoutes() {
 		const { withOpenapi, openapiBasePath, openapiUi } = config.all;
 
-		let routes: Record<string, any> = {};
+		let dynamics: Record<string, any> = {};
+		let statics: Record<string, Response> = {};
 
 		for (const route of this.app.getRoutes()) {
-			const buildedRoute = this.buildRoute(route);
+			const buildedRoute = await this.buildRoute(route);
 			const { path, method, handler, routeConfig, isStatic } = buildedRoute;
 
 			if (isStatic) {
-				routes[path] = handler;
+				statics[path] = handler;
 			} else {
-				if (!routes[path]) routes[path] = {};
-				routes[path][method] = handler;
+				if (!dynamics[path]) dynamics[path] = {};
+				dynamics[path][method] = handler;
 			}
 
 			// Register openapi route if is enabled and not specifically hide on the route
@@ -100,7 +105,8 @@ export class Router {
 				openapi.addBuildedRoute(buildedRoute);
 			}
 
-			logger.debug(`🌐 ${method} ${path} Registered`);
+			const diff = isStatic ? ' (static)' : '';
+			logger.debug(`🌐 ${method} ${path} Registered${diff}`);
 		}
 
 		/**
@@ -112,20 +118,12 @@ export class Router {
 			const documentPath = buildPath(openapiBasePath, '/doc.json');
 			const openapiUiPath = buildPath(openapiBasePath);
 
-			routes[documentPath] = Response.json(specs);
-			routes[openapiUiPath] = new Response(openapi[openapiUi](documentPath));
+			statics[documentPath] = Response.json(specs);
+			statics[openapiUiPath] = new Response(openapi[openapiUi](documentPath));
 
-			logger.debug(`📘 GET ${documentPath} Registered`);
-			logger.debug(`📘 GET ${openapiUiPath} Registered`);
+			logger.debug(`📘 GET ${documentPath} Registered (static)`);
+			logger.debug(`📘 GET ${openapiUiPath} Registered (static)`);
 		}
-
-		// health (static)
-		routes['/up'] = Response.json({
-			up: true,
-			at: new Date().toISOString(),
-		});
-
-		logger.debug(`🌡️ GET /up Registered`);
 
 		const openapiReadyMessage = withOpenapi ? `enabled, UI: ${openapiUi}` : 'disabled';
 		logger.debug(`📘 OPENAPI: ${openapiReadyMessage}`);
@@ -135,7 +133,7 @@ export class Router {
 			logger.debug(`📘 CLIENT: Generated client specification`);
 		}
 
-		return routes;
+		return { statics, dynamics };
 	}
 
 	async serve(options?: Partial<APIConfig>) {
@@ -150,9 +148,14 @@ export class Router {
 			await trigger();
 		}
 
+		const routes = await this.buildRoutes();
+
 		const server = Bun.serve({
 			port: config.get('port'),
-			routes: await this.buildRoutes(),
+			routes: {
+				...routes.dynamics,
+				...routes.statics,
+			},
 			fetch: config.get('notFoundHandler'),
 		});
 

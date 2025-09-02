@@ -255,12 +255,11 @@ export class App {
 	 * @returns The current instance (for chaining).
 	 */
 	static(path: string, content: string | Blob, type?: ContentType) {
-		const contentType = type ?? (typeof content === 'string' ? 'text/plain' : 'application/octet-stream');
 		// Allways GET
 		this.routes.push({
 			pathParts: [this.getPrefix(), path],
 			content,
-			contentType,
+			contentType: type,
 		});
 		return this;
 	}

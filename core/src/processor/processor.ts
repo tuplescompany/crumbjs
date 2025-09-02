@@ -7,7 +7,7 @@ import { InternalServerError } from '../exception/http.exception';
 import { Exception } from '../exception';
 import { logger } from '../helpers/logger';
 import { AuthorizationParser } from './authorization-parser';
-import { validate, validateAsync } from '../validator';
+import { validateAsync } from '../validator';
 
 export class Processor {
 	private readonly rootContext: RootContext;
@@ -44,6 +44,7 @@ export class Processor {
 		this.requestUrl = new URL(this.req.url);
 
 		this.requestQuery = Object.fromEntries(this.requestUrl.searchParams.entries());
+
 		this.requestHeaders = req.headers.toJSON();
 
 		this.rootContext = {

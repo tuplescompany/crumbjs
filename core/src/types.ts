@@ -484,7 +484,7 @@ type RouteDynamic = {
 type RouteStatic = {
 	pathParts: string[];
 	content: string | Blob;
-	contentType: ContentType;
+	contentType?: ContentType;
 };
 
 export type BuildedRoute =
