@@ -125,7 +125,7 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 			`Getting paginated ${this.collectionName} documents, filters: ${JSON.stringify(query)}, sort: ${JSON.stringify(sort)} limit: ${size}, skip ${skip}`,
 		);
 
-		const data = await this.collection.find(query).skip(skip).limit(size).sort(sort).toArray();
+		const data = await this.collection.find(query).skip(skip).limit(size).sort(sort).collation({ locale: 'en', strength: 1 }).toArray();
 
 		return {
 			total: count,
@@ -150,7 +150,7 @@ export class Repository<S extends ZodObject, Entity = ZodInfer<S>, EntityInput =
 		const query = this.parseFilters(filters, withTrash);
 
 		mongoLogger.debug(`Getting  ${this.collectionName} documents, filters: ${JSON.stringify(query)}`);
-		return this.collection.find(query).sort(sort).toArray() as Promise<Entity[]>;
+		return this.collection.find(query).sort(sort).collation({ locale: 'en', strength: 1 }).toArray() as Promise<Entity[]>;
 	}
 
 	/**

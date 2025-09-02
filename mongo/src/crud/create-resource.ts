@@ -123,9 +123,8 @@ const createObjectIdFilter = (id: string) => {
 export function createResource<T extends ZodObject>(options: Resource<T>) {
 	verifySchema(options.schema, options.collection);
 
-	if (options.schema.shape)
-		if (!options.prefilter)
-			mongoLogger.warn(`Resource endpoints for collection '${options.collection}' is working without 'prefilter' rules`);
+	if (!options.prefilter)
+		mongoLogger.warn(`Resource endpoints for collection '${options.collection}' is working without 'prefilter' rules`);
 	if (!options.beforeCreate)
 		mongoLogger.warn(`Resource endpoints for collection '${options.collection}' is working without 'beforeCreate' rule`);
 
@@ -198,13 +197,9 @@ export function createResource<T extends ZodObject>(options: Resource<T>) {
 			},
 			{
 				query: createPaginationQuerySchema(options.schema),
-				responses: [spec.response(200, createPaginationSchema(options.schema)), spec.exception(400)],
+				responses: [spec.response(200, createPaginationSchema(options.schema)), spec.invalid(createPaginationQuerySchema(options.schema))],
 				summary: `Get a paginated list of '${options.collection}' documents`,
-				description: `Retrieves a paginated collection of documents from **${options.db}.${options.collection}**.
-- Supports query filters (only equality conditions) based on schema fields.
-- Pagination handled via \`page\` and \`pageSize\`.
-- Can include trashed (soft-deleted) documents if \`withTrash=yes\`.
-- Automatically merges \`prefilter\` rules if defined.`,
+				description: `Retrieves a paginated collection of documents from **${options.db}.${options.collection}**.`,
 			},
 		);
 	}
@@ -226,9 +221,7 @@ export function createResource<T extends ZodObject>(options: Resource<T>) {
 			{
 				responses: [spec.response(200, options.schema), spec.exception(404)],
 				summary: `Find a '${options.collection}' document by ID`,
-				description: `Fetches a single document from **${options.db}.${options.collection}** by its MongoDB ObjectId.
-- Applies \`prefilter\` rules if provided.
-- Returns **404 Not Found** if the document does not exist or does not satisfy filters.`,
+				description: `Fetches a single document from **${options.db}.${options.collection}** by its MongoDB ObjectId`,
 			},
 		);
 	}
@@ -258,12 +251,7 @@ export function createResource<T extends ZodObject>(options: Resource<T>) {
 				body: schemaWithoutSystemFields,
 				responses: [spec.response(201, options.schema), spec.invalid(schemaWithoutSystemFields)],
 				summary: `Create a new '${options.collection}' document`,
-				description: `Creates a new document in **${options.db}.${options.collection}** after validating the request payload against the schema.
-- Excludes system fields (\`_id\`, \`createdAt\`, \`updatedAt\`, \`deletedAt\`) from the request body.
-- Runs resource \`beforeCreate\` hook (if defined).
-- If validation fails, responds with detailed schema validation errors.
-- Runs resource \`afterCreate\` hook (if defined) with the new document.
-- Returns **201 Created** with the inserted document.`,
+				description: `Creates a new document in **${options.db}.${options.collection}** after validating the request payload against the schema.`,
 			},
 		);
 	}
@@ -301,12 +289,7 @@ export function createResource<T extends ZodObject>(options: Resource<T>) {
 				body: schemaWithoutSystemFields,
 				responses: [spec.response(200, options.schema), spec.invalid(schemaWithoutSystemFields), spec.exception(404)],
 				summary: `Replace a '${options.collection}' document by ID`,
-				description: `Fully replaces a document in **${options.db}.${options.collection}** with the provided request body.
-- Requires all fields defined in the schema (except system fields).
-- Runs resource \`beforeUpdate\` hook (if defined).
-- Applies \`prefilter\` rules if provided.
-- Runs resource \`afterUpdate\` hook (if defined) with old and new document.
-- Responds with the replaced document or **404 Not Found** if no match is found.`,
+				description: `Fully replaces a document in **${options.db}.${options.collection}** with the provided request body.`,
 			},
 		);
 	}
@@ -345,12 +328,7 @@ export function createResource<T extends ZodObject>(options: Resource<T>) {
 				body: partialUpdateBodySchema,
 				responses: [spec.response(200, options.schema), spec.invalid(partialUpdateBodySchema), spec.exception(404)],
 				summary: `Partially update a '${options.collection}' document by ID`,
-				description: `Applies a partial update to an existing document in **${options.db}.${options.collection}**.
-- At least one field must be provided; empty bodies are rejected.
-- Runs resource \`beforePath\` hook (if defined).
-- Applies \`prefilter\` rules if provided.
-- Runs resource \`afterPatch\` hook (if defined) with old and new document.
-- Responds with the updated document or **404 Not Found** if no match is found.`,
+				description: `Applies a partial update to an existing document in **${options.db}.${options.collection}**.`,
 			},
 		);
 	}
@@ -378,12 +356,7 @@ export function createResource<T extends ZodObject>(options: Resource<T>) {
 			{
 				responses: [spec.response(200, z.object({ success: z.boolean() })), spec.exception(404)],
 				summary: `Delete a '${options.collection}' document by ID`,
-				description: `Deletes a document from **${options.db}.${options.collection}** by its MongoDB ObjectId.
-- The operation is soft-delete, sets the \`deletedAt\` timestamp instead of permanently removing the document.
-- Applies \`prefilter\` rules if provided.
-- Runs resource \`beforeDelete\` hook (if defined).
-- Runs resource \`afterDelete\` hook (if defined) with the deleted document.
-- Returns an object with \`success: true/false\` or **404 Not Found** if no match is found.`,
+				description: `Deletes a document from **${options.db}.${options.collection}** by its MongoDB ObjectId.`,
 			},
 		);
 	}

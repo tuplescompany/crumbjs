@@ -1,3 +1,4 @@
+import { codecs } from '@crumbjs/core';
 import z, { ZodBoolean, ZodDate, ZodNumber, ZodObject, ZodType } from 'zod';
 
 export const createPaginationQuerySchema = <T extends ZodObject>(schema: T) => {
@@ -22,6 +23,14 @@ function createSimpleSortByShape<T extends ZodObject>(schema: T) {
 	return z.enum(fields).optional();
 }
 
+function unwrap(schema: ZodType): ZodType {
+	if ('unwrap' in schema && typeof schema.unwrap === 'function') {
+		return unwrap(schema.unwrap());
+	}
+
+	return schema;
+}
+
 /**
  * Converts a ZodObject to a flatten representations of it with subobject separated by prefix.
  * Ignores default attributes, and all are optionals
@@ -40,37 +49,16 @@ export function createSimpleFiltersShape<T extends ZodObject>(
 
 		const path = prefix ? `${prefix}.${key}` : key;
 
-		let base: ZodType = value as ZodType;
-
-		// si tiene default → unwrap
-		if (base instanceof z.ZodDefault) {
-			base = (base as any).def.innerType;
-
-			// unwrap default+nullable
-			if (base instanceof z.ZodNullable) base = base.def.innerType as any;
-		}
+		const base = unwrap(value);
 
 		if (base instanceof ZodObject) {
 			Object.assign(result, createSimpleFiltersShape(base, path));
 		} else if (base instanceof ZodBoolean) {
-			result[path] = z
-				.union([
-					z.boolean(),
-					z
-						.string()
-						.toLowerCase()
-						.transform((val) => {
-							if (['false', '0', ''].includes(val)) return false;
-							if (['true', '1'].includes(val)) return true;
-							throw new Error('Invalid boolean string');
-						}),
-					z.number().transform((val) => val === 1),
-				])
-				.optional();
+			result[path] = codecs.stringBoolean.optional();
 		} else if (base instanceof ZodNumber) {
-			result[path] = z.coerce.number().optional();
+			result[path] = codecs.stringNumber.optional();
 		} else if (base instanceof ZodDate) {
-			result[path] = z.string().transform((val) => new Date(val));
+			result[path] = codecs.stringDate.optional();
 		} else {
 			result[path] = base.optional();
 		}

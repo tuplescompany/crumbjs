@@ -15,6 +15,11 @@ const stringDate = z.codec(z.iso.date(), z.date(), {
 	encode: (date) => date.toISOString(),
 });
 
+const stringBoolean = z.codec(z.string(), z.boolean(), {
+	decode: (strBool) => strBool === 'true' || strBool === '1' || strBool === 'yes' || strBool === 'on',
+	encode: (bool) => (bool ? 'true' : 'false'),
+});
+
 const stringInt = z.codec(z.string().regex(z.regexes.integer), z.int(), {
 	decode: (str) => Number.parseInt(str, 10),
 	encode: (num) => num.toString(),
@@ -43,6 +48,7 @@ const stringURL = z.codec(z.url(), z.instanceof(URL), {
 export const codecs = {
 	stringNumber,
 	stringDatetime,
+	stringBoolean,
 	stringDate,
 	stringInt,
 	stringBigInt,
