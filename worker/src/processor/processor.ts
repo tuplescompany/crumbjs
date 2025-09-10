@@ -1,0 +1,291 @@
+import { HeaderBuilder } from './header-builder';
+import { Context, ErrorHandler, Handler, Result, Middleware, RootContext, RouteConfig } from '../types';
+import { asArray } from '../helpers/utils';
+import { BodyParser } from './body-parser';
+import { BadRequest, InternalServerError } from '../exception/http.exception';
+import { Exception } from '../exception';
+import { logger } from '../helpers/logger';
+import { validateAsync } from '../validator';
+import { Cookies } from './cookies';
+import { Stack } from '../stack';
+
+export class Processor {
+	private readonly rootContext: RootContext;
+
+	private store: Record<string, any> = {};
+
+	private readonly requestHeaders: Headers;
+
+	private readonly requestQuery: Record<string, string> = {};
+
+	private readonly responseHeaders: HeaderBuilder;
+
+	private readonly cookies: Cookies;
+
+	private responseStatus: number = 200;
+
+	constructor(
+		private readonly url: URL,
+		private readonly request: Request,
+		private readonly env: any,
+		private readonly stack: Stack,
+		private readonly params: Record<string, string>,
+		private readonly routeConfig: RouteConfig,
+		private readonly middlewares: Middleware[], // initial global middlewares array
+		private readonly routeHandler: Handler,
+		private readonly errorHandler: ErrorHandler,
+	) {
+		// instance built-in context helpers
+		this.responseHeaders = new HeaderBuilder({ 'Content-Type': 'application/json' });
+		// this.cookies = this.request.cookies; // todo
+
+		this.requestHeaders = this.request.headers;
+
+		this.url.searchParams.forEach((value, key) => {
+			this.requestQuery[key] = value;
+		});
+
+		this.cookies = new Cookies(this.request);
+
+		this.rootContext = {
+			request: this.request,
+			env: this.env,
+			stack: this.stack.push.bind(this.stack),
+			url: this.url,
+			ip: this.request.headers.get('CF-Connecting-IP') ?? 'unknown', // todo
+			origin: this.request.headers.get('origin') ?? '',
+			bearer: () => {
+				const auth = this.requestHeaders.get('authorization');
+
+				if (!auth) {
+					throw new BadRequest({ authorization: ['Authorization header is missing'] });
+				}
+
+				const [scheme, token] = auth.trim().split(/\s+/, 2);
+
+				if (scheme?.toLowerCase() !== 'bearer') {
+					throw new BadRequest({ authorization: ['Authorization scheme must be Bearer'] });
+				}
+
+				if (!token) {
+					throw new BadRequest({ authorization: ['Bearer token is missing or empty'] });
+				}
+
+				return token;
+			},
+			setHeader: this.responseHeaders.set.bind(this.responseHeaders),
+			deleteHeader: this.responseHeaders.delete.bind(this.responseHeaders),
+			getResponseHeaders: this.responseHeaders.get.bind(this.responseHeaders),
+			getResponseStatus: () => this.responseStatus,
+			setCookie: this.cookies.set.bind(this.cookies),
+			getCookie: this.cookies.get.bind(this.cookies),
+			deleteCookie: this.cookies.del.bind(this.cookies),
+			setStatus: (status: number) => {
+				this.responseStatus = status;
+			},
+			set: (key: string, value: any) => {
+				this.store[key] = value;
+			},
+			get: (key: string) => {
+				if (!this.store[key]) return null;
+				return this.store[key];
+			},
+			getOrFail: (key: string) => {
+				if (!this.store[key]) throw new InternalServerError(`'${key}' doesnt exists in request store`);
+				return this.store[key];
+			},
+			rawBody: {}, // unparsed yet
+		};
+	}
+
+	/**
+	 * Safely parse the request body based on its Content-Type.
+	 *
+	 * - Skips parsing for `GET`, `HEAD`, and `OPTIONS` (these methods don’t carry a body).
+	 * - If `Content-Length` is present and `0`, parsing is skipped.
+	 * - `application/json`, `multipart/form-data`, and `application/x-www-form-urlencoded`
+	 *   are parsed accordingly by `BodyParser`.
+	 * - Any other supported type is parsed as text and wrapped as `{ content: string }`.
+	 *
+	 * The raw (unparsed) body is stored in `rootContext.rawBody` when available.
+	 *
+	 * Parsing is performed on a cloned (`clone()`) instance of the request,
+	 * so the original request stream remains readable and can be used afterward.
+	 *
+	 * @see BodyParser
+	 * @remarks This method is defensive: unexpected parser errors are logged and swallowed.
+	 */
+	private async parseBody() {
+		try {
+			this.rootContext.rawBody = await new BodyParser(this.request).parse();
+		} catch (error) {
+			logger.error('parseBody() fails', error); // border, this should never happen
+		}
+	}
+
+	private validateContentType() {
+		const configType = this.routeConfig.type;
+
+		const contentType = this.request.headers.get('content-type') ?? '';
+		if (configType && !contentType.includes(configType)) {
+			throw new Exception('Invalid Content-Type', 400, {
+				'Content-Type': [`Expected “${configType}”, got “${contentType ?? 'none'}”.`],
+			});
+		}
+	}
+
+	private async getHandlerContext(): Promise<Context> {
+		// dont execute data validation by route configuration
+		if (this.routeConfig.disableValidation === true) {
+			return {
+				...this.rootContext,
+				body: this.rootContext.rawBody,
+				query: this.requestQuery,
+				params: this.params,
+				headers: this.requestHeaders,
+			};
+		}
+
+		const requestHeadersRecord: Record<string, string> = {};
+		this.requestHeaders.forEach((value, key) => {
+			requestHeadersRecord[key] = value;
+		});
+
+		const body = this.routeConfig.body
+			? await validateAsync(this.routeConfig.body, this.rootContext.rawBody, 'Invalid Body')
+			: this.rootContext.rawBody;
+
+		const query = this.routeConfig.query
+			? await validateAsync(this.routeConfig.query, this.requestQuery, 'Invalid Query')
+			: this.requestQuery;
+
+		const headers = this.routeConfig.headers
+			? await validateAsync(this.routeConfig.headers, requestHeadersRecord, 'Invalid Headers')
+			: requestHeadersRecord;
+
+		const params = this.routeConfig.params ? await validateAsync(this.routeConfig.params, this.params, 'Invalid Path Params') : this.params;
+
+		return {
+			...this.rootContext,
+			body,
+			query,
+			params,
+			headers,
+		};
+	}
+
+	private findFirstSuccessResponse() {
+		return this.routeConfig.responses?.find(
+			(r) => r.status === 'default' || (typeof r.status === 'number' && r.status >= 200 && r.status < 300),
+		);
+	}
+
+	private async parseSuccessResult(result: Awaited<Result>) {
+		const unparseable = result instanceof Response || typeof result === 'string' || result === null;
+		if (unparseable || !this.routeConfig.parseResult) return result;
+
+		const successResponse = this.findFirstSuccessResponse();
+
+		if (!successResponse) return result; // not success schema to parse with
+
+		const parsedResult = await validateAsync(successResponse.schema, result, 'Invalid Response Body');
+
+		return parsedResult as object;
+	}
+
+	/**
+	 * Normalizes an awaited `Result` value into a `Response` instance.
+	 *
+	 * Accepted types:
+	 * - `Response` → returned as-is.
+	 * - `null` → empty body
+	 * - `string` → plain text
+	 * - `object` → serializes JSON body
+	 *
+	 * Error handling:
+	 * - Throws `InternalServerError` if Result is not null - string - object or Response
+	 *
+	 * @param result - The handler or middleware return value to normalize.
+	 * @returns A `Response` object ready to be returned to the client.
+	 */
+	private createResponse(result: Awaited<Result>) {
+		if (result instanceof Response) return result;
+
+		const responseBody = typeof result === 'string' || result === null ? result : JSON.stringify(result);
+
+		if (typeof responseBody === 'string' || responseBody === null) {
+			const headers = this.responseHeaders.get();
+			this.cookies.apply(headers);
+
+			return new Response(responseBody, {
+				headers: headers,
+				status: this.responseStatus,
+			});
+		}
+
+		throw new InternalServerError(`Unable to parse response. Did you forget some 'return next()' on middlewares?`);
+	}
+
+	/**
+	 * Exception to Response with Error handler
+	 * its parsed within another try-catch, because if at error fails "we will never know what happen"
+	 * @param ex
+	 */
+	private async createErrorResponse(ex: Exception) {
+		try {
+			const errorResult = await this.errorHandler({ ...this.rootContext, exception: ex });
+			return this.createResponse(errorResult);
+		} catch (error) {
+			// Border case, bad coded ExceptionHandler
+			const safeError = error instanceof Error ? error.message : String(error);
+
+			const messages = [
+				'Failed to serialize the exception response',
+				`Error: ${safeError}`,
+				'The exception handler itself threw an error, review and fix its logic',
+			];
+
+			return new Response(messages.join('\n'), {
+				headers: { 'Content-Type': 'text/plain' },
+				status: 500,
+			});
+		}
+	}
+
+	async execute() {
+		const response = await this.resolve();
+		this.stack.execute();
+		return response;
+	}
+
+	async resolve() {
+		try {
+			// 1- safe body parse, on fail will log and rawBody will still "{}"
+			await this.parseBody();
+			// 2- add route specific middlewares
+			this.middlewares.push(...asArray(this.routeConfig.use));
+
+			// 3- Create functional route chain
+			let i = 0;
+			const run = async (): Promise<Result> => {
+				// global and route middlewares
+				const mw = this.middlewares[i++];
+				if (mw) return mw({ ...this.rootContext, next: run });
+				// route handler
+				this.validateContentType(); // if route config includes content-type and is different from request, throws
+				const ctx = await this.getHandlerContext(); // validates data and construct the final context
+				return this.routeHandler(ctx);
+			};
+
+			// 4- Parse and return Response
+			const result = await run();
+			const parsedResult = await this.parseSuccessResult(result); // only will parse if result is object-kind and response is configured
+
+			return this.createResponse(parsedResult);
+		} catch (error) {
+			const ex = Exception.parse(error);
+			console.error(error); // Log raw Error
+			return this.createErrorResponse(ex);
+		}
+	}
+}

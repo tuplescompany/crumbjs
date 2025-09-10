@@ -1,0 +1,58 @@
+{
+	"name": "@crumbjs/worker",
+	"version": "0.0.5",
+	"keywords": [
+		"crumbjs",
+		"edge",
+		"cloudflare",
+		"cloudflare workers",
+		"api",
+		"rest",
+		"http-server",
+		"router",
+		"middleware",
+		"validation",
+		"request-validation",
+		"zod",
+		"openapi",
+		"swagger",
+		"type-safe",
+		"typescript",
+		"api-client",
+		"client-sdk",
+		"end-to-end"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist"
+	],
+	"author": "tuples-hr",
+	"homepage": "https://crumbjs.com",
+	"bugs": {
+		"url": "https://github.com/tuplescompany/crumbjs/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/tuplescompany/crumbjs"
+	},
+	"license": "MIT",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"type": "module",
+	"scripts": {
+		"build": "tsc"
+	},
+	"devDependencies": {
+		"ts-unused-exports": "^11.0.1",
+		"typescript": "^5.9.2"
+	},
+	"peerDependencies": {
+		"openapi3-ts": "^4.5.0",
+		"zod": "4.1.4"
+	},
+	"dependencies": {
+		"cookie-es": "^2.0.0"
+	}
+}
