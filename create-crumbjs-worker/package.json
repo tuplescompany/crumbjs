@@ -1,0 +1,25 @@
+{
+	"name": "create-crumbjs-worker",
+	"version": "0.1.0",
+	"author": "tuples-hr",
+	"homepage": "https://crumbjs.com",
+	"bugs": {
+		"url": "https://github.com/tuplescompany/crumbjs/issues"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"license": "MIT",
+	"bin": {
+		"create-crumbjs": "create-app.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/tuplescompany/crumbjs"
+	},
+	"files": [
+		"create-app.js",
+		"template/"
+	],
+	"type": "module"
+}

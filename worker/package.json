@@ -1,6 +1,6 @@
 {
 	"name": "@crumbjs/worker",
-	"version": "0.0.1",
+	"version": "0.0.5",
 	"keywords": [
 		"crumbjs",
 		"edge",
@@ -40,7 +40,6 @@
 	"license": "MIT",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
-	"module": "src/index.ts",
 	"type": "module",
 	"scripts": {
 		"build": "tsc"

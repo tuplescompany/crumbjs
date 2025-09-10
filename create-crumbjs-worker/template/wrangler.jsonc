@@ -1,0 +1,26 @@
+{
+	"name": "my-api",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-09-10",
+	"compatibility_flags": ["nodejs_compat"],
+	"vars": {
+		"APP_MODE": "development",
+	},
+	"services": [],
+	"env": {
+		"staging": {
+			"name": "staging-api",
+			"vars": {
+				"APP_MODE": "staging",
+			},
+			"services": [],
+		},
+		"prod": {
+			"name": "prod-api",
+			"vars": {
+				"APP_MODE": "production",
+			},
+			"services": [],
+		},
+	},
+}
