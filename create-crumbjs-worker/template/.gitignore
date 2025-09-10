@@ -4,5 +4,8 @@
 .env.test.local
 .env.production.local
 .env.docker
+.dev.vars
+.prod.vars
+.staging.vars
 server
 server.exe
