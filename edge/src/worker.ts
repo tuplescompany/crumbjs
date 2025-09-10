@@ -1,33 +1,37 @@
 import { App } from './app';
-import type { APIConfig, RouteData } from './types';
+import type { APIConfig, Method, RouteData } from './types';
 import { buildPath, getModeLogLevel, objectCleanUndefined } from './helpers/utils';
 import { openapi } from './openapi/openapi';
 import { Processor } from './processor/processor';
 import { logger } from './helpers/logger';
-import { addRoute, createRouter, findRoute, RouterContext } from './rou3';
+import { addRoute, createRouter, findRoute, type RouterContext } from './rou3';
 import { defaultErrorHandler, defaultNotFoundHandler, modes } from './constants';
 import { MockExecutionContext, IExecutionContext } from './cloudflare';
 import { Stack } from './stack';
 
-/**
- * Builds a fetcher workers from App and childs
- */
-export class Router {
+export class Worker {
 	private readonly rou3: RouterContext<RouteData>;
 	private config: APIConfig;
 
-	constructor(private readonly app: App) {
+	constructor(
+		private readonly app: App,
+		options?: Partial<APIConfig>,
+	) {
 		this.rou3 = createRouter<RouteData>();
+
 		this.config = {
-			mode: 'development',
-			withOpenapi: true,
-			version: '1.0.0',
-			openapiTitle: 'Api',
-			openapiDescription: 'API Documentation',
-			openapiBasePath: '/reference',
-			openapiUi: 'scalar',
-			errorHandler: defaultErrorHandler,
-			notFoundHandler: defaultNotFoundHandler,
+			...{
+				mode: 'development',
+				withOpenapi: true,
+				version: '1.0.0',
+				openapiTitle: 'Api',
+				openapiDescription: 'API Documentation',
+				openapiBasePath: '/reference',
+				openapiUi: 'scalar',
+				errorHandler: defaultErrorHandler,
+				notFoundHandler: defaultNotFoundHandler,
+			},
+			...objectCleanUndefined(options),
 		};
 
 		// set level to the global Logger instance on server starts
@@ -38,6 +42,8 @@ export class Router {
 			up: true,
 			at: new Date(),
 		}));
+
+		this.buildRoutes();
 	}
 
 	/**
@@ -77,7 +83,21 @@ export class Router {
 
 			// Register openapi route if is enabled and not specifically hide on the route
 			if (withOpenapi && !route.config.hide) {
-				openapi.addBuildedRoute(route.method, fullPath, route.config);
+				openapi.addRoute({
+					method: route.method.toLowerCase() as Lowercase<Method>,
+					path: fullPath,
+					mediaType: route.config.type ?? 'application/json',
+					body: 'body' in route.config ? route.config.body : undefined,
+					query: route.config.query,
+					header: route.config.headers,
+					params: route.config.params,
+					responses: route.config.responses,
+					tags: route.config.tags ?? ['Uncategorized'],
+					description: route.config.description,
+					summary: route.config.summary,
+					authorization: route.config.authorization,
+					operationId: route.config.operationId,
+				});
 			}
 		}
 
@@ -102,46 +122,34 @@ export class Router {
 		}
 	}
 
-	worker(options?: Partial<APIConfig>) {
-		this.config = {
-			...this.config,
-			...objectCleanUndefined(options),
-		};
+	fetch(request: Request, env: any, ctx: IExecutionContext): Response | Promise<Response> {
+		// Worker ENV overrides
+		if (env.APP_MODE && modes.includes(env.APP_MODE)) {
+			const logLevel = getModeLogLevel(env.APP_MODE);
+			logger.setLevel(logLevel);
+		}
 
-		this.buildRoutes();
+		const url = new URL(request.url);
+		const match = findRoute<RouteData>(this.rou3, request.method, url.pathname);
 
-		return {
-			app: this.app,
-			fetch: async (request: Request, env?: any, ctx?: IExecutionContext) => {
-				// Worker ENV overrides
-				if (env.APP_MODE && modes.includes(env.APP_MODE)) {
-					const logLevel = getModeLogLevel(env.APP_MODE);
-					logger.setLevel(logLevel);
-				}
+		if (!match) {
+			return this.config.notFoundHandler(request);
+		}
 
-				const url = new URL(request.url);
-				const match = findRoute<RouteData>(this.rou3, request.method, url.pathname);
+		const execContext = ctx ?? new MockExecutionContext();
+		const stack = new Stack(execContext, this.app.getOnCloseTriggers());
 
-				if (!match) {
-					return this.config.notFoundHandler(request);
-				}
+		const processor = new Processor(
+			request,
+			env ?? {},
+			stack,
+			match.params ?? {},
+			match.data.config,
+			this.getGlobalMiddlewares(),
+			match.data.handler,
+			this.config.errorHandler,
+		);
 
-				const execContext = ctx ?? new MockExecutionContext();
-				const stack = new Stack(execContext, this.app.getOnCloseTriggers());
-
-				const processor = new Processor(
-					request,
-					env ?? {},
-					stack,
-					match.params ?? {},
-					match.data.config,
-					this.getGlobalMiddlewares(),
-					match.data.handler,
-					this.config.errorHandler,
-				);
-
-				return processor.execute();
-			},
-		};
+		return processor.execute();
 	}
 }

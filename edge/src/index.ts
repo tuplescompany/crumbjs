@@ -19,3 +19,4 @@ export { cors } from './middlewares/cors';
 export { secureHeaders } from './middlewares/secure-headers';
 export { validate, safeValidate, validateAsync, safeValidateAsync } from './validator';
 export { codecs } from './helpers/codecs';
+export { Worker } from './worker';

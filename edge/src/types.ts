@@ -1,8 +1,6 @@
-import { type ZodObject, type infer as ZodInfer, type ZodType, type ZodString, ZodOptional, ZodNullable } from 'zod';
+import { type ZodObject, type infer as ZodInfer, type ZodType } from 'zod';
 import { modes, openapiUis } from './constants';
 import { Exception } from './exception';
-import { Processor } from './processor/processor';
-import { IExecutionContext } from './cloudflare';
 import { CookieSerializeOptions } from 'cookie-es';
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
@@ -31,28 +29,19 @@ export type Result = Promise<string | object | null | Response> | (string | obje
 
 export type NotFoundHandler = (req: Request) => Response | Promise<Response>;
 
-export type ErrorHandler = (ctx: ErrorContext) => Result | Promise<Result>;
+export type ErrorHandler<E extends Envs = any, V extends Vars = any> = (ctx: ErrorContext<E, V>) => Result | Promise<Result>;
 
 type InferOrAny<T extends ZodObject | undefined> = T extends ZodObject ? ZodInfer<T> : any;
 
 type Next = () => Promise<Result>;
 
-export type Middleware = (ctx: MiddlewareContext) => Promise<Result>;
-
-export type OnStart = () => void | Promise<void>;
+export type Middleware<E extends Envs = any, V extends Vars = any> = (ctx: MiddlewareContext<E, V>) => Promise<Result>;
 
 export type ExtractPathParams<S extends string> = S extends `${string}:${infer Param}/${infer Rest}`
 	? { [K in Param | keyof ExtractPathParams<`/${Rest}`>]: string }
 	: S extends `${string}:${infer Param}`
 		? { [K in Param]: string }
 		: {};
-
-type PathParams<S extends string> = {
-	[K in keyof ExtractPathParams<S>]?: {
-		example: string;
-		description?: string;
-	};
-};
 
 type PathParamsShape<S extends string> = {
 	[K in keyof ExtractPathParams<S>]: ZodType;
@@ -67,16 +56,19 @@ export type AnyPathParams = {
 	};
 };
 
+export type Envs = Record<string, any>;
+export type Vars = Record<string, any>;
+
 /**
  * Core context passed to all route handlers and middleware.
  * Provides access to the request, parsed body, response controls,
  * and a per-request key–value store.
  */
-export type RootContext = {
+export type RootContext<E extends Envs = any, V extends Vars = any> = {
 	/** The original Fetch API Request object */
 	request: Request;
 
-	env: any;
+	env: E;
 
 	stack: (name: string, promise: Promise<any>) => void;
 
@@ -169,7 +161,7 @@ export type RootContext = {
 	 * @param key - Unique key
 	 * @param value - Any value to store
 	 */
-	set: (key: string, value: any) => void;
+	set: <K extends keyof V & string>(key: K, value: V[K]) => void;
 
 	/**
 	 * Retrieves a stored value from the per-request context.
@@ -177,7 +169,7 @@ export type RootContext = {
 	 * @returns The stored value
 	 * @throws {InternalServerError} if the key not exists
 	 */
-	get: <T = any>(key: string) => T;
+	get: <K extends keyof V & string>(key: K) => V[K];
 };
 
 /**
@@ -185,14 +177,14 @@ export type RootContext = {
  * Extends {@link RootContext} with:
  * - `next`: callback to pass control to the next middleware in the chain
  */
-export type MiddlewareContext = RootContext & { next: Next };
+export type MiddlewareContext<E extends Envs = any, V extends Vars = any> = RootContext<E, V> & { next: Next };
 
 /**
  * Context available when an error is caught during request handling.
  * Extends {@link RootContext} with:
  * - `exception`: the thrown {@link Exception} object containing error details
  */
-export type ErrorContext = RootContext & { exception: Exception };
+export type ErrorContext<E extends Envs = any, V extends Vars = any> = RootContext<E, V> & { exception: Exception };
 
 type InferOrExtract<S extends string, P extends PathParamsSchema<S> | undefined> =
 	P extends PathParamsSchema<S> ? ZodInfer<P> : ExtractPathParams<S>;
@@ -217,7 +209,9 @@ export type Context<
 	QUERY extends ZodObject | undefined = any,
 	HEADERS extends ZodObject | undefined = any,
 	PARAMS extends PathParamsSchema<PATH> | undefined = any,
-> = RootContext & {
+	ENV extends Envs = any,
+	VAR extends Vars = any,
+> = RootContext<ENV, VAR> & {
 	/** Validated request body (or `any` if no schema provided) */
 	body: InferOrAny<BODY>;
 
@@ -237,7 +231,9 @@ export type Handler<
 	QUERY extends ZodObject | undefined = any,
 	HEADERS extends ZodObject | undefined = any,
 	PARAMS extends PathParamsSchema<PATH> | undefined = any,
-> = (ctx: Context<PATH, BODY, QUERY, HEADERS, PARAMS>) => Result;
+	ENV extends Envs = any,
+	VAR extends Vars = any,
+> = (ctx: Context<PATH, BODY, QUERY, HEADERS, PARAMS, ENV, VAR>) => Result;
 
 /**
  * Route-level configuration: validation, docs, and behavior.
@@ -481,8 +477,6 @@ export type OARoute = {
 	authorization?: 'bearer' | 'basic';
 	operationId?: string;
 };
-
-export type HttpUrlString = `${'http' | 'https'}://${string}`;
 
 export type FieldMeta = {
 	description?: string;

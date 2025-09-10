@@ -1,31 +1,19 @@
-import type {
-	APIConfig,
-	Handler,
-	HttpUrlString,
-	Method,
-	Middleware,
-	MethodOpts,
-	OnStart,
-	Route,
-	RouteConfig,
-	PathParamsSchema,
-} from './types';
-import { Router } from './router';
+import type { Handler, Method, Middleware, MethodOpts, Route, RouteConfig, PathParamsSchema } from './types';
 import type { ZodObject } from 'zod';
 import { createProxyHandler } from './helpers/proxy';
 import { asArray } from './helpers/utils';
 
-export class App {
+export class App<E extends Record<string, any> = any, V extends Record<string, any> = any> {
 	#prefix: string = '';
 	readonly #tags: string[] = [];
 	#hide: boolean = false;
 
 	private readonly routes: Route[] = [];
 
-	private readonly middlewares: Middleware[] = [];
+	private readonly middlewares: Middleware<E, V>[] = [];
 
 	// global middleware holds all the App instance (bubble up) global middlewares and apply it to all routes on router build
-	private globalMiddlewares: Record<string, Middleware> = {};
+	private globalMiddlewares: Record<string, Middleware<E, V>> = {};
 
 	private onCloseTriggers: Record<string, Promise<any>> = {};
 
@@ -80,7 +68,7 @@ export class App {
 	 *
 	 * **Important** No need to set global middleware at root app, all middlewares in root App instance are global by default.
 	 */
-	useGlobal(middleware: Middleware, name: string) {
+	useGlobal(middleware: Middleware<E, V>, name: string) {
 		this.globalMiddlewares[name] = middleware;
 		return this;
 	}
@@ -119,7 +107,7 @@ export class App {
 	 * // Mount a sub-application with its own routes
 	 * app.use(apiApp);
 	 */
-	use(usable: Middleware | App) {
+	use(usable: Middleware<E, V> | App<E, V>) {
 		if (usable instanceof App) {
 			for (const child of usable.getRoutes()) {
 				// Add child App scoped middleware to route
@@ -152,12 +140,7 @@ export class App {
 		return this.middlewares;
 	}
 
-	private add(
-		method: MethodOpts,
-		path: string,
-		handler: Handler<string, any, any, any, any>,
-		config?: RouteConfig<any, any, any, any, any>,
-	) {
+	private add(method: MethodOpts, path: string, handler: Handler<string>, config?: RouteConfig<string, any, any, any, any>) {
 		let methods: Method[];
 
 		if (Array.isArray(method)) {
@@ -170,7 +153,7 @@ export class App {
 
 		for (const m of methods) {
 			// shallow-clone config to avoid repeating middlewares on app mounting on multi method cases
-			const cfg: RouteConfig<string, any, any, any> = config ? { ...config, use: asArray(config.use) } : {};
+			const cfg: RouteConfig<string, any, any, any, any> = config ? { ...config, use: asArray(config.use) } : {};
 
 			// App instance openapi settings inheritance
 			// Only here in the scoped add() - never in use()
@@ -199,13 +182,13 @@ export class App {
 	 *
 	 * @param methods   HTTP method(s) or `'*'` for all.
 	 * @param localPath Local mount point with all subtrees.
-	 * @param dest      Upstream base URL.
+	 * @param dest      Upstream base URL or the name of the ENV variable of a Fetcher
 	 *
 	 * @example
 	 * proxyAll('/v1', 'https://api.example.com'); // eg. '/v1/auth' will be fowarded to
 	 * proxyAll('/v2', 'https://new-api.example.com'); // eg. '/v2/orders' will be fowarded to
 	 */
-	proxyAll(localPath: string, dest: HttpUrlString, use?: Middleware | Middleware[]) {
+	proxyAll(localPath: string, dest: string, use?: Middleware | Middleware[]) {
 		const ensureWildcard = !localPath.endsWith('/**') ? localPath.concat('/**') : localPath;
 
 		return this.add('*', ensureWildcard, createProxyHandler(localPath, dest), { use, hide: true });
@@ -222,13 +205,13 @@ export class App {
 	 *
 	 * @param method    One HTTP method (e.g. 'GET').
 	 * @param localPath Local mount point (`/*` proxies a subtree).
-	 * @param dest      Upstream base URL (e.g. https://api.example.com).
+	 * @param dest      Upstream base URL (e.g. https://api.example.com) or name of the ENV variable of a Fetcher
 	 * @param config    Route config (middlewares, validation, OpenAPI).
 	 *
 	 * @example
 	 * proxy('POST', '/auth', 'https://auth-ms.example.com/v1/auth', { body: authSchema });
 	 */
-	proxy(method: Method, localPath: string, dest: HttpUrlString, config?: RouteConfig<any, any, any, any>) {
+	proxy(method: Method, localPath: string, dest: string, config?: RouteConfig<any, any, any, any>) {
 		if (localPath.endsWith('/**')) {
 			const suggestPath = localPath.replace('/**', '');
 			const proxyAllExample = `app.proxyAll('${suggestPath}', '${dest}', middlewares)`;
@@ -250,7 +233,7 @@ export class App {
 	>(
 		methods: MethodOpts,
 		path: PATH,
-		handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS>,
+		handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS, E, V>,
 		config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>,
 	) {
 		return this.add(methods, path, handler, config);
@@ -262,7 +245,11 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
 		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
-	>(path: PATH, handler: Handler<PATH, undefined, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, undefined, QUERY, HEADERS, PARAMS>) {
+	>(
+		path: PATH,
+		handler: Handler<PATH, undefined, QUERY, HEADERS, PARAMS, E, V>,
+		config?: RouteConfig<PATH, undefined, QUERY, HEADERS, PARAMS>,
+	) {
 		return this.add('GET', path, handler, config);
 	}
 
@@ -273,7 +260,7 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
 		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
-	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>) {
+	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS, E, V>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>) {
 		return this.add('POST', path, handler, config);
 	}
 
@@ -284,7 +271,7 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
 		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
-	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>) {
+	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS, E, V>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>) {
 		return this.add('PUT', path, handler, config);
 	}
 
@@ -295,7 +282,7 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
 		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
-	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>) {
+	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS, E, V>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>) {
 		return this.add('PATCH', path, handler, config);
 	}
 
@@ -306,7 +293,7 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
 		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
-	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>) {
+	>(path: PATH, handler: Handler<PATH, BODY, QUERY, HEADERS, PARAMS, E, V>, config?: RouteConfig<PATH, BODY, QUERY, HEADERS, PARAMS>) {
 		return this.add('DELETE', path, handler, config);
 	}
 
@@ -316,7 +303,11 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
 		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
-	>(path: PATH, handler: Handler<PATH, undefined, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, undefined, QUERY, HEADERS, PARAMS>) {
+	>(
+		path: PATH,
+		handler: Handler<PATH, undefined, QUERY, HEADERS, PARAMS, E, V>,
+		config?: RouteConfig<PATH, undefined, QUERY, HEADERS, PARAMS>,
+	) {
 		return this.add('OPTIONS', path, handler, config);
 	}
 
@@ -326,15 +317,11 @@ export class App {
 		QUERY extends ZodObject | undefined = undefined,
 		HEADERS extends ZodObject | undefined = undefined,
 		PARAMS extends PathParamsSchema<PATH> | undefined = undefined,
-	>(path: PATH, handler: Handler<PATH, undefined, QUERY, HEADERS, PARAMS>, config?: RouteConfig<PATH, undefined, QUERY, HEADERS, PARAMS>) {
+	>(
+		path: PATH,
+		handler: Handler<PATH, undefined, QUERY, HEADERS, PARAMS, E, V>,
+		config?: RouteConfig<PATH, undefined, QUERY, HEADERS, PARAMS>,
+	) {
 		return this.add('HEAD', path, handler, config);
-	}
-
-	/**
-	 * Builds the Bun.Server
-	 */
-	worker(config?: Partial<APIConfig>) {
-		const router = new Router(this);
-		return router.worker(config ?? undefined);
 	}
 }

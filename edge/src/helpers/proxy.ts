@@ -1,28 +1,40 @@
 // proxy-ts utilities for proxy routes
 import z from 'zod';
 import { Handler } from '../types';
+import { InternalServerError } from '../exception/http.exception';
 
 export function createProxyHandler(localPath: string, dest: string): Handler {
-	if (!z.url().safeParse(dest).success) throw Error(`Invalid proxy foward URL: '${dest}'`);
+	// If is a raw URL string, proceed to http standard foward
+	if (z.url().safeParse(dest)) {
+		return async ({ request, url }) => {
+			// Remove local path from fowardPath
+			const fowardPath = url.pathname.replace(localPath, '');
+			const targetUrl = new URL(fowardPath + url.search, dest);
 
-	return async ({ request, url }) => {
-		// Remove local path from fowardPath
-		const fowardPath = url.pathname.replace(localPath, '');
-		const targetUrl = new URL(fowardPath + url.search, dest);
+			const fowardHeaders = buildFowardHeaders(request);
 
-		const fowardHeaders = buildFowardHeaders(request);
+			const hasBody = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
+			const fowardBody = hasBody ? request.body : undefined;
 
-		const hasBody = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
-		const fowardBody = hasBody ? request.body : undefined;
+			// Forward request to target
+			const upstream = await fetch(targetUrl, { method: request.method, headers: fowardHeaders, body: fowardBody });
 
-		// Forward request to target
-		const upstream = await fetch(targetUrl, { method: request.method, headers: fowardHeaders, body: fowardBody });
+			return new Response(upstream.body, {
+				status: upstream.status,
+				statusText: upstream.statusText,
+				headers: buildResponseHeaders(upstream),
+			});
+		};
+	}
 
-		return new Response(upstream.body, {
-			status: upstream.status,
-			statusText: upstream.statusText,
-			headers: buildResponseHeaders(upstream),
-		});
+	// may be an Fetcher instance
+	return async ({ env, request }) => {
+		const fetcher = env[dest];
+		if (typeof fetcher === 'function' && 'fetch' in fetcher) {
+			return fetcher.fetch(request);
+		}
+
+		throw new InternalServerError(`'${dest}' is not a valid Fetcher binding`);
 	};
 }
 

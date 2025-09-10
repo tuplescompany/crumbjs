@@ -59,7 +59,6 @@ export class Stack {
 				logger.debug('All background tasks settled, executing close promise/s');
 
 				const closingTasks = Object.keys(this.closeTasks);
-
 				if (closingTasks.length) {
 					logger.debug(`Closing tasks: ${closingTasks.join(',')}`);
 					for (const closeTaskName of closingTasks) {

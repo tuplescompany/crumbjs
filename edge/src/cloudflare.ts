@@ -46,9 +46,11 @@ interface ISocket {
 	close(): Promise<void>;
 	startTls(options?: ITlsOptions): ISocket;
 }
+
 interface ITlsOptions {
 	expectedServerHostname?: string;
 }
+
 interface ISocketInfo {
 	remoteAddress?: string;
 	localAddress?: string;

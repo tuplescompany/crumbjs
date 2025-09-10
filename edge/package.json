@@ -54,7 +54,6 @@
 		"zod": "4.1.4"
 	},
 	"dependencies": {
-		"cookie-es": "^2.0.0",
-		"openapi-typescript": "^7.9.1"
+		"cookie-es": "^2.0.0"
 	}
 }

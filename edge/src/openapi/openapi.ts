@@ -75,24 +75,6 @@ export const openapi = (() => {
 		builder().addPath(path, item);
 	};
 
-	const addBuildedRoute = (method: Method, path: string, config: RouteConfig): void => {
-		addRoute({
-			method: method.toLowerCase() as Lowercase<Method>,
-			path,
-			mediaType: config.type ?? 'application/json',
-			body: 'body' in config ? config.body : undefined,
-			query: config.query,
-			header: config.headers,
-			params: config.params,
-			responses: config.responses,
-			tags: config.tags ?? ['Uncategorized'],
-			description: config.description,
-			summary: config.summary,
-			authorization: config.authorization,
-			operationId: config.operationId,
-		});
-	};
-
 	/** Append a server entry used by code-gen tools and UIs. */
 	const addServer = (url: string, description?: string) => builder().addServer({ url, description });
 
@@ -137,7 +119,6 @@ export const openapi = (() => {
 	return {
 		builder,
 		addSchema,
-		addBuildedRoute,
 		addRoute,
 		addServer,
 		addTag: upsertTag,
