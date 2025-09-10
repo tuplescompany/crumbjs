@@ -10,7 +10,7 @@ import { MockExecutionContext, IExecutionContext } from './cloudflare';
 import { Stack } from './stack';
 
 export class Worker {
-	private readonly rou3: RouterContext<RouteData>;
+	private rou3: RouterContext<RouteData>;
 	private config: APIConfig;
 
 	constructor(
@@ -122,10 +122,13 @@ export class Worker {
 		}
 	}
 
-	fetch(request: Request, env: any, ctx: IExecutionContext): Response | Promise<Response> {
+	fetch(request: Request, env?: any, ctx?: IExecutionContext): Response | Promise<Response> {
+		const environment = env ?? {};
+		const executionContext = ctx ?? new MockExecutionContext();
+
 		// Worker ENV overrides
-		if (env.APP_MODE && modes.includes(env.APP_MODE)) {
-			const logLevel = getModeLogLevel(env.APP_MODE);
+		if (environment.APP_MODE && modes.includes(environment.APP_MODE)) {
+			const logLevel = getModeLogLevel(environment.APP_MODE);
 			logger.setLevel(logLevel);
 		}
 
@@ -136,12 +139,12 @@ export class Worker {
 			return this.config.notFoundHandler(request);
 		}
 
-		const execContext = ctx ?? new MockExecutionContext();
-		const stack = new Stack(execContext, this.app.getOnCloseTriggers());
+		const stack = new Stack(executionContext, this.app.getOnCloseTriggers());
 
 		const processor = new Processor(
+			url,
 			request,
-			env ?? {},
+			environment,
 			stack,
 			match.params ?? {},
 			match.data.config,

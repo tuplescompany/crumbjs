@@ -192,11 +192,14 @@ const DEFAULT_OPTIONS: SecureHeadersOptions = {
 
 type SecureHeadersCallback = (ctx: MiddlewareContext, headersToSet: [string, string | string[]][]) => [string, string][];
 
-const generateNonce = () => {
-	const arrayBuffer = new Uint8Array(16);
-	crypto.getRandomValues(arrayBuffer);
+export const generateNonce = (): string => {
+	const bytes = new Uint8Array(16);
+	crypto.getRandomValues(bytes); // Web Crypto en Workers
 
-	return Buffer.from(arrayBuffer.buffer).toString('base64'); // rewrite for more performance
+	// Uint8Array -> binary string -> base64
+	let bin = '';
+	for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+	return btoa(bin);
 };
 
 export const NONCE: ContentSecurityPolicyOptionHandler = (ctx) => {

@@ -166,10 +166,17 @@ export type RootContext<E extends Envs = any, V extends Vars = any> = {
 	/**
 	 * Retrieves a stored value from the per-request context.
 	 * @param key - Key to retrieve
+	 * @returns The stored value or null
+	 */
+	get: <K extends keyof V & string>(key: K) => V[K] | null;
+
+	/**
+	 * Retrieves a stored value from the per-request context.
+	 * @param key - Key to retrieve
 	 * @returns The stored value
 	 * @throws {InternalServerError} if the key not exists
 	 */
-	get: <K extends keyof V & string>(key: K) => V[K];
+	getOrFail: <K extends keyof V & string>(key: K) => Exclude<V[K], undefined | null>;
 };
 
 /**

@@ -5,7 +5,6 @@ export type ExceptionType = {
 	status: number;
 	message: string;
 	fields?: any;
-	debug?: any;
 };
 
 export class Exception extends Error {
@@ -18,34 +17,16 @@ export class Exception extends Error {
 		super(message);
 	}
 
-	getDebug(): any {
-		return process.env.NODE_ENV !== 'production'
-			? {
-					debug: {
-						name: this.name,
-						stack: this.stack,
-						cause: this.cause,
-					},
-				}
-			: null;
-	}
-
 	toObject(): ExceptionType {
 		return {
 			status: this.status,
 			message: this.message,
 			fields: this.fields,
-			...this.getDebug(),
 		};
 	}
 
 	toHtml(): string {
-		const title = `<b>${this.message} (${this.status})</b>`;
-
-		const withDebug = this.getDebug();
-		const detail = withDebug ? `<pre><small>${JSON.stringify(withDebug, null, 2)}</small></pre>` : '';
-
-		return `${title}<br/>${detail}`;
+		return `<b>${this.message} (${this.status})</b>`;
 	}
 
 	/**

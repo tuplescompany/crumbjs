@@ -12,8 +12,6 @@ import { Stack } from '../stack';
 export class Processor {
 	private readonly rootContext: RootContext;
 
-	private readonly url: URL;
-
 	private store: Record<string, any> = {};
 
 	private readonly requestHeaders: Headers;
@@ -27,6 +25,7 @@ export class Processor {
 	private responseStatus: number = 200;
 
 	constructor(
+		private readonly url: URL,
 		private readonly request: Request,
 		private readonly env: any,
 		private readonly stack: Stack,
@@ -41,8 +40,6 @@ export class Processor {
 		// this.cookies = this.request.cookies; // todo
 
 		this.requestHeaders = this.request.headers;
-
-		this.url = new URL(request.url);
 
 		this.url.searchParams.forEach((value, key) => {
 			this.requestQuery[key] = value;
@@ -89,9 +86,13 @@ export class Processor {
 			set: (key: string, value: any) => {
 				this.store[key] = value;
 			},
-			get: <T = any>(key: string): T => {
-				if (!this.store[key]) throw new InternalServerError(`${key} doesnt exists in store`);
-				return this.store[key] as T;
+			get: (key: string) => {
+				if (!this.store[key]) return null;
+				return this.store[key];
+			},
+			getOrFail: (key: string) => {
+				if (!this.store[key]) throw new InternalServerError(`'${key}' doesnt exists in request store`);
+				return this.store[key];
 			},
 			rawBody: {}, // unparsed yet
 		};
