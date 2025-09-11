@@ -29,7 +29,7 @@ export const signals = (force: boolean = false): Middleware => {
 
 		const response = await next();
 
-		const status = getResponseStatus();
+		const status = (response instanceof Response) ? response.status : getResponseStatus();
 		const fn = status >= 400 ? 'error' : force ? 'print' : 'info'; // nosonar
 
 		const duration = performance.now() - start;
