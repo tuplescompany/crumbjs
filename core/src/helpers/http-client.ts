@@ -91,6 +91,8 @@ export class HttpClient {
 		if (this.#contentType === 'multipart/form-data') {
 			this.#isForm = true;
 		}
+
+		this.#headers['content-type'] = this.#contentType.toLocaleLowerCase();
 	}
 
 	public data(data: Record<string, any>, type: ContentType = 'application/json') {
