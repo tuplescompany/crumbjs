@@ -84,8 +84,6 @@ export class Router {
 	 * Takes all application routes and create Bun.serve compatible Handlers with all request life-cycle throught Processor
 	 */
 	private async buildRoutes() {
-		const { withOpenapi, openapiBasePath, openapiUi } = config.all;
-
 		let dynamics: Record<string, any> = {};
 		let statics: Record<string, Response> = {};
 
@@ -101,7 +99,7 @@ export class Router {
 			}
 
 			// Register openapi route if is enabled and not specifically hide on the route
-			if (withOpenapi && !routeConfig.hide) {
+			if (config.get('withOpenapi') && !routeConfig.hide) {
 				openapi.addBuildedRoute(buildedRoute);
 			}
 
@@ -112,26 +110,21 @@ export class Router {
 		/**
 		 * Add openapi routes if is enabled as raw-serve-route, no middlewares / request lifecycle attached
 		 */
-		if (withOpenapi) {
+		if (config.get('withOpenapi')) {
 			const specs = this.getOpenapiSpecs();
 
-			const documentPath = buildPath(openapiBasePath, '/doc.json');
-			const openapiUiPath = buildPath(openapiBasePath);
+			const documentPath = buildPath(config.get('openapiBasePath'), '/doc.json');
+			const openapiUiPath = buildPath(config.get('openapiBasePath'));
 
 			statics[documentPath] = Response.json(specs);
-			statics[openapiUiPath] = new Response(openapi[openapiUi](documentPath));
+			statics[openapiUiPath] = new Response(openapi[config.get('openapiUi')](documentPath));
 
 			logger.debug(`📘 GET ${documentPath} Registered (static)`);
 			logger.debug(`📘 GET ${openapiUiPath} Registered (static)`);
 		}
 
-		const openapiReadyMessage = withOpenapi ? `enabled, UI: ${openapiUi}` : 'disabled';
+		const openapiReadyMessage = config.get('withOpenapi') ? `enabled, UI: ${config.get('openapiUi')}` : 'disabled';
 		logger.debug(`📘 OPENAPI: ${openapiReadyMessage}`);
-
-		if (withOpenapi && config.get('mode') === 'development' && config.get('generateClientSchema')) {
-			await createClientSpecs(openapi.getJson());
-			logger.debug(`📘 CLIENT: Generated client specification`);
-		}
 
 		return { statics, dynamics };
 	}
@@ -149,6 +142,11 @@ export class Router {
 		}
 
 		const routes = await this.buildRoutes();
+
+		if (config.get('withOpenapi') && config.get('mode') === 'development' && config.get('generateClientSchema')) {
+			await createClientSpecs(openapi.getJson(), config.get('clientSchemaPath'));
+			logger.debug(`📘 CLIENT: Generated client specification`);
+		}
 
 		const server = Bun.serve({
 			port: config.get('port'),

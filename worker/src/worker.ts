@@ -122,6 +122,13 @@ export class Worker {
 		}
 	}
 
+	private isOpenapiPath(path: string) {
+		const documentPath = buildPath(this.config.openapiBasePath, '/doc.json');
+		const openapiUiPath = buildPath(this.config.openapiBasePath);
+
+		return documentPath === path || openapiUiPath === path
+	}
+
 	fetch(request: Request, env?: any, ctx?: IExecutionContext): Response | Promise<Response> {
 		const environment = env ?? {};
 		const executionContext = ctx ?? new MockExecutionContext();
@@ -133,6 +140,12 @@ export class Worker {
 		}
 
 		const url = new URL(request.url);
+
+		// Hide openapi routes by env option
+		if (environment.OPENAPI && environment.OPENAPI === 'hide' && this.isOpenapiPath(url.pathname)) {
+			return this.config.notFoundHandler(request);
+		}
+
 		const match = findRoute<RouteData>(this.rou3, request.method, url.pathname);
 
 		if (!match) {

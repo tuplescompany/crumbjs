@@ -445,6 +445,12 @@ export type APIConfig = {
 	generateClientSchema: boolean;
 
 	/**
+	 * Indicates the path for the client schema definition file
+	 * @default './client-schema.ts' // root dir of the project
+	 */
+	clientSchemaPath: string;
+	
+	/**
 	 * Handler for unmatched routes (404).
 	 *
 	 * Default:
