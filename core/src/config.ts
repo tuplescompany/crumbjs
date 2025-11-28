@@ -43,6 +43,7 @@ const extract = (): APIConfig => ({
 	openapiBasePath: parse('OPENAPI_PATH', z.string().regex(/^\/(?:[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*)$/), '/reference'),
 	openapiUi: parse('OPENAPI_UI', z.enum(openapiUis), 'scalar'),
 	generateClientSchema: parse('GENERATE_CLIENT_SCHEMA', codecs.stringBoolean, false),
+	clientSchemaPath: parse('CLIENT_SCHEMA_PATH', z.string(), './client-schema.ts'),
 	errorHandler: defaultErrorHandler,
 	notFoundHandler: defaultNotFoundHandler,
 });

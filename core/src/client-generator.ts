@@ -8,12 +8,13 @@ const BLOB = ts.factory.createTypeReferenceNode('Blob');
 const union = (...types: ts.TypeNode[]) => ts.factory.createUnionTypeNode(types);
 const arr = (t: ts.TypeNode) => ts.factory.createArrayTypeNode(t);
 
-export async function createClientSpecs(jsonSpec: string) {
+export async function createClientSpecs(jsonSpec: string, path: string = './client-schema.ts') {
 	const ast = await openapiTS(jsonSpec, {
 		transform(schemaObject, metadata) {
 			if (schemaObject.format === 'date-time') {
 				return schemaObject.nullable ? union(DATE, NULL) : DATE;
 			}
+
 			// string(binary) -> FileLike (| null)
 			if ((schemaObject.type === 'string' && schemaObject.format === 'binary') || schemaObject.format === 'byte') {
 				return schemaObject.nullable ? union(BLOB, NULL) : BLOB;
@@ -27,5 +28,5 @@ export async function createClientSpecs(jsonSpec: string) {
 		},
 	});
 	const contents = astToString(ast);
-	await Bun.write('./client.d.ts', contents);
+	await Bun.write(path, contents);
 }

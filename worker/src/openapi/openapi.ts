@@ -1,6 +1,6 @@
 import { OpenApiBuilder } from 'openapi3-ts/oas31';
 import type { ZodType } from 'zod';
-import type { Method, OARoute, RouteConfig } from '../types';
+import type { OARoute } from '../types';
 import { swaggerPage, scalarPage } from './ui';
 import { OperationBuilder } from './operation.builder';
 import { convert } from './zod';
