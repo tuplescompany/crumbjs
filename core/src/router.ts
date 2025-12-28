@@ -117,7 +117,10 @@ export class Router {
 			const openapiUiPath = buildPath(config.get('openapiBasePath'));
 
 			statics[documentPath] = Response.json(specs);
-			statics[openapiUiPath] = new Response(openapi[config.get('openapiUi')](documentPath));
+            statics[openapiUiPath] = new Response(
+                openapi[config.get('openapiUi')](documentPath),
+                { headers: { 'Content-Type': 'text/html' } }
+            );
 
 			logger.debug(`📘 GET ${documentPath} Registered (static)`);
 			logger.debug(`📘 GET ${openapiUiPath} Registered (static)`);
